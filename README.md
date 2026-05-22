@@ -18,11 +18,12 @@ Implemented:
 - Browser onboarding UI.
 - Onboarding config persistence in a Docker volume.
 - Basic health/status endpoint.
+- Read-only multi-page target health checks.
 - Protection against saving the OpenRouter key value into onboarding JSON.
 
 Not implemented yet:
 
-- Real website monitoring.
+- Continuous website monitoring.
 - Docker or application inspection.
 - OpenRouter model calls.
 - Stack adapters.
@@ -87,6 +88,7 @@ The browser onboarding form currently asks for:
 - Mode: `Self-Hosted Solo Mode` or `Agency Mode`.
 - Site name.
 - Site URL.
+- Health check paths.
 - Owner email.
 - Automation level.
 - OpenRouter key.
@@ -116,6 +118,7 @@ The saved JSON includes:
 - Mode.
 - Site name.
 - Site URL.
+- Health check paths.
 - Owner email.
 - Automation level.
 - Whether an OpenRouter key was provided.
@@ -157,6 +160,9 @@ Protected zones include:
 - Production database schema.
 - Production database data.
 
+Read-only health checks only send HTTP GET requests to the configured site URL
+and same-origin paths saved during onboarding.
+
 ## Local Development
 
 Run the server without Docker:
@@ -169,6 +175,12 @@ Health check:
 
 ```bash
 curl http://127.0.0.1:8766/api/status
+```
+
+Target page health check:
+
+```bash
+curl http://127.0.0.1:8766/api/health
 ```
 
 Syntax check:
@@ -189,6 +201,25 @@ Example:
 curl http://127.0.0.1:8765/api/status
 ```
 
+### `GET /api/health`
+
+Runs read-only HTTP checks against the configured site URL and saved health
+paths.
+
+Example:
+
+```bash
+curl http://127.0.0.1:8765/api/health
+```
+
+The response includes:
+
+- Overall status: `healthy`, `warning`, or `down`.
+- Counts for total, ok, and failing pages.
+- Per-page URL, status code, response time, content type, and error when
+  present.
+- A safety marker confirming read-only mode and no production mutation.
+
 ### `POST /api/onboarding`
 
 Saves onboarding setup.
@@ -204,6 +235,7 @@ curl -X POST http://127.0.0.1:8765/api/onboarding \
     "siteUrl": "https://example.com",
     "ownerEmail": "owner@example.com",
     "automationLevel": "guided-repair",
+    "healthPaths": "/\n/features\n/pricing\n/blog\n/help",
     "openRouterKey": "not-saved"
   }'
 ```
@@ -248,15 +280,13 @@ The data volume is preserved unless you manually remove it.
 
 Next implementation targets:
 
-1. Add target site registration beyond onboarding.
-2. Add read-only health checks.
-3. Add adapter detection for WordPress and Laravel.
-4. Add incident model: Incident, Issue, Action, PolicyDecision, Execution, Validation, AuditEvent.
-5. Add policy-gated safe recovery actions.
-6. Add OpenRouter proposal layer through controlled tools.
-7. Add benchmark lab for Laravel operational recovery and WordPress security patching.
+1. Add scheduled health checks and incident persistence.
+2. Add adapter detection for WordPress and Laravel.
+3. Add incident model: Incident, Issue, Action, PolicyDecision, Execution, Validation, AuditEvent.
+4. Add policy-gated safe recovery actions.
+5. Add OpenRouter proposal layer through controlled tools.
+6. Add benchmark lab for Laravel operational recovery and WordPress security patching.
 
 ## License
 
 Apache-2.0.
-

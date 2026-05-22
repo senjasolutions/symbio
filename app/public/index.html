@@ -13,8 +13,8 @@
         <p class="eyebrow">Symbio local agent</p>
         <h1 id="title">Set up runtime resilience for this server.</h1>
         <p>
-          This prototype starts the browser onboarding flow. It does not monitor
-          or repair production systems yet.
+          This prototype starts the browser onboarding flow and runs read-only
+          page health checks. It does not repair production systems yet.
         </p>
         <div class="trust-note">
           Protected zones stay locked: secrets, auth, billing, payments, and
@@ -41,6 +41,15 @@
           <label>
             Site URL
             <input name="siteUrl" type="url" autocomplete="url" placeholder="https://example.com">
+          </label>
+
+          <label>
+            Health check paths
+            <textarea name="healthPaths" rows="5">/
+/features
+/pricing
+/blog
+/help</textarea>
           </label>
 
           <label>
@@ -75,8 +84,12 @@
           </p>
 
           <button type="submit">Finish setup</button>
+          <button id="health-check-button" class="secondary" type="button">
+            Run health check
+          </button>
         </form>
         <pre id="result" aria-live="polite"></pre>
+        <pre id="health-result" aria-live="polite"></pre>
       </section>
     </main>
 

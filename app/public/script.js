@@ -1,5 +1,7 @@
 const form = document.querySelector("#onboarding-form");
 const result = document.querySelector("#result");
+const healthButton = document.querySelector("#health-check-button");
+const healthResult = document.querySelector("#health-result");
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -26,6 +28,7 @@ form.addEventListener("submit", async (event) => {
         site: payload.config.siteName,
         mode: payload.config.mode,
         automationLevel: payload.config.automationLevel,
+        healthPaths: payload.config.healthPaths,
         protectedZonesLocked: payload.config.protectedZonesLocked,
         openRouterKeyProvided: payload.config.openRouterKeyProvided,
       },
@@ -37,3 +40,20 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
+healthButton.addEventListener("click", async () => {
+  healthResult.textContent = "Checking configured pages...";
+  healthResult.classList.add("is-visible");
+
+  try {
+    const response = await fetch("/api/health");
+    const payload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(payload.error || "Health check failed");
+    }
+
+    healthResult.textContent = JSON.stringify(payload, null, 2);
+  } catch (error) {
+    healthResult.textContent = `Health check failed: ${error.message}`;
+  }
+});

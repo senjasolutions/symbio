@@ -7,6 +7,7 @@ const port = Number(process.env.PORT || 8080);
 const dataDir = process.env.SYMBIO_DATA_DIR || "/data";
 const publicDir = path.join(__dirname, "public");
 const configPath = path.join(dataDir, "onboarding.json");
+const healthTimeoutMs = Number(process.env.SYMBIO_HEALTH_TIMEOUT_MS || 10_000);
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -56,13 +57,115 @@ function validAutomationLevel(value) {
   return allowed.has(value) ? value : "guided-repair";
 }
 
+function normalizeSiteUrl(value) {
+  const raw = safeText(value, 240);
+  if (!raw) return "";
+
+  const url = new URL(raw);
+  if (!["http:", "https:"].includes(url.protocol)) {
+    throw new Error("Site URL must use http or https");
+  }
+
+  url.hash = "";
+  url.username = "";
+  url.password = "";
+  return url.toString().replace(/\/$/, "");
+}
+
+function parseHealthPaths(value) {
+  const rawItems = Array.isArray(value)
+    ? value
+    : safeText(value, 4_000)
+        .split(/[\n,]/)
+        .map((item) => item.trim());
+
+  const seen = new Set();
+  const paths = [];
+
+  for (const item of rawItems) {
+    const text = safeText(item, 240);
+    if (!text) continue;
+
+    const pathOnly = text.startsWith("http://") || text.startsWith("https://")
+      ? new URL(text).pathname + new URL(text).search
+      : text;
+    const normalized = pathOnly.startsWith("/") ? pathOnly : `/${pathOnly}`;
+
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    paths.push(normalized);
+
+    if (paths.length >= 20) break;
+  }
+
+  return paths.length ? paths : ["/"];
+}
+
+function buildTargetUrl(baseUrl, healthPath) {
+  const base = new URL(baseUrl);
+  const target = new URL(healthPath, base);
+
+  if (target.origin !== base.origin) {
+    throw new Error(`Health path must stay on ${base.origin}`);
+  }
+
+  target.hash = "";
+  return target.toString();
+}
+
+async function readConfig() {
+  const file = await fs.readFile(configPath, "utf8");
+  return JSON.parse(file);
+}
+
+async function checkPage(baseUrl, healthPath) {
+  const url = buildTargetUrl(baseUrl, healthPath);
+  const startedAt = performance.now();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), healthTimeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      redirect: "follow",
+      signal: controller.signal,
+      headers: {
+        "user-agent": "Symbio-Agent/0.1 read-only-health-check",
+        accept: "text/html,application/xhtml+xml,application/json;q=0.8,*/*;q=0.5",
+      },
+    });
+
+    await response.body?.cancel();
+
+    return {
+      path: healthPath,
+      url,
+      finalUrl: response.url,
+      ok: response.status >= 200 && response.status < 400,
+      statusCode: response.status,
+      responseMs: Math.round(performance.now() - startedAt),
+      contentType: response.headers.get("content-type") || "",
+    };
+  } catch (error) {
+    return {
+      path: healthPath,
+      url,
+      ok: false,
+      statusCode: null,
+      responseMs: Math.round(performance.now() - startedAt),
+      error: error instanceof Error ? error.message : "Health check failed",
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function handleStatus(response) {
   let configured = false;
   let config = null;
 
   try {
-    const file = await fs.readFile(configPath, "utf8");
-    config = JSON.parse(file);
+    config = await readConfig();
     configured = true;
   } catch {
     configured = false;
@@ -82,6 +185,7 @@ async function handleOnboarding(request, response) {
     const input = JSON.parse(rawBody || "{}");
     const now = new Date().toISOString();
     const openRouterKey = safeText(input.openRouterKey, 512);
+    const siteUrl = normalizeSiteUrl(input.siteUrl);
 
     const config = {
       id: crypto.randomUUID(),
@@ -89,14 +193,15 @@ async function handleOnboarding(request, response) {
       updatedAt: now,
       mode: safeText(input.mode, 64) || "self-hosted-solo",
       siteName: safeText(input.siteName, 120),
-      siteUrl: safeText(input.siteUrl, 240),
+      siteUrl,
       ownerEmail: safeText(input.ownerEmail, 180),
       automationLevel: validAutomationLevel(input.automationLevel),
+      healthPaths: parseHealthPaths(input.healthPaths),
       openRouterKeyProvided: Boolean(openRouterKey),
       openRouterKeyStorage: "not-saved-in-onboarding-json",
       protectedZonesLocked: true,
       nextStep:
-        "Agent runtime is installed. Real monitoring, adapters, and model calls are not implemented in this prototype.",
+        "Agent runtime is installed. Read-only page health checks are available. Real adapters, model calls, and repair actions are not implemented in this prototype.",
     };
 
     await fs.mkdir(dataDir, { recursive: true });
@@ -109,6 +214,45 @@ async function handleOnboarding(request, response) {
     sendJson(response, 400, {
       ok: false,
       error: error instanceof Error ? error.message : "Invalid onboarding request",
+    });
+  }
+}
+
+async function handleHealth(response) {
+  try {
+    const config = await readConfig();
+    const baseUrl = normalizeSiteUrl(config.siteUrl);
+    const paths = parseHealthPaths(config.healthPaths);
+    const checkedAt = new Date().toISOString();
+    const pages = await Promise.all(paths.map((healthPath) => checkPage(baseUrl, healthPath)));
+    const okCount = pages.filter((page) => page.ok).length;
+    const failingCount = pages.length - okCount;
+    const status = failingCount === 0 ? "healthy" : okCount > 0 ? "warning" : "down";
+
+    sendJson(response, 200, {
+      service: "symbio-agent",
+      status,
+      checkedAt,
+      target: {
+        siteName: config.siteName || "",
+        baseUrl,
+      },
+      counts: {
+        total: pages.length,
+        ok: okCount,
+        failing: failingCount,
+      },
+      pages,
+      safety: {
+        mode: "read-only",
+        productionMutation: false,
+        protectedZonesLocked: true,
+      },
+    });
+  } catch (error) {
+    sendJson(response, 400, {
+      ok: false,
+      error: error instanceof Error ? error.message : "Health check failed",
     });
   }
 }
@@ -149,6 +293,11 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  if (request.method === "GET" && request.url === "/api/health") {
+    await handleHealth(response);
+    return;
+  }
+
   if (request.method === "GET") {
     await serveStatic(request, response);
     return;
@@ -161,4 +310,3 @@ const server = http.createServer(async (request, response) => {
 server.listen(port, "0.0.0.0", () => {
   console.log(`Symbio onboarding listening on 0.0.0.0:${port}`);
 });
-
