@@ -81,6 +81,17 @@ http://127.0.0.1:8765
 
 The container runs a dependency-free Node.js HTTP server from `app/server.js`.
 
+## Update Existing Install
+
+From the parent folder that contains the existing `symbio` clone:
+
+```bash
+git -C symbio pull && ./symbio/install.sh
+```
+
+This rebuilds the local image and replaces the running `symbio-agent`
+container while preserving the `symbio-agent-data` Docker volume.
+
 ## Onboarding Flow
 
 The browser onboarding form currently asks for:
