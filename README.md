@@ -1,13 +1,48 @@
-# Symbio Agent Prototype
+# Symbio
 
-First implementation target: one command starts a Docker container and opens a browser-based onboarding flow.
+Open-source AI runtime resilience for web servers.
 
-## Local Install
+Symbio is being built as a self-hosted Docker agent that lives beside a website or web application, helps diagnose failures, prepares safe fixes, and starts from a browser-based onboarding flow.
 
-From this folder:
+This repository currently contains the first implementation slice: a Dockerized local onboarding prototype.
+
+## Current Status
+
+Prototype stage.
+
+Implemented:
+
+- One-command local install script.
+- Docker image build from this repository.
+- Local container named `symbio-agent`.
+- Browser onboarding UI.
+- Onboarding config persistence in a Docker volume.
+- Basic health/status endpoint.
+- Protection against saving the OpenRouter key value into onboarding JSON.
+
+Not implemented yet:
+
+- Real website monitoring.
+- Docker or application inspection.
+- OpenRouter model calls.
+- Stack adapters.
+- Incident diagnosis.
+- Repair proposals.
+- Security patching.
+- Production mutation.
+- Cloud intelligence.
+
+## Install
+
+Prerequisites:
+
+- Docker installed and running on the webserver.
+- Git installed on the webserver.
+
+Run:
 
 ```bash
-./install.sh
+git clone https://github.com/senjasolutions/symbio.git && ./symbio/install.sh
 ```
 
 Default onboarding URL:
@@ -16,18 +51,212 @@ Default onboarding URL:
 http://127.0.0.1:8765
 ```
 
-## What This Prototype Does
+If this is a remote webserver, use SSH port forwarding or expose port `8765` only to trusted networks.
 
-- Builds the local Docker image.
-- Starts one container named `symbio-agent`.
-- Serves an onboarding UI from inside the container.
-- Stores onboarding configuration in the Docker volume `symbio-agent-data`.
-- Keeps the OpenRouter key out of the saved JSON config; v1 expects it to be passed as `OPENROUTER_API_KEY` when real model calls are implemented.
+Example SSH port forwarding:
 
-## What This Prototype Does Not Do Yet
+```bash
+ssh -L 8765:127.0.0.1:8765 user@your-server
+```
 
-- It does not monitor real applications.
-- It does not connect to OpenRouter.
-- It does not mutate files, containers, databases, configs, or dependencies.
-- It does not install a published image from a registry.
+Then open:
+
+```text
+http://127.0.0.1:8765
+```
+
+## What The Installer Does
+
+`install.sh` performs these steps:
+
+1. Checks that Docker is installed and the Docker daemon is reachable.
+2. Builds a local Docker image named `symbio-agent:local`.
+3. Creates a Docker volume named `symbio-agent-data`.
+4. Removes any existing container named `symbio-agent`.
+5. Starts a new `symbio-agent` container.
+6. Maps host port `8765` to container port `8080`.
+7. Prints the onboarding URL.
+8. Attempts to open the onboarding URL when a local browser opener exists.
+
+The container runs a dependency-free Node.js HTTP server from `app/server.js`.
+
+## Onboarding Flow
+
+The browser onboarding form currently asks for:
+
+- Mode: `Self-Hosted Solo Mode` or `Agency Mode`.
+- Site name.
+- Site URL.
+- Owner email.
+- Automation level.
+- OpenRouter key.
+
+The default automation level is `Guided Repair`.
+
+The prototype records whether an OpenRouter key was provided, but it does not save the key value into `onboarding.json`.
+
+## Data Storage
+
+Onboarding data is saved inside the Docker volume:
+
+```text
+symbio-agent-data
+```
+
+Inside the container, the config path is:
+
+```text
+/data/onboarding.json
+```
+
+The saved JSON includes:
+
+- Setup ID.
+- Timestamps.
+- Mode.
+- Site name.
+- Site URL.
+- Owner email.
+- Automation level.
+- Whether an OpenRouter key was provided.
+- Protected-zone lock status.
+
+It does not store:
+
+- OpenRouter key value.
+- Secrets.
+- Environment values.
+- Database data.
+- Source code.
+- Logs.
+
+## Safety Boundaries In This Prototype
+
+This prototype does not mutate production systems.
+
+It does not:
+
+- Edit files.
+- Edit configs.
+- Edit `.env` values.
+- Read or write databases.
+- Upgrade dependencies.
+- Restart target application containers.
+- Run repair commands.
+- Upload logs or source code.
+- Send telemetry to Symbio Cloud.
+
+The onboarding config always marks protected zones as locked.
+
+Protected zones include:
+
+- Secrets.
+- Auth.
+- Billing.
+- Payments.
+- Production database schema.
+- Production database data.
+
+## Local Development
+
+Run the server without Docker:
+
+```bash
+PORT=8766 SYMBIO_DATA_DIR=/tmp/symbio-agent-test npm start
+```
+
+Health check:
+
+```bash
+curl http://127.0.0.1:8766/api/status
+```
+
+Syntax check:
+
+```bash
+npm run check
+```
+
+## API Endpoints
+
+### `GET /api/status`
+
+Returns service health and saved onboarding config when present.
+
+Example:
+
+```bash
+curl http://127.0.0.1:8765/api/status
+```
+
+### `POST /api/onboarding`
+
+Saves onboarding setup.
+
+Example:
+
+```bash
+curl -X POST http://127.0.0.1:8765/api/onboarding \
+  -H 'content-type: application/json' \
+  --data '{
+    "mode": "self-hosted-solo",
+    "siteName": "Example Site",
+    "siteUrl": "https://example.com",
+    "ownerEmail": "owner@example.com",
+    "automationLevel": "guided-repair",
+    "openRouterKey": "not-saved"
+  }'
+```
+
+## Troubleshooting
+
+### Docker daemon is not reachable
+
+If install prints:
+
+```text
+Docker CLI is installed, but the Docker daemon is not reachable.
+```
+
+Start Docker, then rerun:
+
+```bash
+./symbio/install.sh
+```
+
+### Port 8765 is already in use
+
+Choose another host port:
+
+```bash
+SYMBIO_PORT=8877 ./symbio/install.sh
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8877
+```
+
+### Replace the existing container
+
+The installer automatically replaces an existing container named `symbio-agent`.
+
+The data volume is preserved unless you manually remove it.
+
+## Roadmap
+
+Next implementation targets:
+
+1. Add target site registration beyond onboarding.
+2. Add read-only health checks.
+3. Add adapter detection for WordPress and Laravel.
+4. Add incident model: Incident, Issue, Action, PolicyDecision, Execution, Validation, AuditEvent.
+5. Add policy-gated safe recovery actions.
+6. Add OpenRouter proposal layer through controlled tools.
+7. Add benchmark lab for Laravel operational recovery and WordPress security patching.
+
+## License
+
+Apache-2.0.
 
