@@ -1,0 +1,11 @@
+{
+  "name": "symbio-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Symbio local agent prototype with browser onboarding.",
+  "scripts": {
+    "start": "node app/server.js",
+    "check": "node --check app/server.js"
+  },
+  "license": "Apache-2.0"
+}

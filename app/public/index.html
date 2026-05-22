@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Symbio Onboarding</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23070706'/%3E%3Cpath d='M7 7h18v18H7z' fill='%2363e6a3'/%3E%3Cpath d='M12 12h8v8h-8z' fill='%23070706'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="intro" aria-labelledby="title">
+        <p class="eyebrow">Symbio local agent</p>
+        <h1 id="title">Set up runtime resilience for this server.</h1>
+        <p>
+          This prototype starts the browser onboarding flow. It does not monitor
+          or repair production systems yet.
+        </p>
+        <div class="trust-note">
+          Protected zones stay locked: secrets, auth, billing, payments, and
+          production databases.
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="form-title">
+        <h2 id="form-title">Onboarding</h2>
+        <form id="onboarding-form">
+          <label>
+            Mode
+            <select name="mode">
+              <option value="self-hosted-solo">Self-Hosted Solo Mode</option>
+              <option value="agency">Agency Mode</option>
+            </select>
+          </label>
+
+          <label>
+            Site name
+            <input name="siteName" autocomplete="organization" placeholder="Example Site">
+          </label>
+
+          <label>
+            Site URL
+            <input name="siteUrl" type="url" autocomplete="url" placeholder="https://example.com">
+          </label>
+
+          <label>
+            Owner email
+            <input name="ownerEmail" type="email" autocomplete="email" placeholder="owner@example.com">
+          </label>
+
+          <label>
+            Automation level
+            <select name="automationLevel">
+              <option value="observe">Observe Only</option>
+              <option value="safe-recovery">Safe Recovery</option>
+              <option value="guided-repair" selected>Guided Repair</option>
+              <option value="trusted-auto-repair">Trusted Auto-Repair</option>
+              <option value="full-autopilot">Full Autopilot</option>
+            </select>
+          </label>
+
+          <label>
+            OpenRouter key
+            <input
+              name="openRouterKey"
+              type="password"
+              autocomplete="off"
+              placeholder="Optional for this prototype"
+            >
+          </label>
+
+          <p class="field-note">
+            The prototype records whether a key was provided, but does not save
+            the key value into onboarding JSON.
+          </p>
+
+          <button type="submit">Finish setup</button>
+        </form>
+        <pre id="result" aria-live="polite"></pre>
+      </section>
+    </main>
+
+    <script src="./script.js"></script>
+  </body>
+</html>
