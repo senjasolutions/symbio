@@ -2,6 +2,8 @@ const form = document.querySelector("#onboarding-form");
 const result = document.querySelector("#result");
 const healthButton = document.querySelector("#health-check-button");
 const healthResult = document.querySelector("#health-result");
+const capabilitiesButton = document.querySelector("#capabilities-button");
+const capabilitiesResult = document.querySelector("#capabilities-result");
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -28,7 +30,14 @@ form.addEventListener("submit", async (event) => {
         site: payload.config.siteName,
         mode: payload.config.mode,
         automationLevel: payload.config.automationLevel,
+        accessProfile: payload.config.accessProfile,
         healthPaths: payload.config.healthPaths,
+        repoPaths: payload.config.repoPaths,
+        logPaths: payload.config.logPaths,
+        configPaths: payload.config.configPaths,
+        databaseAccess: payload.config.databaseAccess,
+        dockerSocketRequested: payload.config.dockerSocketRequested,
+        productionMutationImplemented: payload.config.productionMutationImplemented,
         protectedZonesLocked: payload.config.protectedZonesLocked,
         openRouterKeyProvided: payload.config.openRouterKeyProvided,
       },
@@ -37,6 +46,24 @@ form.addEventListener("submit", async (event) => {
     );
   } catch (error) {
     result.textContent = `Setup failed: ${error.message}`;
+  }
+});
+
+capabilitiesButton.addEventListener("click", async () => {
+  capabilitiesResult.textContent = "Reading configured capabilities...";
+  capabilitiesResult.classList.add("is-visible");
+
+  try {
+    const response = await fetch("/api/capabilities");
+    const payload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(payload.error || "Capabilities are not configured");
+    }
+
+    capabilitiesResult.textContent = JSON.stringify(payload, null, 2);
+  } catch (error) {
+    capabilitiesResult.textContent = `Capabilities failed: ${error.message}`;
   }
 });
 

@@ -8,6 +8,12 @@ const dataDir = process.env.SYMBIO_DATA_DIR || "/data";
 const publicDir = path.join(__dirname, "public");
 const configPath = path.join(dataDir, "onboarding.json");
 const healthTimeoutMs = Number(process.env.SYMBIO_HEALTH_TIMEOUT_MS || 10_000);
+const hostMounts = {
+  repos: "/host/repos",
+  logs: "/host/logs",
+  configs: "/host/configs",
+  dockerSocket: "/var/run/docker.sock",
+};
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -57,6 +63,16 @@ function validAutomationLevel(value) {
   return allowed.has(value) ? value : "guided-repair";
 }
 
+function validAccessProfile(value) {
+  const allowed = new Set(["external-observer", "internal-observer", "guided-devops"]);
+  return allowed.has(value) ? value : "internal-observer";
+}
+
+function validDatabaseAccess(value) {
+  const allowed = new Set(["none", "read-only", "approval-gated"]);
+  return allowed.has(value) ? value : "none";
+}
+
 function normalizeSiteUrl(value) {
   const raw = safeText(value, 240);
   if (!raw) return "";
@@ -101,6 +117,30 @@ function parseHealthPaths(value) {
   return paths.length ? paths : ["/"];
 }
 
+function parseHostPaths(value) {
+  const rawItems = Array.isArray(value)
+    ? value
+    : safeText(value, 4_000)
+        .split(/[\n,]/)
+        .map((item) => item.trim());
+
+  const seen = new Set();
+  const paths = [];
+
+  for (const item of rawItems) {
+    const text = safeText(item, 260);
+    if (!text || !text.startsWith("/")) continue;
+    if (text.includes("\0")) continue;
+    if (seen.has(text)) continue;
+    seen.add(text);
+    paths.push(text);
+
+    if (paths.length >= 20) break;
+  }
+
+  return paths;
+}
+
 function buildTargetUrl(baseUrl, healthPath) {
   const base = new URL(baseUrl);
   const target = new URL(healthPath, base);
@@ -116,6 +156,24 @@ function buildTargetUrl(baseUrl, healthPath) {
 async function readConfig() {
   const file = await fs.readFile(configPath, "utf8");
   return JSON.parse(file);
+}
+
+async function pathExists(targetPath) {
+  try {
+    await fs.access(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function socketExists(targetPath) {
+  try {
+    const stat = await fs.stat(targetPath);
+    return stat.isSocket();
+  } catch {
+    return false;
+  }
 }
 
 async function checkPage(baseUrl, healthPath) {
@@ -186,6 +244,7 @@ async function handleOnboarding(request, response) {
     const now = new Date().toISOString();
     const openRouterKey = safeText(input.openRouterKey, 512);
     const siteUrl = normalizeSiteUrl(input.siteUrl);
+    const accessProfile = validAccessProfile(input.accessProfile);
 
     const config = {
       id: crypto.randomUUID(),
@@ -196,12 +255,19 @@ async function handleOnboarding(request, response) {
       siteUrl,
       ownerEmail: safeText(input.ownerEmail, 180),
       automationLevel: validAutomationLevel(input.automationLevel),
+      accessProfile,
       healthPaths: parseHealthPaths(input.healthPaths),
+      repoPaths: parseHostPaths(input.repoPaths),
+      logPaths: parseHostPaths(input.logPaths),
+      configPaths: parseHostPaths(input.configPaths),
+      dockerSocketRequested: Boolean(input.dockerSocketRequested),
+      databaseAccess: validDatabaseAccess(input.databaseAccess),
       openRouterKeyProvided: Boolean(openRouterKey),
       openRouterKeyStorage: "not-saved-in-onboarding-json",
       protectedZonesLocked: true,
+      productionMutationImplemented: false,
       nextStep:
-        "Agent runtime is installed. Read-only page health checks are available. Real adapters, model calls, and repair actions are not implemented in this prototype.",
+        "Agent runtime is installed. Read-only page health checks and internal access planning are available. Real adapters, model calls, and repair actions are not implemented in this prototype.",
     };
 
     await fs.mkdir(dataDir, { recursive: true });
@@ -214,6 +280,55 @@ async function handleOnboarding(request, response) {
     sendJson(response, 400, {
       ok: false,
       error: error instanceof Error ? error.message : "Invalid onboarding request",
+    });
+  }
+}
+
+async function handleCapabilities(response) {
+  try {
+    const config = await readConfig();
+    const mounts = {
+      repos: await pathExists(hostMounts.repos),
+      logs: await pathExists(hostMounts.logs),
+      configs: await pathExists(hostMounts.configs),
+      dockerSocket: await socketExists(hostMounts.dockerSocket),
+    };
+
+    sendJson(response, 200, {
+      service: "symbio-agent",
+      status: "configured",
+      accessProfile: config.accessProfile || "internal-observer",
+      configuredTargets: {
+        repoPaths: Array.isArray(config.repoPaths) ? config.repoPaths : [],
+        logPaths: Array.isArray(config.logPaths) ? config.logPaths : [],
+        configPaths: Array.isArray(config.configPaths) ? config.configPaths : [],
+        dockerSocketRequested: Boolean(config.dockerSocketRequested),
+        databaseAccess: config.databaseAccess || "none",
+      },
+      detectedMounts: mounts,
+      implementedCapabilities: {
+        onboarding: true,
+        readOnlyHttpHealthChecks: true,
+        internalAccessInventory: true,
+        logInspection: false,
+        repositoryInspection: false,
+        dockerInspection: false,
+        codeMutation: false,
+        configMutation: false,
+        dataMutation: false,
+        repairExecution: false,
+      },
+      safety: {
+        productionMutation: false,
+        directShell: false,
+        directDatabaseWrites: false,
+        protectedZonesLocked: true,
+      },
+    });
+  } catch (error) {
+    sendJson(response, 400, {
+      ok: false,
+      error: error instanceof Error ? error.message : "Capabilities are not configured",
     });
   }
 }
@@ -295,6 +410,11 @@ const server = http.createServer(async (request, response) => {
 
   if (request.method === "GET" && request.url === "/api/health") {
     await handleHealth(response);
+    return;
+  }
+
+  if (request.method === "GET" && request.url === "/api/capabilities") {
+    await handleCapabilities(response);
     return;
   }
 

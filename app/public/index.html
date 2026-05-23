@@ -13,8 +13,9 @@
         <p class="eyebrow">Symbio local agent</p>
         <h1 id="title">Set up runtime resilience for this server.</h1>
         <p>
-          This prototype starts the browser onboarding flow and runs read-only
-          page health checks. It does not repair production systems yet.
+          This prototype starts the browser onboarding flow, records internal
+          access targets, and runs read-only page health checks. It does not
+          repair production systems yet.
         </p>
         <div class="trust-note">
           Protected zones stay locked: secrets, auth, billing, payments, and
@@ -30,6 +31,15 @@
             <select name="mode">
               <option value="self-hosted-solo">Self-Hosted Solo Mode</option>
               <option value="agency">Agency Mode</option>
+            </select>
+          </label>
+
+          <label>
+            Access profile
+            <select name="accessProfile">
+              <option value="external-observer">External Observer</option>
+              <option value="internal-observer" selected>Internal Observer</option>
+              <option value="guided-devops">Guided DevOps</option>
             </select>
           </label>
 
@@ -50,6 +60,35 @@
 /pricing
 /blog
 /help</textarea>
+          </label>
+
+          <label>
+            Repository paths
+            <textarea name="repoPaths" rows="3" placeholder="/host/repos/my-site"></textarea>
+          </label>
+
+          <label>
+            Log paths
+            <textarea name="logPaths" rows="3" placeholder="/host/logs/nginx&#10;/host/logs/app"></textarea>
+          </label>
+
+          <label>
+            Config paths
+            <textarea name="configPaths" rows="3" placeholder="/host/configs/nginx"></textarea>
+          </label>
+
+          <label>
+            Database access
+            <select name="databaseAccess">
+              <option value="none" selected>None</option>
+              <option value="read-only">Read-only</option>
+              <option value="approval-gated">Approval-gated</option>
+            </select>
+          </label>
+
+          <label class="checkbox-label">
+            <input name="dockerSocketRequested" type="checkbox" value="true">
+            Docker socket requested
           </label>
 
           <label>
@@ -87,9 +126,13 @@
           <button id="health-check-button" class="secondary" type="button">
             Run health check
           </button>
+          <button id="capabilities-button" class="secondary" type="button">
+            Show capabilities
+          </button>
         </form>
         <pre id="result" aria-live="polite"></pre>
         <pre id="health-result" aria-live="polite"></pre>
+        <pre id="capabilities-result" aria-live="polite"></pre>
       </section>
     </main>
 

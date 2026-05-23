@@ -2,7 +2,7 @@
 
 Open-source AI runtime resilience for web servers.
 
-Symbio is being built as a self-hosted Docker agent that lives beside a website or web application, helps diagnose failures, prepares safe fixes, and starts from a browser-based onboarding flow.
+Symbio is being built as a self-hosted Docker agent that lives beside a website or web application, observes the webserver from inside the machine, helps diagnose failures, prepares safe fixes, and starts from a browser-based onboarding flow.
 
 This repository currently contains the first implementation slice: a Dockerized local onboarding prototype.
 
@@ -19,12 +19,16 @@ Implemented:
 - Onboarding config persistence in a Docker volume.
 - Basic health/status endpoint.
 - Read-only multi-page target health checks.
+- Internal access target configuration for repositories, logs, configs, Docker, and database access policy.
+- Capability reporting endpoint.
 - Protection against saving the OpenRouter key value into onboarding JSON.
 
 Not implemented yet:
 
 - Continuous website monitoring.
 - Docker or application inspection.
+- Repository inspection.
+- Log inspection.
 - OpenRouter model calls.
 - Stack adapters.
 - Incident diagnosis.
@@ -81,6 +85,24 @@ http://127.0.0.1:8765
 
 The container runs a dependency-free Node.js HTTP server from `app/server.js`.
 
+Optional host access mounts:
+
+```bash
+SYMBIO_REPOS_PATH=/srv/www \
+SYMBIO_LOGS_PATH=/var/log \
+SYMBIO_CONFIGS_PATH=/etc/nginx \
+./install.sh
+```
+
+Optional Docker socket access:
+
+```bash
+SYMBIO_ENABLE_DOCKER_SOCKET=1 ./install.sh
+```
+
+Docker socket access is high risk because it can imply host-level control. Use
+it only for trusted local testing until the policy executor is implemented.
+
 ## Update Existing Install
 
 From the parent folder that contains the existing `symbio` clone:
@@ -97,9 +119,15 @@ container while preserving the `symbio-agent-data` Docker volume.
 The browser onboarding form currently asks for:
 
 - Mode: `Self-Hosted Solo Mode` or `Agency Mode`.
+- Access profile.
 - Site name.
 - Site URL.
 - Health check paths.
+- Repository paths.
+- Log paths.
+- Config paths.
+- Database access policy.
+- Docker socket request.
 - Owner email.
 - Automation level.
 - OpenRouter key.
@@ -127,9 +155,15 @@ The saved JSON includes:
 - Setup ID.
 - Timestamps.
 - Mode.
+- Access profile.
 - Site name.
 - Site URL.
 - Health check paths.
+- Repository paths.
+- Log paths.
+- Config paths.
+- Database access policy.
+- Docker socket request.
 - Owner email.
 - Automation level.
 - Whether an OpenRouter key was provided.
@@ -174,6 +208,9 @@ Protected zones include:
 Read-only health checks only send HTTP GET requests to the configured site URL
 and same-origin paths saved during onboarding.
 
+Internal access configuration records intended repository, log, config, Docker,
+and database access boundaries. It does not yet inspect or mutate those targets.
+
 ## Local Development
 
 Run the server without Docker:
@@ -192,6 +229,12 @@ Target page health check:
 
 ```bash
 curl http://127.0.0.1:8766/api/health
+```
+
+Capability check:
+
+```bash
+curl http://127.0.0.1:8766/api/capabilities
 ```
 
 Syntax check:
@@ -231,6 +274,17 @@ The response includes:
   present.
 - A safety marker confirming read-only mode and no production mutation.
 
+### `GET /api/capabilities`
+
+Returns configured internal access targets, detected container mounts, and the
+capabilities that are implemented versus still disabled.
+
+Example:
+
+```bash
+curl http://127.0.0.1:8765/api/capabilities
+```
+
 ### `POST /api/onboarding`
 
 Saves onboarding setup.
@@ -246,7 +300,13 @@ curl -X POST http://127.0.0.1:8765/api/onboarding \
     "siteUrl": "https://example.com",
     "ownerEmail": "owner@example.com",
     "automationLevel": "guided-repair",
+    "accessProfile": "internal-observer",
     "healthPaths": "/\n/features\n/pricing\n/blog\n/help",
+    "repoPaths": "/host/repos/example-site",
+    "logPaths": "/host/logs/nginx\n/host/logs/app",
+    "configPaths": "/host/configs/nginx",
+    "databaseAccess": "none",
+    "dockerSocketRequested": false,
     "openRouterKey": "not-saved"
   }'
 ```
@@ -292,11 +352,13 @@ The data volume is preserved unless you manually remove it.
 Next implementation targets:
 
 1. Add scheduled health checks and incident persistence.
-2. Add adapter detection for WordPress and Laravel.
-3. Add incident model: Incident, Issue, Action, PolicyDecision, Execution, Validation, AuditEvent.
-4. Add policy-gated safe recovery actions.
-5. Add OpenRouter proposal layer through controlled tools.
-6. Add benchmark lab for Laravel operational recovery and WordPress security patching.
+2. Add read-only repository, log, Docker, and service inspection.
+3. Add adapter detection for WordPress and Laravel.
+4. Add incident model: Incident, Issue, Action, PolicyDecision, Execution, Validation, AuditEvent.
+5. Add policy-gated safe recovery actions.
+6. Add safe workspace patch generation.
+7. Add OpenRouter proposal layer through controlled tools.
+8. Add benchmark lab for Laravel operational recovery and WordPress security patching.
 
 ## License
 

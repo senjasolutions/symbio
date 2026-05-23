@@ -95,6 +95,18 @@ label {
   text-transform: uppercase;
 }
 
+.checkbox-label {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.checkbox-label input {
+  accent-color: var(--green);
+  min-height: auto;
+  width: 18px;
+}
+
 input,
 select,
 textarea {
