@@ -1,3 +1,26 @@
-<!-- Phase 1 settings truthfully shows English as the only available language. -->
-<p class="text-secondary small text-uppercase mb-1">Symbio</p><h1 class="h3 mb-3">Settings</h1>
-<section class="card"><div class="card-header"><strong>General</strong></div><div class="card-body"><label class="form-label" for="language">Language</label><select class="form-select" id="language" disabled><option selected>{{language}}</option></select><p class="form-text mb-0">English is the only language available in Phase 1. Additional settings are planned.</p></div></section>
+<!-- Settings page with SSR-driven tabs: General, User Management, LLM Integration. -->
+<p class="text-secondary small text-uppercase mb-1">Symbio</p><h1 class="h3 mb-3">{{#t}}settings.title{{/t}}</h1>
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item"><a class="nav-link{{#tabGeneral}} active{{/tabGeneral}}" href="?tab=general"><i class="fa-solid fa-sliders me-1" aria-hidden="true"></i> {{#t}}settings.general{{/t}}</a></li>
+  <li class="nav-item"><a class="nav-link{{#tabUsers}} active{{/tabUsers}}" href="?tab=users"><i class="fa-solid fa-users me-1" aria-hidden="true"></i> {{#t}}settings.users{{/t}}</a></li>
+  <li class="nav-item"><a class="nav-link{{#tabLlm}} active{{/tabLlm}}" href="?tab=llm"><i class="fa-solid fa-brain me-1" aria-hidden="true"></i> {{#t}}settings.llm{{/t}}</a></li>
+</ul>
+
+{{#tabGeneral}}
+<section class="card"><div class="card-header"><strong>{{#t}}settings.general{{/t}}</strong></div><div class="card-body"><label class="form-label">{{#t}}settings.serverTimezone{{/t}}</label><input class="form-control" value="{{serverTimezone}}" disabled><p class="form-text mb-0">{{#t}}settings.serverTimezoneHelp{{/t}}</p></div></section>
+{{/tabGeneral}}
+
+{{#tabUsers}}
+{{#isSuperadmin}}
+<section class="card"><div class="card-header d-flex justify-content-between align-items-center"><strong><i class="fa-solid fa-users me-1" aria-hidden="true"></i> {{#t}}settings.users{{/t}}</strong><a class="btn btn-primary btn-sm" href="/settings/users/create"><i class="fa-solid fa-plus me-1" aria-hidden="true"></i> {{#t}}settings.createUser{{/t}}</a></div>{{#users.length}}<div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>{{#t}}settings.username{{/t}}</th><th>{{#t}}settings.displayName{{/t}}</th><th>{{#t}}settings.email{{/t}}</th><th>{{#t}}settings.role{{/t}}</th><th></th></tr></thead><tbody>{{#users}}<tr><td><strong>{{username}}</strong></td><td>{{displayName}}</td><td>{{email}}</td><td>{{#isSuperadmin}}<span class="badge text-bg-warning">{{#t}}settings.superadmin{{/t}}</span>{{/isSuperadmin}}{{^isSuperadmin}}<span class="badge text-bg-info">{{#t}}settings.admin{{/t}}</span>{{/isSuperadmin}}</td><td class="text-end">{{#isSuperadmin}}<small class="text-secondary">{{#t}}settings.protected{{/t}}</small>{{/isSuperadmin}}{{^isSuperadmin}}<a class="btn btn-outline-primary btn-sm me-1" href="/settings/users/{{id}}/edit">{{#t}}settings.edit{{/t}}</a><form class="d-inline" method="post" action="/settings/users/{{id}}/delete" onsubmit="return confirm('Delete user {{username}}?')"><input type="hidden" name="_csrf" value="{{csrfToken}}"><button class="btn btn-outline-danger btn-sm" type="submit">{{#t}}settings.delete{{/t}}</button></form>{{/isSuperadmin}}</td></tr>{{/users}}</tbody></table></div>{{/users.length}}{{^users.length}}<div class="card-body text-secondary">{{#t}}settings.noUsers{{/t}}</div>{{/users.length}}</section>
+{{/isSuperadmin}}
+{{^isSuperadmin}}
+<section class="card"><div class="card-body text-secondary"><i class="fa-solid fa-lock me-1" aria-hidden="true"></i> {{#t}}settings.restrictedMessage{{/t}}</div></section>
+{{/isSuperadmin}}
+{{/tabUsers}}
+
+{{#tabLlm}}
+{{#llmSaved}}<div class="alert alert-success"><i class="fa-solid fa-check me-1" aria-hidden="true"></i> {{#t}}settings.llmSaved{{/t}}</div>{{/llmSaved}}
+{{#llmError}}<div class="alert alert-danger">{{llmError}}</div>{{/llmError}}
+<form class="card" method="post" action="/settings/llm/save"><input type="hidden" name="_csrf" value="{{csrfToken}}"><div class="card-header"><strong><i class="fa-solid fa-brain me-1" aria-hidden="true"></i> {{#t}}settings.llm{{/t}}</strong></div><div class="card-body"><div class="mb-3"><label class="form-label" for="provider">{{#t}}settings.llmProvider{{/t}}</label><select class="form-select" id="provider" name="provider"><option value="openai"{{#llmConfig.providerIsOpenai}} selected{{/llmConfig.providerIsOpenai}}>OpenAI</option><option value="anthropic"{{#llmConfig.providerIsAnthropic}} selected{{/llmConfig.providerIsAnthropic}}>Anthropic</option><option value="deepseek"{{#llmConfig.providerIsDeepseek}} selected{{/llmConfig.providerIsDeepseek}}>DeepSeek</option></select></div><div class="mb-3"><label class="form-label" for="secretKey">{{#t}}settings.llmSecretKey{{/t}}</label><input class="form-control" id="secretKey" name="secretKey" type="password" value="{{llmConfig.secretKey}}" placeholder="{{#t}}settings.llmSecretKeyPlaceholder{{/t}}" autocomplete="off"><div class="form-text">{{#t}}settings.llmSecretKeyHelp{{/t}}</div></div><div class="mb-3"><label class="form-label" for="endpoint">{{#t}}settings.llmEndpoint{{/t}} <small class="text-secondary">{{#t}}settings.llmEndpointOptional{{/t}}</small></label><input class="form-control" id="endpoint" name="endpoint" type="url" value="{{llmConfig.endpoint}}" placeholder="{{#t}}settings.llmEndpointPlaceholder{{/t}}"><div class="form-text">{{#t}}settings.llmEndpointHelp{{/t}} {{#t}}settings.llmDefaults{{/t}}: <code>https://api.openai.com/v1</code> (OpenAI), <code>https://api.anthropic.com/v1</code> (Anthropic), <code>https://api.deepseek.com/v1</code> (DeepSeek).</div></div></div><div class="card-footer"><button class="btn btn-primary" type="submit"><i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i> {{#t}}settings.llmSave{{/t}}</button></div></form>
+{{/tabLlm}}

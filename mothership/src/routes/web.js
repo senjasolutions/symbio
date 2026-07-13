@@ -8,9 +8,10 @@ import { Op, QueryTypes } from "sequelize";
 import { createSession, destroySession, requireApiAuth, requireAuth, requireCsrf, resolveSession } from "../lib/auth.js";
 import { bucketSeries, chartRange, renderLineChart } from "../lib/charts.js";
 import { formatBytes, formatPercent, formatUptime, rollingAverage } from "../lib/format.js";
-import { renderPage } from "../lib/render.js";
+import { renderPage, resolveI18n } from "../lib/render.js";
+import { LANGUAGE_CHOICES } from "../lib/i18n.js";
 import { clearLoginFailures, loginAllowed, recordLoginFailure, requestAddress } from "../lib/security.js";
-import { verifyPassword } from "../lib/password.js";
+import { hashPassword, verifyPassword } from "../lib/password.js";
 import { models, sequelize } from "../db/index.js";
 import { readApplicationLog, searchApplicationLog } from "../services/agent-log.service.js";
 import { listDirectory, readFile, getDirectoryTree, viewFile } from "../services/file-manager.service.js";
@@ -239,6 +240,8 @@ protectedRoutes.get("/dashboard", async (context) => {
   const state = serverState(agent?.lastSeenAt);
   const decoratedServices = decorateStatuses(services);
   const decoratedApplications = decorateStatuses(applications);
+  // 6-hour chart range matching the dashboard history window
+  const sixHourRange = { key: "6h", label: "6 hours", milliseconds: 6 * 60 * 60 * 1000, bucketMs: 5 * 60 * 1000 };
   return renderPage(context, "dashboard", {
     server: server?.toJSON(), state, stateClass: statusClass(state),
     // The dashboard symbol makes current reachability readable without relying on color.
@@ -253,6 +256,9 @@ protectedRoutes.get("/dashboard", async (context) => {
     serviceOperational: decoratedServices.filter((item) => item.status === "operational").length,
     applicationUp: decoratedApplications.filter((item) => item.status === "up").length,
     applicationTotal: decoratedApplications.length,
+    cpuChart: renderLineChart([{ name: "CPU average", points: bucketSeries(history, "cpuPercent", sixHourRange) }], "CPU usage (last 6 hours)", "%"),
+    memoryChart: renderLineChart([{ name: "Memory", points: bucketSeries(history, "memoryPercent", sixHourRange) }], "Memory usage (last 6 hours)", "%"),
+    diskChart: renderLineChart([{ name: "Root disk", points: bucketSeries(history, "diskPercent", sixHourRange) }], "Disk usage (last 6 hours)", "%"),
   }, { title: "Dashboard — Symbio" });
 });
 
@@ -315,11 +321,14 @@ protectedRoutes.get("/servers/:id/resource-charts", async (context) => {
   const range = chartRange(context.req.query("range"));
   const since = new Date(Date.now() - range.milliseconds);
   const history = await models.ServerStatus.findAll({ where: { serverId: server.id, observedAt: { [Op.gte]: since } }, order: [["observedAt", "ASC"]], raw: true });
+  // Fix the Y-axis max to total capacity so the chart shows actual proportion of usage
+  const memoryMaxGB = history.length ? ((history[0].memoryTotalBytes || 1) / (1024 * 1024 * 1024)) : 1;
+  const diskMaxGB = history.length ? ((history[0].diskTotalBytes || 1) / (1024 * 1024 * 1024)) : 1;
   return renderPage(context, "server-resource-charts", {
     server, range,
     cpuChart: renderLineChart([{ name: "CPU average", points: bucketSeries(history, "cpuPercent", range) }, ...Array.from(new Set(history.flatMap((row) => parseArray(row.cpuCoresJson).map((core) => core.id)))).map((id) => ({ name: id, points: bucketSeries(history.map((row) => ({ observedAt: row.observedAt, value: parseArray(row.cpuCoresJson).find((core) => core.id === id)?.percent })), "value", range) }))], "CPU usage", "%"),
-    memoryChart: renderLineChart([{ name: "Memory", points: bucketSeries(history, "memoryPercent", range) }], "Memory usage", "%"),
-    diskChart: renderLineChart([{ name: "Root storage", points: bucketSeries(history, "diskPercent", range) }], "Disk usage", "%"),
+    memoryChart: renderLineChart([{ name: "Memory", points: bucketSeries(history.map((row) => ({ observedAt: row.observedAt, value: (row.memoryUsedBytes || 0) / (1024 * 1024 * 1024) })), "value", range) }], "Memory usage", " GB", { max: memoryMaxGB }),
+    diskChart: renderLineChart([{ name: "Root storage", points: bucketSeries(history.map((row) => ({ observedAt: row.observedAt, value: (row.diskUsedBytes || 0) / (1024 * 1024 * 1024) })), "value", range) }], "Disk usage", " GB", { max: diskMaxGB }),
   }, { title: "Resource Usage Charts — Symbio" });
 });
 
@@ -623,6 +632,7 @@ protectedRoutes.get("/servers/:serverId/services/:serviceId", async (context) =>
   return renderPage(context, template, {
     service: { ...service.toJSON(), serviceIcon: component?.icon || "fa-solid fa-server" }, latest, range,
     recent: decorateStatuses(statuses.slice(0, 20)),
+    ...extraData,
     containers: extraData.containers || [],
     volumes: extraData.volumes || [],
     networks: extraData.networks || [],
@@ -664,7 +674,12 @@ protectedRoutes.get("/servers/:serverId/services/:serviceId/edit", async (contex
   if (!service || service.serverId !== server.id) return context.notFound();
   let configuration = {};
   try { configuration = JSON.parse(service.configuration || "{}"); } catch { configuration = {}; }
-  return renderPage(context, "service-form", { service: { ...service.toJSON(), ...configuration }, error: context.req.query("error") }, { title: `Edit ${service.displayName} — Symbio` });
+  return renderPage(context, "service-form", {
+    service: { ...service.toJSON(), ...configuration },
+    error: context.req.query("error"),
+    isDatabase: service.type === "mysql" || service.type === "postgresql",
+    isHttpProbe: service.type === "nginx" || service.type === "apache",
+  }, { title: `Edit ${service.displayName} — Symbio` });
 });
 
 protectedRoutes.post("/servers/:serverId/services/:serviceId/edit", requireCsrf, async (context) => {
@@ -678,6 +693,8 @@ protectedRoutes.post("/servers/:serverId/services/:serviceId/edit", requireCsrf,
     if (String(form.host || "").trim()) configuration.host = String(form.host).trim().slice(0, 255);
     if (form.port) configuration.port = integerInRange(form.port, null, 1, 65535);
     if (String(form.probeUrl || "").trim()) configuration.probeUrl = normalizeHttpUrl(form.probeUrl);
+    if (String(form.username || "").trim()) configuration.username = String(form.username).trim().slice(0, 64);
+    if (String(form.password || "").length) configuration.password = String(form.password).slice(0, 255);
     service.enabled = form.enabled === "1";
     service.configuration = JSON.stringify(configuration);
     await sequelize.transaction(async (transaction) => {
@@ -708,29 +725,38 @@ protectedRoutes.get("/servers/:serverId/services/:serviceId/mysql/databases/:db/
   }, { title: `${db} — MySQL — Symbio` });
 });
 
-/** Browses data from a MySQL table. */
+/** Browses data from a MySQL table with pagination and search. */
 protectedRoutes.get("/servers/:serverId/services/:serviceId/mysql/databases/:db/tables/:table/browse", async (context) => {
   const service = await models.ServerService.findByPk(context.req.param("serviceId"));
   if (!service || service.type !== "mysql") return context.notFound();
   const db = context.req.param("db");
   const table = context.req.param("table");
+  const page = Math.max(1, parseInt(context.req.query("page") || "1", 10) || 1);
+  const search = context.req.query("search") || "";
   const { fetchMySQLBrowse } = await import("../services/mysql.service.js");
   let columns = [];
   let rows = [];
+  let total = 0;
   let error = "";
   try {
-    const data = await fetchMySQLBrowse(db, table);
+    const data = await fetchMySQLBrowse(db, table, page, search);
     columns = data.columns || [];
-    // Transform rows from objects to ordered arrays matching columns
+    total = data.total || 0;
     const rawRows = data.rows || [];
     rows = rawRows.map((row) => columns.map((col) => {
       const val = row[col];
       return val === null ? "NULL" : val instanceof Date ? val.toISOString() : String(val);
     }));
   } catch (caught) { error = caught.message; }
+  const totalPages = Math.max(1, Math.ceil(total / 100));
+  const hasPrev = page > 1;
+  const hasNext = page < totalPages;
+  const prevPage = page - 1;
+  const nextPage = page + 1;
   return renderPage(context, "components/services/mysql-browse", {
     service: { ...service.toJSON(), serviceIcon: "fa-solid fa-database" },
     dbName: db, tableName: table, columns, rows, error,
+    page, search, total, totalPages, perPage: 100, hasPrev, hasNext, prevPage, nextPage,
   }, { title: `${table} — ${db} — MySQL — Symbio` });
 });
 
@@ -752,29 +778,39 @@ protectedRoutes.get("/servers/:serverId/services/:serviceId/postgresql/databases
   }, { title: `${db} — PostgreSQL — Symbio` });
 });
 
-/** Browses data from a PostgreSQL table. */
+/** Browses data from a PostgreSQL table with pagination and search. */
 protectedRoutes.get("/servers/:serverId/services/:serviceId/postgresql/databases/:db/schemas/:schema/tables/:table/browse", async (context) => {
   const service = await models.ServerService.findByPk(context.req.param("serviceId"));
   if (!service || service.type !== "postgresql") return context.notFound();
   const db = context.req.param("db");
   const schema = context.req.param("schema");
   const table = context.req.param("table");
+  const page = Math.max(1, parseInt(context.req.query("page") || "1", 10) || 1);
+  const search = context.req.query("search") || "";
   const { fetchPGBrowse } = await import("../services/postgresql.service.js");
   let columns = [];
   let rows = [];
+  let total = 0;
   let error = "";
   try {
-    const data = await fetchPGBrowse(db, schema, table);
+    const data = await fetchPGBrowse(db, schema, table, page, search);
     columns = data.columns || [];
+    total = data.total || 0;
     const rawRows = data.rows || [];
     rows = rawRows.map((row) => columns.map((col) => {
       const val = row[col];
       return val === null ? "NULL" : val instanceof Date ? val.toISOString() : String(val);
     }));
   } catch (caught) { error = caught.message; }
+  const totalPages = Math.max(1, Math.ceil(total / 100));
+  const hasPrev = page > 1;
+  const hasNext = page < totalPages;
+  const prevPage = page - 1;
+  const nextPage = page + 1;
   return renderPage(context, "components/services/postgresql-browse", {
     service: { ...service.toJSON(), serviceIcon: "fa-solid fa-database" },
     dbName: db, schemaName: schema, tableName: table, columns, rows, error,
+    page, search, total, totalPages, perPage: 100, hasPrev, hasNext, prevPage, nextPage,
   }, { title: `${schema}.${table} — ${db} — PostgreSQL — Symbio` });
 });
 
@@ -1102,7 +1138,169 @@ protectedRoutes.post("/application-tags/:id/delete", requireCsrf, async (context
   return context.redirect("/application-tags");
 });
 
-protectedRoutes.get("/settings", (context) => renderPage(context, "settings", { language: "English" }, { title: "Settings — Symbio" }));
+protectedRoutes.get("/settings", async (context) => {
+  const auth = context.get("auth");
+  const tab = context.req.query("tab") || "general";
+  // Compute the server's timezone for display in the General tab
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const offset = -new Date().getTimezoneOffset() / 60;
+  const offsetStr = offset >= 0 ? `UTC+${offset}` : `UTC${offset}`;
+  const serverTimezone = `${offsetStr} — ${timezone}`;
+  // Load users list (for users tab)
+  const users = await models.User.findAll({ order: [["role", "ASC"], ["username", "ASC"]] });
+  const usersDecorated = users.map((u) => ({
+    id: u.id, username: u.username, displayName: u.displayName, email: u.email, role: u.role,
+    isSuperadmin: u.role === "superadmin",
+  }));
+  // Load LLM config (for llm tab)
+  const llmRow = await models.Setting.findByPk("llm_config");
+  let llmConfig = { providerIsOpenai: true, secretKey: "", endpoint: "" };
+  if (llmRow) {
+    try {
+      const parsed = JSON.parse(llmRow.value);
+      llmConfig = {
+        providerIsOpenai: parsed.provider === "openai",
+        providerIsAnthropic: parsed.provider === "anthropic",
+        providerIsDeepseek: parsed.provider === "deepseek",
+        secretKey: parsed.secretKey || "",
+        endpoint: parsed.endpoint || "",
+      };
+    } catch {}
+  }
+  return renderPage(context, "settings", {
+    serverTimezone,
+    users: usersDecorated,
+    isSuperadmin: auth.user.role === "superadmin",
+    llmConfig,
+    llmSaved: context.req.query("llmSaved") === "1",
+    llmError: context.req.query("llmError") || "",
+    tabGeneral: tab === "general",
+    tabUsers: tab === "users",
+    tabLlm: tab === "llm",
+  }, { title: "Settings — Symbio" });
+});
+
+/** Creates a new admin user. Superadmin only. */
+protectedRoutes.post("/settings/users/create", requireCsrf, async (context) => {
+  const auth = context.get("auth");
+  if (auth.user.role !== "superadmin") return context.text("Forbidden.", 403);
+  const form = context.get("form");
+  try {
+    const username = String(form.username || "").trim().slice(0, 64);
+    const email = String(form.email || "").trim().slice(0, 255);
+    const displayName = String(form.displayName || "").trim().slice(0, 128);
+    if (!username || !email || !displayName) throw new Error("Username, email, and display name are required.");
+    const existing = await models.User.findOne({ where: { username } });
+    if (existing) throw new Error(`User "${username}" already exists.`);
+    const passwordHash = await hashPassword(String(form.password || ""));
+    await models.User.create({ username, email, displayName, passwordHash, role: "admin" });
+    return context.redirect("/settings?tab=users");
+  } catch (error) {
+    return context.redirect(`/settings/users/create?error=${encodeURIComponent(error.message)}`);
+  }
+});
+
+/** Shows the create user form. */
+protectedRoutes.get("/settings/users/create", async (context) => {
+  const auth = context.get("auth");
+  if (auth.user.role !== "superadmin") return context.text("Forbidden.", 403);
+  return renderPage(context, "user-form", { isEdit: false, user: {}, error: context.req.query("error") || "" }, { title: "Create User — Symbio" });
+});
+
+/** Shows the edit user form. */
+protectedRoutes.get("/settings/users/:id/edit", async (context) => {
+  const auth = context.get("auth");
+  if (auth.user.role !== "superadmin") return context.text("Forbidden.", 403);
+  const user = await models.User.findByPk(context.req.param("id"));
+  if (!user) return context.notFound();
+  if (user.role === "superadmin") return context.text("Cannot edit superadmin user.", 403);
+  return renderPage(context, "user-form", { isEdit: true, user: user.toJSON(), error: context.req.query("error") || "" }, { title: `Edit ${user.username} — Symbio` });
+});
+
+/** Updates an existing admin user. Superadmin only. */
+protectedRoutes.post("/settings/users/:id/edit", requireCsrf, async (context) => {
+  const auth = context.get("auth");
+  if (auth.user.role !== "superadmin") return context.text("Forbidden.", 403);
+  const user = await models.User.findByPk(context.req.param("id"));
+  if (!user) return context.notFound();
+  if (user.role === "superadmin") return context.text("Cannot edit superadmin user.", 403);
+  const form = context.get("form");
+  try {
+    const email = String(form.email || "").trim().slice(0, 255);
+    const displayName = String(form.displayName || "").trim().slice(0, 128);
+    if (!email || !displayName) throw new Error("Email and display name are required.");
+    user.email = email;
+    user.displayName = displayName;
+    const newPassword = String(form.password || "").trim();
+    if (newPassword) user.passwordHash = await hashPassword(newPassword);
+    await user.save();
+    return context.redirect("/settings?tab=users");
+  } catch (error) {
+    return context.redirect(`/settings/users/${user.id}/edit?error=${encodeURIComponent(error.message)}`);
+  }
+});
+
+/** Deletes an admin user. Superadmin only. */
+protectedRoutes.post("/settings/users/:id/delete", requireCsrf, async (context) => {
+  const auth = context.get("auth");
+  if (auth.user.role !== "superadmin") return context.text("Forbidden.", 403);
+  const user = await models.User.findByPk(context.req.param("id"));
+  if (!user) return context.notFound();
+  if (user.role === "superadmin") return context.text("Cannot delete superadmin user.", 403);
+  await user.destroy();
+  return context.redirect("/settings?tab=users");
+});
+
+/** Saves LLM integration configuration. */
+protectedRoutes.post("/settings/llm/save", requireCsrf, async (context) => {
+  const form = context.get("form");
+  const provider = String(form.provider || "openai").trim();
+  if (!["openai", "anthropic", "deepseek"].includes(provider)) {
+    return context.redirect("/settings?tab=llm&llmError=Invalid+provider.");
+  }
+  const secretKey = String(form.secretKey || "").trim();
+  const endpoint = String(form.endpoint || "").trim();
+  const value = JSON.stringify({ provider, secretKey, endpoint });
+  await models.Setting.upsert({ key: "llm_config", value, updatedAt: new Date() });
+  return context.redirect("/settings?tab=llm&llmSaved=1");
+});
+
+/** Shows the profile form for the current user. */
+protectedRoutes.get("/profile", async (context) => {
+  const auth = context.get("auth");
+  const currentLang = auth.user.language || "en";
+  return renderPage(context, "profile", {
+    user: {
+      username: auth.user.username, email: auth.user.email,
+      displayName: auth.user.displayName, language: currentLang,
+    },
+    languageChoices: LANGUAGE_CHOICES.map((choice) => ({
+      ...choice, selected: choice.code === currentLang,
+    })),
+    saved: context.req.query("saved") === "1",
+    error: context.req.query("error") || "",
+  }, { title: "Profile — Symbio" });
+});
+
+/** Updates display name, password, and/or language for the current user. */
+protectedRoutes.post("/profile", requireCsrf, async (context) => {
+  const auth = context.get("auth");
+  const form = context.get("form");
+  try {
+    const displayName = String(form.displayName || "").trim().slice(0, 128);
+    if (!displayName) throw new Error("Display name is required.");
+    auth.user.displayName = displayName;
+    const newPassword = String(form.password || "").trim();
+    if (newPassword) auth.user.passwordHash = await hashPassword(newPassword);
+    const language = String(form.language || "en").trim();
+    const validCodes = LANGUAGE_CHOICES.map((c) => c.code);
+    if (validCodes.includes(language)) auth.user.language = language;
+    await auth.user.save();
+    return context.redirect("/profile?saved=1");
+  } catch (error) {
+    return context.redirect(`/profile?error=${encodeURIComponent(error.message)}`);
+  }
+});
 
 /** Shows the maximum trustworthy runtime view available without Docker socket access. */
 protectedRoutes.get("/installation-status", async (context) => {

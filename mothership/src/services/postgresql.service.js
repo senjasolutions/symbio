@@ -23,4 +23,8 @@ const agentFetch = async (path) => {
 export const fetchPGStatus = () => agentFetch("/api/v1/services/postgresql/status");
 export const fetchPGDatabases = () => agentFetch("/api/v1/services/postgresql/databases");
 export const fetchPGTables = (db) => agentFetch(`/api/v1/services/postgresql/databases/${encodeURIComponent(db)}/tables`);
-export const fetchPGBrowse = (db, schema, table) => agentFetch(`/api/v1/services/postgresql/databases/${encodeURIComponent(db)}/schemas/${encodeURIComponent(schema)}/tables/${encodeURIComponent(table)}/browse`);
+export const fetchPGBrowse = (db, schema, table, page = 1, search = "") => {
+  let url = `/api/v1/services/postgresql/databases/${encodeURIComponent(db)}/schemas/${encodeURIComponent(schema)}/tables/${encodeURIComponent(table)}/browse?page=${page}`;
+  if (search) url += `&search=${encodeURIComponent(search)}`;
+  return agentFetch(url);
+};

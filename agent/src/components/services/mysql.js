@@ -40,7 +40,7 @@ const createConnection = async () => {
     // ER_ACCESS_DENIED_ERROR (1045) = wrong password, ER_ACCESS_DENIED_NO_PASSWORD_ERROR (1698) = root without password
     const accessDenied = error.code === "ER_ACCESS_DENIED_ERROR" || error.code === "ER_ACCESS_DENIED_NO_PASSWORD_ERROR";
     if (accessDenied && !cfg.username) {
-      return { needsCredentials: true, hint: "MySQL requires authentication. Configure username and password in service settings." };
+      return { needsCredentials: true, hint: "MySQL requires a username and password. Use a root or full-access account — the agent only performs read operations." };
     }
     throw error;
   }
@@ -160,19 +160,44 @@ export default {
     });
 
     /**
-     * Browses rows from a specific table (SELECT * LIMIT 100, read-only).
+     * Browses rows from a specific table with optional search and pagination.
+     * Query params: ?page=1&search=term. Search is case-insensitive across
+     * all columns. Page size is fixed at 100 rows.
      */
     router.get("/api/v1/services/mysql/databases/:db/tables/:table/browse", async (c) => {
       const db = c.req.param("db");
       const table = c.req.param("table");
       if (!validIdent(db) || !validIdent(table)) return c.json({ ok: true, rows: [], columns: [], error: "Invalid identifier." });
+      const page = Math.max(1, parseInt(c.req.query("page") || "1", 10) || 1);
+      const search = (c.req.query("search") || "").trim();
+      const perPage = 100;
+      const offset = (page - 1) * perPage;
       try {
         const result = await createConnection();
         if (result.needsCredentials) return c.json({ ok: true, needsCredentials: true, hint: result.hint });
         try {
           await result.execute(`USE \`${db}\``);
-          const { rows, fields } = await query(result, `SELECT * FROM \`${table}\` LIMIT 100`);
-          return c.json({ ok: true, rows, columns: fields });
+          // Get column names for the search CONCAT_WS clause
+          const [colRows] = await result.execute(`SHOW COLUMNS FROM \`${table}\``);
+          const allColumns = colRows.map((r) => r.Field);
+          // Build a CONCAT_WS for the WHERE clause (parameterized placeholder)
+          let whereClause = "";
+          const params = [];
+          if (search && allColumns.length > 0) {
+            const concatParts = allColumns.map((col) => `COALESCE(\`${col}\`, '')`);
+            whereClause = ` WHERE CONCAT_WS(' ', ${concatParts.join(", ")}) LIKE ?`;
+            params.push(`%${search}%`);
+          }
+          // Get total count
+          const [countRows] = await result.execute(`SELECT COUNT(*) AS total FROM \`${table}\`${whereClause}`, params);
+          const total = countRows[0].total;
+          // Get page of data
+          const dataParams = [...params, String(perPage), String(offset)];
+          const [dataRows, dataFields] = await result.execute(
+            `SELECT * FROM \`${table}\`${whereClause} LIMIT ? OFFSET ?`, dataParams
+          );
+          const columns = dataFields ? dataFields.map((f) => f.name) : allColumns;
+          return c.json({ ok: true, rows: dataRows, columns, total, page, perPage });
         } finally { await result.end().catch(() => {}); }
       } catch (error) {
         return c.json({ ok: true, rows: [], columns: [], error: error.message });

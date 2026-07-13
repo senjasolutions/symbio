@@ -19,6 +19,7 @@ export const defineModels = (sequelize) => {
     email: { type: DataTypes.STRING, allowNull: false },
     passwordHash: { type: DataTypes.TEXT, allowNull: false, field: "password_hash" },
     role: { type: DataTypes.STRING, allowNull: false, defaultValue: "superadmin" },
+    language: { type: DataTypes.STRING, allowNull: false, defaultValue: "en" },
     ...commonEntity,
   }, { tableName: "users", timestamps: true, underscored: true });
 

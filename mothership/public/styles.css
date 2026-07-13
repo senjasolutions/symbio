@@ -174,3 +174,10 @@ code { word-break: break-word; }
   .content { padding-top: 1rem; }
   .h3, h1.h3 { font-size: 1.25rem; }
 }
+
+/* Details/summary help section for database credential instructions */
+.db-help-details { display: inline-block; }
+.db-help-details summary {
+  cursor: pointer; list-style: none; display: inline-flex; align-items: center;
+}
+.db-help-details summary::-webkit-details-marker { display: none; }

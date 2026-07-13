@@ -1,10 +1,41 @@
-<!-- Service configuration accepts only adapter-safe host, port, and HTTP values. -->
-<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/servers/{{service.serverId}}/services">Services</a></li><li class="breadcrumb-item"><a href="/servers/{{service.serverId}}/services/{{service.id}}">{{service.displayName}}</a></li><li class="breadcrumb-item active">Configure</li></ol></nav>
-<h1 class="h3 mb-3">Configure {{service.displayName}}</h1>
+<!-- Service configuration shows fields appropriate to the service type. -->
+<nav aria-label="{{#t}}nav.breadcrumb{{/t}}"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/servers/{{service.serverId}}/services">{{#t}}server.breadcrumb.services{{/t}}</a></li><li class="breadcrumb-item"><a href="/servers/{{service.serverId}}/services/{{service.id}}">{{service.displayName}}</a></li><li class="breadcrumb-item active">{{#t}}services.configure{{/t}}</li></ol></nav>
+<h1 class="h3 mb-3">{{#t}}service.form.configureTitle{{/t}}</h1>
 {{#error}}<div class="alert alert-danger">{{error}}</div>{{/error}}
 <form class="card" method="post" action="/servers/{{service.serverId}}/services/{{service.id}}/edit"><div class="card-body">
   <input type="hidden" name="_csrf" value="{{csrfToken}}">
-  <div class="form-check mb-3"><input class="form-check-input" id="enabled" name="enabled" type="checkbox" value="1" {{#service.enabled}}checked{{/service.enabled}}><label class="form-check-label" for="enabled">Enable monitoring for this service</label></div>
-  <div class="row g-3"><div class="col-md-6"><label class="form-label" for="host">Probe host</label><input class="form-control" id="host" name="host" value="{{service.host}}" placeholder="127.0.0.1"></div><div class="col-md-6"><label class="form-label" for="port">Probe port</label><input class="form-control" id="port" name="port" type="number" min="1" max="65535" value="{{service.port}}"></div><div class="col-12"><label class="form-label" for="probeUrl">HTTP probe URL (Nginx/Apache)</label><input class="form-control" id="probeUrl" name="probeUrl" type="url" value="{{service.probeUrl}}" placeholder="http://127.0.0.1/"></div></div>
-  <p class="form-text mt-3">Unsupported fields are ignored by adapters that do not use them. No service credentials are stored in Phase 1.</p>
-</div><div class="card-footer"><button class="btn btn-primary" type="submit">Save configuration</button> <a class="btn btn-outline-secondary" href="/servers/{{service.serverId}}/services/{{service.id}}">Cancel</a></div></form>
+  <div class="form-check mb-3"><input class="form-check-input" id="enabled" name="enabled" type="checkbox" value="1" {{#service.enabled}}checked{{/service.enabled}}><label class="form-check-label" for="enabled">{{#t}}service.form.enableLabel{{/t}}</label></div>
+  <div class="row g-3">
+    <div class="col-md-6"><label class="form-label" for="host">{{#t}}service.form.host{{/t}}</label><input class="form-control" id="host" name="host" value="{{service.host}}" placeholder="{{#t}}service.form.hostPlaceholder{{/t}}"></div>
+    <div class="col-md-6"><label class="form-label" for="port">{{#t}}service.form.port{{/t}}</label><input class="form-control" id="port" name="port" type="number" min="1" max="65535" value="{{service.port}}"></div>
+    {{#isDatabase}}
+    <div class="col-md-6"><label class="form-label" for="username">{{#t}}service.form.username{{/t}} <small class="text-secondary">{{#t}}service.form.usernameHelp{{/t}}</small></label><input class="form-control" id="username" name="username" value="{{service.username}}" placeholder="{{#t}}service.form.usernamePlaceholder{{/t}}"></div>
+    <div class="col-md-6"><label class="form-label" for="password">{{#t}}service.form.password{{/t}}</label><input class="form-control" id="password" name="password" type="password" value="{{service.password}}" placeholder="{{#t}}service.form.passwordPlaceholder{{/t}}"></div>
+    {{/isDatabase}}
+    {{#isHttpProbe}}
+    <div class="col-12"><label class="form-label" for="probeUrl">{{#t}}service.form.httpProbeUrl{{/t}}</label><input class="form-control" id="probeUrl" name="probeUrl" type="url" value="{{service.probeUrl}}" placeholder="{{#t}}service.form.probeUrlPlaceholder{{/t}}"></div>
+    {{/isHttpProbe}}
+  </div>
+  {{#isDatabase}}
+  <div class="mt-3">
+    <details class="db-help-details"><summary class="btn btn-sm btn-outline-info"><i class="fa-solid fa-circle-question me-1" aria-hidden="true"></i> {{#t}}service.form.dbHelpTitle{{/t}}</summary><div class="card card-body mt-2 bg-light">
+<p>{{#t}}service.form.dbHelpIntro1{{/t}}</p>
+<p>{{#t}}service.form.dbHelpIntro2{{/t}}</p>
+<h6>{{#t}}service.form.dbHelpMySQL{{/t}}</h6>
+<pre class="p-3 rounded" style="background:#e9ecef"><code>CREATE USER 'symbio'@'127.0.0.1' IDENTIFIED BY 'your-strong-password';
+GRANT SELECT, SHOW VIEW, SHOW DATABASES ON *.* TO 'symbio'@'127.0.0.1';
+FLUSH PRIVILEGES;</code></pre>
+<p>{{#t}}service.form.dbHelpMySQLHint{{/t}}</p>
+<h6>{{#t}}service.form.dbHelpPSQL{{/t}}</h6>
+<pre class="p-3 rounded" style="background:#e9ecef"><code>CREATE USER symbio WITH PASSWORD 'your-strong-password';
+GRANT CONNECT ON DATABASE your_database TO symbio;
+GRANT USAGE ON SCHEMA public TO symbio;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO symbio;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO symbio;</code></pre>
+<p>{{#t}}service.form.dbHelpPSQLHint{{/t}}</p>
+<div class="alert alert-info mb-0"><i class="fa-solid fa-lightbulb me-1" aria-hidden="true"></i> {{#t}}service.form.dbHelpTip{{/t}}</div>
+</div></details>
+  </div>
+  {{/isDatabase}}
+  <p class="form-text mt-3">{{#t}}service.form.unsupportedHelp{{/t}}</p>
+</div><div class="card-footer"><button class="btn btn-primary" type="submit">{{#t}}service.form.saveConfiguration{{/t}}</button> <a class="btn btn-outline-secondary" href="/servers/{{service.serverId}}/services/{{service.id}}">{{#t}}service.form.cancel{{/t}}</a></div></form>

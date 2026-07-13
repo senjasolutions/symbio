@@ -23,7 +23,7 @@ export const bucketSeries = (rows, valueKey, range, timeKey = "observedAt") => {
 const escape = (value) => String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 
 /** Renders a labelled axis chart; the first series is intentionally visually dominant. */
-export const renderLineChart = (series, label, unit = "%") => {
+export const renderLineChart = (series, label, unit = "%", options = {}) => {
   // Preserve the original single-series helper contract for existing callers and tests.
   if (Array.isArray(series) && series.length && Object.hasOwn(series[0], "value")) series = [{ name: label, points: series }];
   const populated = series.filter((entry) => entry.points.length > 1);
@@ -31,8 +31,8 @@ export const renderLineChart = (series, label, unit = "%") => {
   const width = 720; const height = 250; const left = 58; const right = 18; const top = 18; const bottom = 42;
   const allPoints = populated.flatMap((entry) => entry.points);
   // Utilization is a fixed scale: operators can compare CPU, RAM, and disk charts directly.
-  const minimum = unit === "%" ? 0 : Math.min(...allPoints.map((point) => point.value), 0);
-  const maximum = unit === "%" ? 100 : Math.max(...allPoints.map((point) => point.value), 1);
+  const minimum = options.min ?? (unit === "%" ? 0 : Math.min(...allPoints.map((point) => point.value), 0));
+  const maximum = options.max ?? (unit === "%" ? 100 : Math.max(...allPoints.map((point) => point.value), 1));
   const span = maximum - minimum || 1;
   const firstTime = Math.min(...allPoints.map((point) => point.time));
   const lastTime = Math.max(...allPoints.map((point) => point.time));

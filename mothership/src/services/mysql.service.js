@@ -23,4 +23,8 @@ const agentFetch = async (path) => {
 export const fetchMySQLStatus = () => agentFetch("/api/v1/services/mysql/status");
 export const fetchMySQLDatabases = () => agentFetch("/api/v1/services/mysql/databases");
 export const fetchMySQLTables = (db) => agentFetch(`/api/v1/services/mysql/databases/${encodeURIComponent(db)}/tables`);
-export const fetchMySQLBrowse = (db, table) => agentFetch(`/api/v1/services/mysql/databases/${encodeURIComponent(db)}/tables/${encodeURIComponent(table)}/browse`);
+export const fetchMySQLBrowse = (db, table, page = 1, search = "") => {
+  let url = `/api/v1/services/mysql/databases/${encodeURIComponent(db)}/tables/${encodeURIComponent(table)}/browse?page=${page}`;
+  if (search) url += `&search=${encodeURIComponent(search)}`;
+  return agentFetch(url);
+};

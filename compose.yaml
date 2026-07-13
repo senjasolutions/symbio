@@ -49,7 +49,7 @@ services:
       - "${SYMBIO_AGENT_LOG_GROUP_GID:-4}"
       # Host docker group GID — configurable because it varies across distros.
       # Find yours with: getent group docker | cut -d: -f3
-      - "${SYMBIO_DOCKER_GROUP_GID:-999}"
+      - "${SYMBIO_DOCKER_GROUP_GID:-998}"
     uts: host
     depends_on:
       mothership:

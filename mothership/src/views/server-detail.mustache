@@ -1,64 +1,64 @@
 <!-- Server detail hub presents latest metrics, a manage-server tool panel, and summary info cards. Dedicated sub-pages hold charts, recent data, and full inventory. -->
-<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/servers">Servers</a></li><li class="breadcrumb-item active">{{server.displayName}}</li></ol></nav>
+<nav aria-label="{{#t}}nav.breadcrumb{{/t}}"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/servers">{{#t}}server.breadcrumb.servers{{/t}}</a></li><li class="breadcrumb-item active">{{server.displayName}}</li></ol></nav>
 <div class="d-flex justify-content-between align-items-start mb-3"><div><h1 class="h3 mb-1">{{server.displayName}}</h1><p class="text-secondary mb-0">{{server.hostname}} · {{server.primaryIp}}</p></div><span class="badge text-bg-{{stateClass}} status-badge">{{state}}</span></div>
 {{#latest}}<div class="row g-3 mb-4">
-  <div class="col-md-4"><div class="card h-100"><div class="card-body metric-card"><div><strong><i class="fa-solid fa-microchip"></i> CPU</strong><div class="metric-value">{{cpuDisplay}}</div><small class="metric-detail">5m {{cpuAverages.average5m}} · 30m {{cpuAverages.average30m}} · 6h {{cpuAverages.average6h}}</small></div>{{{cpuRing}}}</div><div class="card-footer cpu-core-grid">{{#cpuCores}}<span class="cpu-core"><i class="fa-solid fa-microchip" aria-hidden="true"></i> {{coreLabel}} <strong>{{percentDisplay}}</strong></span>{{/cpuCores}}</div></div></div>
-  <div class="col-md-4"><div class="card h-100"><div class="card-body metric-card"><div><strong><i class="fa-solid fa-memory"></i> Memory</strong><div class="metric-value">{{memoryDisplay}}</div><small class="metric-capacity">Used {{memoryUsed}} / {{memoryTotal}} · Available {{memoryAvailable}}</small><small class="metric-detail">5m {{memoryAverages.average5m}} · 30m {{memoryAverages.average30m}} · 6h {{memoryAverages.average6h}}</small></div>{{{memoryRing}}}</div><div class="card-footer small">Swap {{swapUsed}} / {{swapTotal}}</div></div></div>
-  <div class="col-md-4"><div class="card h-100"><div class="card-body metric-card"><div><strong><i class="fa-solid fa-hard-drive"></i> Root Disk</strong><div class="metric-value">{{diskDisplay}}</div><small class="metric-capacity">{{diskUsed}} / {{diskTotal}}</small></div>{{{diskRing}}}</div></div></div>
+  <div class="col-md-4"><div class="card h-100"><div class="card-body metric-card"><div><strong><i class="fa-solid fa-microchip"></i> {{#t}}server.detail.cpu{{/t}}</strong><div class="metric-value">{{cpuDisplay}}</div><small class="metric-detail">5m {{cpuAverages.average5m}} · 30m {{cpuAverages.average30m}} · 6h {{cpuAverages.average6h}}</small></div>{{{cpuRing}}}</div><div class="card-footer cpu-core-grid">{{#cpuCores}}<span class="cpu-core"><i class="fa-solid fa-microchip" aria-hidden="true"></i> {{coreLabel}} <strong>{{percentDisplay}}</strong></span>{{/cpuCores}}</div></div></div>
+  <div class="col-md-4"><div class="card h-100"><div class="card-body metric-card"><div><strong><i class="fa-solid fa-memory"></i> {{#t}}dashboard.memory{{/t}}</strong><div class="metric-value">{{memoryDisplay}}</div><small class="metric-capacity">{{#t}}server.detail.memoryCapacity{{/t}}</small><small class="metric-detail">5m {{memoryAverages.average5m}} · 30m {{memoryAverages.average30m}} · 6h {{memoryAverages.average6h}}</small></div>{{{memoryRing}}}</div><div class="card-footer small">{{#t}}server.detail.swapPartition{{/t}}</div></div></div>
+  <div class="col-md-4"><div class="card h-100"><div class="card-body metric-card"><div><strong><i class="fa-solid fa-hard-drive"></i> {{#t}}server.detail.rootDisk{{/t}}</strong><div class="metric-value">{{diskDisplay}}</div><small class="metric-capacity">{{diskUsed}} / {{diskTotal}}</small></div>{{{diskRing}}}</div></div></div>
 </div>{{/latest}}
 <div class="row g-3">
   <!-- Left: Manage Server panel with tool categories -->
   <div class="col-lg-8">
     <section class="card h-100">
-      <div class="card-header"><strong><i class="fa-solid fa-screwdriver-wrench me-1" aria-hidden="true"></i>Manage Server</strong></div>
+      <div class="card-header"><strong><i class="fa-solid fa-screwdriver-wrench me-1" aria-hidden="true"></i>{{#t}}server.detail.manageServer{{/t}}</strong></div>
       <div class="card-body">
         <div class="server-tools-category">
-          <div class="server-tools-category-header"><i class="fa-solid fa-folder-open me-1" aria-hidden="true"></i>Files</div>
+          <div class="server-tools-category-header"><i class="fa-solid fa-folder-open me-1" aria-hidden="true"></i>{{#t}}server.detail.files{{/t}}</div>
           <div class="server-tools-items">
-            <a class="server-tool-item" href="/servers/{{server.id}}/file-manager"><i class="fa-solid fa-folder-tree fa-fw" aria-hidden="true"></i><span class="server-tool-label">File Manager</span><small class="server-tool-hint">Browse server files (read-only)</small></a>
+            <a class="server-tool-item" href="/servers/{{server.id}}/file-manager"><i class="fa-solid fa-folder-tree fa-fw" aria-hidden="true"></i><span class="server-tool-label">{{#t}}server.detail.fileManager{{/t}}</span><small class="server-tool-hint">{{#t}}server.detail.fileManagerHint{{/t}}</small></a>
           </div>
         </div>
         <div class="server-tools-category">
-          <div class="server-tools-category-header"><i class="fa-solid fa-chart-line me-1" aria-hidden="true"></i>Monitoring</div>
+          <div class="server-tools-category-header"><i class="fa-solid fa-chart-line me-1" aria-hidden="true"></i>{{#t}}server.detail.monitoring{{/t}}</div>
           <div class="server-tools-items">
-            <a class="server-tool-item" href="/servers/{{server.id}}/resource-charts"><i class="fa-solid fa-chart-area fa-fw" aria-hidden="true"></i><span class="server-tool-label">Resource Usage Charts</span><small class="server-tool-hint">CPU, memory, and disk history</small></a>
-            <a class="server-tool-item" href="/servers/{{server.id}}/recent-data"><i class="fa-solid fa-clock-rotate-left fa-fw" aria-hidden="true"></i><span class="server-tool-label">Agent Recent Data</span><small class="server-tool-hint">Last 50 check results</small></a>
+            <a class="server-tool-item" href="/servers/{{server.id}}/resource-charts"><i class="fa-solid fa-chart-area fa-fw" aria-hidden="true"></i><span class="server-tool-label">{{#t}}server.detail.resourceCharts{{/t}}</span><small class="server-tool-hint">{{#t}}server.detail.resourceChartsHint{{/t}}</small></a>
+            <a class="server-tool-item" href="/servers/{{server.id}}/recent-data"><i class="fa-solid fa-clock-rotate-left fa-fw" aria-hidden="true"></i><span class="server-tool-label">{{#t}}server.detail.recentData{{/t}}</span><small class="server-tool-hint">{{#t}}server.detail.recentDataHint{{/t}}</small></a>
           </div>
         </div>
         <div class="server-tools-category">
-          <div class="server-tools-category-header"><i class="fa-solid fa-microchip me-1" aria-hidden="true"></i>System</div>
+          <div class="server-tools-category-header"><i class="fa-solid fa-microchip me-1" aria-hidden="true"></i>{{#t}}server.detail.system{{/t}}</div>
           <div class="server-tools-items">
-            <a class="server-tool-item" href="/servers/{{server.id}}/info"><i class="fa-solid fa-circle-info fa-fw" aria-hidden="true"></i><span class="server-tool-label">Server Information</span><small class="server-tool-hint">Full system profile</small></a>
-            <a class="server-tool-item" href="/servers/{{server.id}}/memory"><i class="fa-solid fa-memory fa-fw" aria-hidden="true"></i><span class="server-tool-label">Memory Detail</span><small class="server-tool-hint">Complete /proc/meminfo breakdown</small></a>
-            <a class="server-tool-item" href="/servers/{{server.id}}/processes"><i class="fa-solid fa-list-ul fa-fw" aria-hidden="true"></i><span class="server-tool-label">Process List</span><small class="server-tool-hint">All running processes</small></a>
+            <a class="server-tool-item" href="/servers/{{server.id}}/info"><i class="fa-solid fa-circle-info fa-fw" aria-hidden="true"></i><span class="server-tool-label">{{#t}}server.detail.serverInfo{{/t}}</span><small class="server-tool-hint">{{#t}}server.detail.serverInfoHint{{/t}}</small></a>
+            <a class="server-tool-item" href="/servers/{{server.id}}/memory"><i class="fa-solid fa-memory fa-fw" aria-hidden="true"></i><span class="server-tool-label">{{#t}}server.detail.memoryDetail{{/t}}</span><small class="server-tool-hint">{{#t}}server.detail.memoryDetailHint{{/t}}</small></a>
+            <a class="server-tool-item" href="/servers/{{server.id}}/processes"><i class="fa-solid fa-list-ul fa-fw" aria-hidden="true"></i><span class="server-tool-label">{{#t}}server.detail.processList{{/t}}</span><small class="server-tool-hint">{{#t}}server.detail.processListHint{{/t}}</small></a>
           </div>
         </div>
         <div class="server-tools-category">
-          <div class="server-tools-category-header"><i class="fa-solid fa-globe me-1" aria-hidden="true"></i>Network</div>
+          <div class="server-tools-category-header"><i class="fa-solid fa-globe me-1" aria-hidden="true"></i>{{#t}}server.detail.network{{/t}}</div>
           <div class="server-tools-items">
-            <a class="server-tool-item" href="/servers/{{server.id}}/ports"><i class="fa-solid fa-plug fa-fw" aria-hidden="true"></i><span class="server-tool-label">Listening Ports</span><small class="server-tool-hint">Open TCP/UDP sockets</small></a>
-            <a class="server-tool-item" href="/servers/{{server.id}}/networking"><i class="fa-solid fa-network-wired fa-fw" aria-hidden="true"></i><span class="server-tool-label">Network Interfaces</span><small class="server-tool-hint">Interfaces, addresses, counters</small></a>
+            <a class="server-tool-item" href="/servers/{{server.id}}/ports"><i class="fa-solid fa-plug fa-fw" aria-hidden="true"></i><span class="server-tool-label">{{#t}}server.detail.listeningPorts{{/t}}</span><small class="server-tool-hint">{{#t}}server.detail.listeningPortsHint{{/t}}</small></a>
+            <a class="server-tool-item" href="/servers/{{server.id}}/networking"><i class="fa-solid fa-network-wired fa-fw" aria-hidden="true"></i><span class="server-tool-label">{{#t}}server.detail.networkInterfaces{{/t}}</span><small class="server-tool-hint">{{#t}}server.detail.networkInterfacesHint{{/t}}</small></a>
           </div>
         </div>
         <div class="server-tools-category">
-          <div class="server-tools-category-header"><i class="fa-solid fa-hard-drive me-1" aria-hidden="true"></i>Storage</div>
+          <div class="server-tools-category-header"><i class="fa-solid fa-hard-drive me-1" aria-hidden="true"></i>{{#t}}server.detail.storage{{/t}}</div>
           <div class="server-tools-items">
-            <a class="server-tool-item" href="/servers/{{server.id}}/storage"><i class="fa-solid fa-chart-pie fa-fw" aria-hidden="true"></i><span class="server-tool-label">Storage &amp; Disk I/O</span><small class="server-tool-hint">Filesystems and disk activity</small></a>
+            <a class="server-tool-item" href="/servers/{{server.id}}/storage"><i class="fa-solid fa-chart-pie fa-fw" aria-hidden="true"></i><span class="server-tool-label">{{#t}}server.detail.storageIO{{/t}}</span><small class="server-tool-hint">{{#t}}server.detail.storageIOHint{{/t}}</small></a>
           </div>
         </div>
         <div class="server-tools-category">
-          <div class="server-tools-category-header"><i class="fa-solid fa-users me-1" aria-hidden="true"></i>Accounts</div>
+          <div class="server-tools-category-header"><i class="fa-solid fa-users me-1" aria-hidden="true"></i>{{#t}}server.detail.accounts{{/t}}</div>
           <div class="server-tools-items">
-            <a class="server-tool-item" href="/servers/{{server.id}}/users"><i class="fa-solid fa-user-check fa-fw" aria-hidden="true"></i><span class="server-tool-label">Logged-in Users</span><small class="server-tool-hint">Active host sessions</small></a>
-            <a class="server-tool-item" href="/servers/{{server.id}}/packages"><i class="fa-solid fa-box fa-fw" aria-hidden="true"></i><span class="server-tool-label">Installed Packages</span><small class="server-tool-hint">dpkg package listing</small></a>
+            <a class="server-tool-item" href="/servers/{{server.id}}/users"><i class="fa-solid fa-user-check fa-fw" aria-hidden="true"></i><span class="server-tool-label">{{#t}}server.detail.loggedInUsers{{/t}}</span><small class="server-tool-hint">{{#t}}server.detail.loggedInUsersHint{{/t}}</small></a>
+            <a class="server-tool-item" href="/servers/{{server.id}}/packages"><i class="fa-solid fa-box fa-fw" aria-hidden="true"></i><span class="server-tool-label">{{#t}}server.detail.installedPackages{{/t}}</span><small class="server-tool-hint">{{#t}}server.detail.installedPackagesHint{{/t}}</small></a>
           </div>
         </div>
         <div class="server-tools-category">
-          <div class="server-tools-category-header"><i class="fa-solid fa-gears me-1" aria-hidden="true"></i>Services</div>
+          <div class="server-tools-category-header"><i class="fa-solid fa-gears me-1" aria-hidden="true"></i>{{#t}}server.detail.services{{/t}}</div>
           <div class="server-tools-items">
-            <a class="server-tool-item" href="/servers/{{server.id}}/services"><i class="fa-solid fa-sliders fa-fw" aria-hidden="true"></i><span class="server-tool-label">Manage Services</span><small class="server-tool-hint">View and manage all server services</small></a>
+            <a class="server-tool-item" href="/servers/{{server.id}}/services"><i class="fa-solid fa-sliders fa-fw" aria-hidden="true"></i><span class="server-tool-label">{{#t}}server.detail.manageServices{{/t}}</span><small class="server-tool-hint">{{#t}}server.detail.manageServicesHint{{/t}}</small></a>
             {{#services}}
-            <a class="server-tool-item" href="/servers/{{server.id}}/services/{{id}}"><i class="{{serviceIcon}} fa-fw" aria-hidden="true"></i><span class="server-tool-label">{{display_name}}</span><small class="server-tool-hint">{{display_name}} service management</small></a>
+            <a class="server-tool-item" href="/servers/{{server.id}}/services/{{id}}"><i class="{{serviceIcon}} fa-fw" aria-hidden="true"></i><span class="server-tool-label">{{display_name}}</span><small class="server-tool-hint">{{#t}}server.detail.serviceHint{{/t}}</small></a>
             {{/services}}
           </div>
         </div>
@@ -67,9 +67,9 @@
   </div>
   <!-- Right: stacked info cards -->
   <div class="col-lg-4">
-    <section class="card mb-3"><div class="card-header"><strong><i class="fa-solid fa-circle-info me-1" aria-hidden="true"></i>System Identity</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><tbody><tr><th>Hostname</th><td>{{server.hostname}}</td></tr><tr><th>Configured IP</th><td>{{server.primaryIp}}</td></tr><tr><th>Operating system</th><td>{{server.operatingSystem}}</td></tr><tr><th>Kernel</th><td>{{server.kernelVersion}}</td></tr><tr><th>Architecture</th><td>{{server.hardware.architecture}}</td></tr><tr><th>CPU</th><td>{{server.hardware.cpuModel}} ({{server.hardware.logicalCores}} logical cores)</td></tr></tbody></table></div></section>
-    <section class="card mb-3"><div class="card-header"><strong><i class="fa-solid fa-clock me-1" aria-hidden="true"></i>Runtime</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><tbody>{{#latest}}<tr><th>Uptime</th><td>{{uptimeLabel}}</td></tr><tr><th>Load (1 / 5 / 15 min)</th><td>{{loadLabel}}</td></tr>{{/latest}}<tr><th>Last agent report</th><td>{{lastSeenAt}}</td></tr></tbody></table></div></section>
-    <section class="card mb-3"><div class="card-header"><strong><i class="fa-solid fa-hard-drive me-1" aria-hidden="true"></i>Storage</strong></div><div class="card-body p-2">{{#server.storage}}<div class="storage-row mb-2"><div class="d-flex justify-content-between small mb-1"><span class="fw-bold">{{mountPoint}}</span><span>{{usedLabel}} / {{totalLabel}}</span></div><div style="height:6px;border-radius:2px;overflow:hidden;background:#dce3e9;font-size:0;line-height:0"><span style="display:inline-block;width:{{usePercent}}%;height:6px;background:#216fa8;vertical-align:top;border-radius:2px 0 0 2px"></span></div></div>{{/server.storage}}{{^server.storage}}<div class="text-muted small">No usable filesystem inventory received yet.</div>{{/server.storage}}</div></section>
-    <section class="card"><div class="card-header"><strong><i class="fa-solid fa-network-wired me-1" aria-hidden="true"></i>Networking</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><tbody>{{#server.networking}}<tr><th>{{name}}</th><td class="small">{{addressList}}{{^addressList}}—{{/addressList}}</td></tr>{{/server.networking}}{{^server.networking}}<tr><td colspan="2" class="text-muted small">No active interface inventory received yet.</td></tr>{{/server.networking}}</tbody></table></div></section>
+    <section class="card mb-3"><div class="card-header"><strong><i class="fa-solid fa-circle-info me-1" aria-hidden="true"></i>{{#t}}server.detail.systemIdentity{{/t}}</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><tbody><tr><th>{{#t}}server.detail.hostname{{/t}}</th><td>{{server.hostname}}</td></tr><tr><th>{{#t}}server.detail.ip{{/t}}</th><td>{{server.primaryIp}}</td></tr><tr><th>{{#t}}server.detail.os{{/t}}</th><td>{{server.operatingSystem}}</td></tr><tr><th>{{#t}}server.detail.kernel{{/t}}</th><td>{{server.kernelVersion}}</td></tr><tr><th>{{#t}}server.detail.architecture{{/t}}</th><td>{{server.hardware.architecture}}</td></tr><tr><th>{{#t}}server.detail.cpu{{/t}}</th><td>{{server.hardware.cpuModel}} ({{server.hardware.logicalCores}} {{#t}}server.detail.logicalCores{{/t}})</td></tr></tbody></table></div></section>
+    <section class="card mb-3"><div class="card-header"><strong><i class="fa-solid fa-clock me-1" aria-hidden="true"></i>{{#t}}server.detail.runtime{{/t}}</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><tbody>{{#latest}}<tr><th>{{#t}}server.detail.uptime{{/t}}</th><td>{{uptimeLabel}}</td></tr><tr><th>{{#t}}server.detail.load{{/t}}</th><td>{{loadLabel}}</td></tr>{{/latest}}<tr><th>{{#t}}server.detail.lastReport{{/t}}</th><td>{{lastSeenAt}}</td></tr></tbody></table></div></section>
+    <section class="card mb-3"><div class="card-header"><strong><i class="fa-solid fa-hard-drive me-1" aria-hidden="true"></i>{{#t}}server.detail.storage{{/t}}</strong></div><div class="card-body p-2">{{#server.storage}}<div class="storage-row mb-2"><div class="d-flex justify-content-between small mb-1"><span class="fw-bold">{{mountPoint}}</span><span>{{usedLabel}} / {{totalLabel}}</span></div><div style="height:6px;border-radius:2px;overflow:hidden;background:#dce3e9;font-size:0;line-height:0"><span style="display:inline-block;width:{{usePercent}}%;height:6px;background:#216fa8;vertical-align:top;border-radius:2px 0 0 2px"></span></div></div>{{/server.storage}}{{^server.storage}}<div class="text-muted small">{{#t}}server.detail.noStorage{{/t}}</div>{{/server.storage}}</div></section>
+    <section class="card"><div class="card-header"><strong><i class="fa-solid fa-network-wired me-1" aria-hidden="true"></i>{{#t}}server.detail.networking{{/t}}</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><tbody>{{#server.networking}}<tr><th>{{name}}</th><td class="small">{{addressList}}{{^addressList}}—{{/addressList}}</td></tr>{{/server.networking}}{{^server.networking}}<tr><td colspan="2" class="text-muted small">{{#t}}server.detail.noNetworking{{/t}}</td></tr>{{/server.networking}}</tbody></table></div></section>
   </div>
 </div>

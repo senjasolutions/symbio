@@ -1,0 +1,15 @@
+<!-- Profile page lets users update display name and password. -->
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item active">{{#t}}profile.title{{/t}}</li></ol></nav>
+<h1 class="h3 mb-3">{{#t}}profile.title{{/t}}</h1>
+{{#saved}}<div class="alert alert-success"><i class="fa-solid fa-check me-1" aria-hidden="true"></i> {{#t}}profile.saved{{/t}}</div>{{/saved}}
+{{#error}}<div class="alert alert-danger">{{error}}</div>{{/error}}
+<form class="card" method="post" action="/profile"><div class="card-body">
+  <input type="hidden" name="_csrf" value="{{csrfToken}}">
+  <div class="row g-3">
+    <div class="col-md-6"><label class="form-label" for="username">{{#t}}profile.username{{/t}}</label><input class="form-control" id="username" value="{{user.username}}" readonly></div>
+    <div class="col-md-6"><label class="form-label" for="email">{{#t}}settings.email{{/t}}</label><input class="form-control" id="email" type="email" value="{{user.email}}" readonly></div>
+    <div class="col-md-6"><label class="form-label" for="displayName">{{#t}}profile.displayName{{/t}}</label><input class="form-control" id="displayName" name="displayName" value="{{user.displayName}}" required></div>
+    <div class="col-md-6"><label class="form-label" for="password">{{#t}}profile.password{{/t}} <small class="text-secondary">({{#t}}profile.passwordHelp{{/t}})</small></label><input class="form-control" id="password" name="password" type="password" autocomplete="new-password"></div>
+    <div class="col-md-6"><label class="form-label" for="language">{{#t}}profile.language{{/t}}</label><select class="form-select" id="language" name="language">{{#languageChoices}}<option value="{{code}}"{{#selected}} selected{{/selected}}>{{label}}</option>{{/languageChoices}}</select></div>
+  </div>
+</div><div class="card-footer"><button class="btn btn-primary" type="submit">{{#t}}profile.save{{/t}}</button></div></form>

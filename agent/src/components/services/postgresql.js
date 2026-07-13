@@ -40,7 +40,7 @@ const createClient = async (database = "postgres") => {
     if (error.code === "28P01" || error.message.includes("password")) {
       // Authentication failed
       if (!cfg.username) {
-        return { needsCredentials: true, hint: "PostgreSQL requires authentication. Configure username and password in service settings." };
+        return { needsCredentials: true, hint: "PostgreSQL requires a username and password. Use a root or full-access account — the agent only performs read operations." };
       }
       throw error;
     }
@@ -147,12 +147,34 @@ export default {
       if (!validIdent(db) || !validIdent(schema) || !validIdent(table)) {
         return c.json({ ok: true, rows: [], columns: [], error: "Invalid identifier." });
       }
+      const page = Math.max(1, parseInt(c.req.query("page") || "1", 10) || 1);
+      const search = (c.req.query("search") || "").trim();
+      const perPage = 100;
+      const offset = (page - 1) * perPage;
       const client = await createClient(db);
       if (client.needsCredentials) return c.json({ ok: true, needsCredentials: true, hint: client.hint });
       try {
-        const result = await client.query(`SELECT * FROM "${schema}"."${table}" LIMIT 100`);
+        let whereClause = "";
+        const countParams = [];
+        const dataParams = [];
+        if (search) {
+          whereClause = ` WHERE CAST(t.* AS TEXT) ILIKE $1`;
+          countParams.push(`%${search}%`);
+          dataParams.push(`%${search}%`);
+        }
+        // Get total count
+        const countResult = await client.query(
+          `SELECT COUNT(*) AS total FROM "${schema}"."${table}" t${whereClause}`, countParams
+        );
+        const total = parseInt(countResult.rows[0].total, 10);
+        // Get page of data
+        dataParams.push(perPage, offset);
+        const result = await client.query(
+          `SELECT * FROM "${schema}"."${table}" t${whereClause} LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`,
+          dataParams
+        );
         const columns = result.fields.map((f) => f.name);
-        return c.json({ ok: true, rows: result.rows, columns });
+        return c.json({ ok: true, rows: result.rows, columns, total, page, perPage });
       } finally { await client.end().catch(() => {}); }
     });
   },

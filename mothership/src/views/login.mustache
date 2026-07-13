@@ -1,20 +1,20 @@
-<!-- Login page provides the only unauthenticated browser form in Phase 1. -->
+<!-- i18n: all visible text uses {{#t}}key{{/t}} lambdas; error messages come from the server. -->
 <div class="login-shell">
   <section class="card login-card" aria-labelledby="login-title">
     <div class="card-body p-4">
-      <p class="text-uppercase text-secondary small mb-1">Symbio Mothership</p>
-      <h1 class="h3 mb-3" id="login-title">Server monitoring login</h1>
+      <p class="text-uppercase text-secondary small mb-1">{{#t}}login.subtitle{{/t}}</p>
+      <h1 class="h3 mb-3" id="login-title">{{#t}}login.title{{/t}}</h1>
       {{#error}}<div class="alert alert-danger" role="alert">{{error}}</div>{{/error}}
       <form method="post" action="/login">
         <div class="mb-3">
-          <label class="form-label" for="username">Username or email</label>
+          <label class="form-label" for="username">{{#t}}login.username{{/t}}</label>
           <input class="form-control" id="username" name="username" autocomplete="username" required autofocus>
         </div>
         <div class="mb-3">
-          <label class="form-label" for="password">Password</label>
+          <label class="form-label" for="password">{{#t}}login.password{{/t}}</label>
           <input class="form-control" id="password" name="password" type="password" autocomplete="current-password" required>
         </div>
-        <button class="btn btn-primary w-100" type="submit">Log in</button>
+        <button class="btn btn-primary w-100" type="submit">{{#t}}login.submit{{/t}}</button>
       </form>
     </div>
   </section>

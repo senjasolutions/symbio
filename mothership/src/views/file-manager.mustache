@@ -1,23 +1,23 @@
 <!-- Read-only file manager combines a collapsible directory tree with a file listing table, closely following the cPanel File Manager layout while retaining Symbio's panel system. -->
-<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/servers">Servers</a></li><li class="breadcrumb-item"><a href="/servers/{{server.id}}">{{server.displayName}}</a></li><li class="breadcrumb-item active">File Manager</li></ol></nav>
-<div class="d-flex justify-content-between align-items-start mb-3"><div><h1 class="h3 mb-1">File Manager</h1><p class="text-secondary mb-0">{{server.hostname}} · {{currentPath}}</p></div></div>
+<nav aria-label="{{#t}}nav.breadcrumb{{/t}}"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/servers">{{#t}}server.breadcrumb.servers{{/t}}</a></li><li class="breadcrumb-item"><a href="/servers/{{server.id}}">{{server.displayName}}</a></li><li class="breadcrumb-item active">{{#t}}fileManager.title{{/t}}</li></ol></nav>
+<div class="d-flex justify-content-between align-items-start mb-3"><div><h1 class="h3 mb-1">{{#t}}fileManager.title{{/t}}</h1><p class="text-secondary mb-0">{{server.hostname}} · {{currentPath}}</p></div></div>
 
 <!-- Toolbar -->
 <div class="file-manager-toolbar d-flex flex-wrap gap-2 mb-3">
   <div class="input-group input-group-sm flex-grow-1" style="max-width:42rem">
-    <span class="input-group-text">Path</span>
+    <span class="input-group-text">{{#t}}fileManager.path{{/t}}</span>
     <input class="form-control font-monospace" id="fm-path-input" type="text" value="{{currentPath}}">
-    <button class="btn btn-primary" id="fm-go-btn" type="button">Go</button>
+    <button class="btn btn-primary" id="fm-go-btn" type="button">{{#t}}fileManager.go{{/t}}</button>
   </div>
   <div class="btn-group btn-group-sm">
-    <button class="btn btn-outline-secondary d-none d-md-inline-flex" id="fm-toggle-tree-toolbar" type="button" title="Toggle directory tree"><i class="fa-solid fa-sidebar" aria-hidden="true"></i></button>
-    <button class="btn btn-outline-secondary" id="fm-home-btn" type="button" title="Home directory"><i class="fa-solid fa-home" aria-hidden="true"></i> <span class="d-none d-md-inline">Home</span></button>
-    <button class="btn btn-outline-secondary" id="fm-up-btn" type="button" title="Up one level"><i class="fa-solid fa-level-up-alt" aria-hidden="true"></i> <span class="d-none d-md-inline">Up</span></button>
-    <button class="btn btn-outline-secondary" id="fm-reload-btn" type="button" title="Reload"><i class="fa-solid fa-sync" aria-hidden="true"></i> <span class="d-none d-md-inline">Reload</span></button>
+    <button class="btn btn-outline-secondary d-none d-md-inline-flex" id="fm-toggle-tree-toolbar" type="button" title="{{#t}}fileManager.toggleTree{{/t}}"><i class="fa-solid fa-sidebar" aria-hidden="true"></i></button>
+    <button class="btn btn-outline-secondary" id="fm-home-btn" type="button" title="{{#t}}fileManager.homeHint{{/t}}"><i class="fa-solid fa-home" aria-hidden="true"></i> <span class="d-none d-md-inline">{{#t}}fileManager.home{{/t}}</span></button>
+    <button class="btn btn-outline-secondary" id="fm-up-btn" type="button" title="{{#t}}fileManager.upHint{{/t}}"><i class="fa-solid fa-level-up-alt" aria-hidden="true"></i> <span class="d-none d-md-inline">{{#t}}fileManager.up{{/t}}</span></button>
+    <button class="btn btn-outline-secondary" id="fm-reload-btn" type="button" title="{{#t}}fileManager.reload{{/t}}"><i class="fa-solid fa-sync" aria-hidden="true"></i> <span class="d-none d-md-inline">{{#t}}fileManager.reload{{/t}}</span></button>
   </div>
   <div class="form-check form-check-inline d-flex align-items-center ms-1">
     <input class="form-check-input" type="checkbox" id="fm-show-hidden" {{#showHidden}}checked{{/showHidden}}>
-    <label class="form-check-label small" for="fm-show-hidden">Show Hidden</label>
+    <label class="form-check-label small" for="fm-show-hidden">{{#t}}fileManager.showHidden{{/t}}</label>
   </div>
 </div>
 
@@ -26,10 +26,10 @@
   <div class="col-md-3" id="fm-tree-col">
     <section class="card h-100" id="fm-tree-card">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <strong><i class="fa-solid fa-folder-tree me-1" aria-hidden="true"></i>Directory Tree</strong>
+        <strong><i class="fa-solid fa-folder-tree me-1" aria-hidden="true"></i>{{#t}}fileManager.directoryTree{{/t}}</strong>
         <div class="d-flex align-items-center gap-1">
-          <small id="fm-tree-loading" class="text-muted d-none">Loading…</small>
-          <button class="btn btn-outline-secondary btn-sm py-0 px-1" id="fm-toggle-tree-header" type="button" title="Toggle tree" aria-label="Toggle tree"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>
+          <small id="fm-tree-loading" class="text-muted d-none">{{#t}}fileManager.loading{{/t}}</small>
+          <button class="btn btn-outline-secondary btn-sm py-0 px-1" id="fm-toggle-tree-header" type="button" title="{{#t}}fileManager.toggleTreeLabel{{/t}}" aria-label="{{#t}}fileManager.toggleTreeLabel{{/t}}"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>
         </div>
       </div>
       <div class="card-body p-1" id="fm-tree-body">
@@ -42,7 +42,7 @@
             <div class="file-tree-children" data-path="{{path}}"></div>
           </div>
           {{/tree}}
-          {{^tree}}<div class="text-muted small p-2">Loading directory tree…</div>{{/tree}}
+          {{^tree}}<div class="text-muted small p-2">{{#t}}fileManager.treeLoading{{/t}}</div>{{/tree}}
         </div>
       </div>
     </section>
@@ -51,10 +51,10 @@
   <!-- RIGHT: File Listing -->
   <div class="col-md-9" id="fm-list-col">
     <section class="card h-100">
-      <div class="card-header d-flex justify-content-between align-items-center"><strong id="fm-current-path">{{currentPath}}</strong><small id="fm-list-loading" class="text-muted d-none"><i class="fa-solid fa-spinner fa-spin me-1" aria-hidden="true"></i>Loading…</small></div>
+      <div class="card-header d-flex justify-content-between align-items-center"><strong id="fm-current-path">{{currentPath}}</strong><small id="fm-list-loading" class="text-muted d-none"><i class="fa-solid fa-spinner fa-spin me-1" aria-hidden="true"></i>{{#t}}fileManager.loading{{/t}}</small></div>
       <div class="table-responsive">
         <table class="table table-sm table-hover file-list mb-0">
-          <thead><tr><th style="width:2rem"></th><th>Name</th><th class="d-none d-md-table-cell">Size</th><th class="d-none d-lg-table-cell">Modified</th><th class="d-none d-md-table-cell">Permissions</th></tr></thead>
+          <thead><tr><th style="width:2rem"></th><th>{{#t}}fileManager.name{{/t}}</th><th class="d-none d-md-table-cell">{{#t}}fileManager.size{{/t}}</th><th class="d-none d-lg-table-cell">{{#t}}fileManager.modified{{/t}}</th><th class="d-none d-md-table-cell">{{#t}}fileManager.permissions{{/t}}</th></tr></thead>
           <tbody id="fm-file-rows">
             {{#entries}}
             <tr class="file-row {{#isUp}}text-secondary{{/isUp}}" data-path="{{path}}" data-type="{{type}}">
@@ -65,7 +65,7 @@
               <td class="d-none d-md-table-cell font-monospace small">{{permissions}}</td>
             </tr>
             {{/entries}}
-            {{^entries}}<tr><td colspan="5" class="text-muted">Directory is empty or inaccessible.</td></tr>{{/entries}}
+            {{^entries}}<tr><td colspan="5" class="text-muted">{{#t}}fileManager.empty{{/t}}</td></tr>{{/entries}}
           </tbody>
         </table>
       </div>

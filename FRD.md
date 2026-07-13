@@ -83,6 +83,11 @@ Phase documents are the implementation-level source of truth. This document reco
 - Locally bundled Tagify with no-JavaScript tag fallback, Installation Status, settings placeholder, registered read-only application log viewing, read-only file manager with directory tree and file preview, and per-application source directory shortcuts.
 - On-demand system inspection: server information, process list, listening ports, memory detail, logged-in users, installed packages, and disk I/O.
 - Read-only file viewer with line numbers, 100 KB cap, null-byte binary detection, and multi-layer path whitelist/blocklist security.
+- Internationalization: all UI text uses Mustache `{{#t}}key{{/t}}` section lambdas.
+  Locale JSON files in `mothership/src/i18n/` support English (default), German,
+  Bahasa Indonesia, and Sundanese. Language is per-user via `users.language`
+  column, configurable from the Profile page. Login/guest pages always render
+  in English. Fallback chain: user locale → `en.json` → raw key.
 - Source-build installer from `main` while the project remains Beta.
 
 ### Phase 1.5 — Packaging and bounded logs
@@ -97,7 +102,7 @@ Phase documents are the implementation-level source of truth. This document reco
 - HTTPS automation.
 - Multiple servers and per-agent credentials.
 - Admin and regular-user roles with permissions.
-- Dark mode and additional languages.
+- Dark mode.
 - Docker/PM2 inspection beyond Phase 1 evidence.
 - Notifications, incident diagnosis, safe commands, repairs, and policy-gated mutations.
 

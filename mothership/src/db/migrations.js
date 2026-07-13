@@ -241,6 +241,39 @@ const migrations = [
       await sequelize.query("CREATE INDEX idx_application_sources_application ON application_sources(application_id, id)", { transaction });
     },
   },
+  {
+    version: 6,
+    name: "allow admin role in users table",
+    up: async (transaction) => {
+      // SQLite cannot drop constraints, so recreate the users table with the
+      // corrected CHECK constraint that allows both 'superadmin' and 'admin'.
+      await sequelize.query(
+        `CREATE TABLE users_v2 (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          username TEXT NOT NULL COLLATE NOCASE UNIQUE,
+          display_name TEXT NOT NULL,
+          email TEXT NOT NULL COLLATE NOCASE UNIQUE,
+          password_hash TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'superadmin' CHECK (role IN ('superadmin', 'admin')),
+          created_at DATETIME NOT NULL,
+          updated_at DATETIME NOT NULL
+        )`, { transaction },
+      );
+      await sequelize.query(
+        "INSERT INTO users_v2 (id, username, display_name, email, password_hash, role, created_at, updated_at) SELECT id, username, display_name, email, password_hash, role, created_at, updated_at FROM users",
+        { transaction },
+      );
+      await sequelize.query("DROP TABLE users", { transaction });
+      await sequelize.query("ALTER TABLE users_v2 RENAME TO users", { transaction });
+    },
+  },
+  {
+    version: 7,
+    name: "add language column to users",
+    up: async (transaction) => {
+      await sequelize.query("ALTER TABLE users ADD COLUMN language TEXT NOT NULL DEFAULT 'en'", { transaction });
+    },
+  },
 ];
 
 /** Applies each unapplied migration in its own transaction and records success. */
