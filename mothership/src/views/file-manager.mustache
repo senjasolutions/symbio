@@ -1,0 +1,78 @@
+<!-- Read-only file manager combines a collapsible directory tree with a file listing table, closely following the cPanel File Manager layout while retaining Symbio's panel system. -->
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/servers">Servers</a></li><li class="breadcrumb-item"><a href="/servers/{{server.id}}">{{server.displayName}}</a></li><li class="breadcrumb-item active">File Manager</li></ol></nav>
+<div class="d-flex justify-content-between align-items-start mb-3"><div><h1 class="h3 mb-1">File Manager</h1><p class="text-secondary mb-0">{{server.hostname}} · {{currentPath}}</p></div></div>
+
+<!-- Toolbar -->
+<div class="file-manager-toolbar d-flex flex-wrap gap-2 mb-3">
+  <div class="input-group input-group-sm flex-grow-1" style="max-width:42rem">
+    <span class="input-group-text">Path</span>
+    <input class="form-control font-monospace" id="fm-path-input" type="text" value="{{currentPath}}">
+    <button class="btn btn-primary" id="fm-go-btn" type="button">Go</button>
+  </div>
+  <div class="btn-group btn-group-sm">
+    <button class="btn btn-outline-secondary d-none d-md-inline-flex" id="fm-toggle-tree-toolbar" type="button" title="Toggle directory tree"><i class="fa-solid fa-sidebar" aria-hidden="true"></i></button>
+    <button class="btn btn-outline-secondary" id="fm-home-btn" type="button" title="Home directory"><i class="fa-solid fa-home" aria-hidden="true"></i> <span class="d-none d-md-inline">Home</span></button>
+    <button class="btn btn-outline-secondary" id="fm-up-btn" type="button" title="Up one level"><i class="fa-solid fa-level-up-alt" aria-hidden="true"></i> <span class="d-none d-md-inline">Up</span></button>
+    <button class="btn btn-outline-secondary" id="fm-reload-btn" type="button" title="Reload"><i class="fa-solid fa-sync" aria-hidden="true"></i> <span class="d-none d-md-inline">Reload</span></button>
+  </div>
+  <div class="form-check form-check-inline d-flex align-items-center ms-1">
+    <input class="form-check-input" type="checkbox" id="fm-show-hidden" {{#showHidden}}checked{{/showHidden}}>
+    <label class="form-check-label small" for="fm-show-hidden">Show Hidden</label>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- LEFT: Directory Tree -->
+  <div class="col-md-3" id="fm-tree-col">
+    <section class="card h-100" id="fm-tree-card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <strong><i class="fa-solid fa-folder-tree me-1" aria-hidden="true"></i>Directory Tree</strong>
+        <div class="d-flex align-items-center gap-1">
+          <small id="fm-tree-loading" class="text-muted d-none">Loading…</small>
+          <button class="btn btn-outline-secondary btn-sm py-0 px-1" id="fm-toggle-tree-header" type="button" title="Toggle tree" aria-label="Toggle tree"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>
+        </div>
+      </div>
+      <div class="card-body p-1" id="fm-tree-body">
+        <div class="file-tree" id="fm-tree" role="tree">
+          {{#tree}}
+          <div class="file-tree-node" role="treeitem" data-path="{{path}}" aria-expanded="false">
+            <span class="file-tree-toggle" data-path="{{path}}"><i class="fa-solid fa-caret-right" aria-hidden="true"></i></span>
+            <span class="file-tree-icon"><i class="fa-solid fa-folder" aria-hidden="true"></i></span>
+            <a class="file-tree-link" href="?path={{path}}" data-path="{{path}}">{{name}}</a>
+            <div class="file-tree-children" data-path="{{path}}"></div>
+          </div>
+          {{/tree}}
+          {{^tree}}<div class="text-muted small p-2">Loading directory tree…</div>{{/tree}}
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- RIGHT: File Listing -->
+  <div class="col-md-9" id="fm-list-col">
+    <section class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center"><strong id="fm-current-path">{{currentPath}}</strong><small id="fm-list-loading" class="text-muted d-none"><i class="fa-solid fa-spinner fa-spin me-1" aria-hidden="true"></i>Loading…</small></div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover file-list mb-0">
+          <thead><tr><th style="width:2rem"></th><th>Name</th><th class="d-none d-md-table-cell">Size</th><th class="d-none d-lg-table-cell">Modified</th><th class="d-none d-md-table-cell">Permissions</th></tr></thead>
+          <tbody id="fm-file-rows">
+            {{#entries}}
+            <tr class="file-row {{#isUp}}text-secondary{{/isUp}}" data-path="{{path}}" data-type="{{type}}">
+              <td class="text-center">{{{icon}}}</td>
+              <td>{{#isDirectory}}<a class="file-link" href="?path={{path}}" data-path="{{path}}"><strong>{{name}}</strong></a>{{/isDirectory}}{{^isDirectory}}<a class="file-link" href="view?path={{path}}">{{name}}</a>{{/isDirectory}}</td>
+              <td class="d-none d-md-table-cell">{{sizeLabel}}</td>
+              <td class="d-none d-lg-table-cell">{{modifiedLabel}}</td>
+              <td class="d-none d-md-table-cell font-monospace small">{{permissions}}</td>
+            </tr>
+            {{/entries}}
+            {{^entries}}<tr><td colspan="5" class="text-muted">Directory is empty or inaccessible.</td></tr>{{/entries}}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+{{#error}}<div class="alert alert-warning mt-3" role="alert">{{error}}</div>{{/error}}
+
+<script src="/assets/file-manager.js" defer></script>

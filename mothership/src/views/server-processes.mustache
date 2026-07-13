@@ -1,0 +1,30 @@
+<!-- Process list reads /proc for every running process and displays them sorted by memory. -->
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/servers">Servers</a></li><li class="breadcrumb-item"><a href="/servers/{{server.id}}">{{server.displayName}}</a></li><li class="breadcrumb-item active">Process List</li></ol></nav>
+<h1 class="h3 mb-1">Process List</h1>
+<p class="text-secondary small mb-3">All running processes sorted by resident memory usage, read live from /proc. Use the search below to filter by command name, owner, or PID.</p>
+{{#error}}<div class="alert alert-warning" role="alert">Agent unavailable: {{error}}</div>{{/error}}
+
+<!-- Search bar -->
+<form class="row g-2 mb-3" method="get">
+  <div class="col-sm-8 col-md-6 col-lg-5">
+    <div class="input-group input-group-sm">
+      <span class="input-group-text"><i class="fa-solid fa-search" aria-hidden="true"></i></span>
+      <input class="form-control" type="text" name="q" value="{{query}}" placeholder="Filter by command, user, or PID...">
+      {{#query}}<a class="btn btn-outline-secondary" href="?page=1"><i class="fa-solid fa-xmark" aria-hidden="true"></i></a>{{/query}}
+      <button class="btn btn-primary" type="submit">Search</button>
+    </div>
+  </div>
+  {{#showing}}<div class="col-sm-4 col-md-6 col-lg-7 text-end small pt-1 text-muted">Showing {{showing.from}}–{{showing.to}} of {{total}} processes</div>{{/showing}}
+</form>
+
+<section class="card"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>PID</th><th>User</th><th class="d-none d-md-table-cell">State</th><th>RSS</th><th class="d-none d-lg-table-cell">VSZ</th><th class="d-none d-md-table-cell">Threads</th><th>Command</th></tr></thead><tbody>{{#processes}}<tr><td>{{pid}}</td><td>{{user}}</td><td class="d-none d-md-table-cell"><span class="badge text-bg-{{#stateIsRunning}}success{{/stateIsRunning}}{{^stateIsRunning}}secondary{{/stateIsRunning}}">{{state}}</span></td><td>{{rssLabel}}</td><td class="d-none d-lg-table-cell">{{vsizeLabel}}</td><td class="d-none d-md-table-cell">{{threads}}</td><td class="font-monospace small">{{command}}</td></tr>{{/processes}}{{^processes}}<tr><td colspan="7" class="text-muted">{{#query}}No processes match your search.{{/query}}{{^query}}No processes found or agent is unavailable.{{/query}}</td></tr>{{/processes}}</tbody></table></div></section>
+
+<!-- Pagination -->
+{{#totalPages}}{{#showPagination}}<nav class="d-flex justify-content-between align-items-center mt-3" aria-label="Process list pagination">
+  <small class="text-muted">Page {{page}} of {{totalPages}}</small>
+  <ul class="pagination pagination-sm mb-0">
+    {{#page}}{{#isFirst}}<li class="page-item disabled"><span class="page-link">&laquo;</span></li>{{/isFirst}}{{^isFirst}}<li class="page-item"><a class="page-link" href="?page={{prevPage}}{{#query}}&q={{query}}{{/query}}">&laquo;</a></li>{{/isFirst}}{{/page}}
+    {{#pages}}<li class="page-item {{#active}}active{{/active}}"><a class="page-link" href="?page={{num}}{{#query}}&q={{query}}{{/query}}">{{num}}</a></li>{{/pages}}
+    {{#page}}{{#isLast}}<li class="page-item disabled"><span class="page-link">&raquo;</span></li>{{/isLast}}{{^isLast}}<li class="page-item"><a class="page-link" href="?page={{nextPage}}{{#query}}&q={{query}}{{/query}}">&raquo;</a></li>{{/isLast}}{{/page}}
+  </ul>
+</nav>{{/showPagination}}{{/totalPages}}

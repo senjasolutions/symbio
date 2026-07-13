@@ -1,0 +1,110 @@
+# Phase 1 deploys exactly one public mothership and one host-aware read-only agent.
+services:
+  mothership:
+    build:
+      context: ./mothership
+    image: symbio-mothership:beta
+    container_name: symbio-mothership
+    restart: unless-stopped
+    ports:
+      - "${SYMBIO_BIND_IP:-0.0.0.0}:${SYMBIO_PORT:-8765}:8080"
+      - "127.0.0.1:${SYMBIO_INTERNAL_PORT:-18766}:8081"
+    environment:
+      NODE_ENV: production
+      SYMBIO_COOKIE_SECURE: "${SYMBIO_COOKIE_SECURE:-0}"
+      SYMBIO_AGENT_BRIDGE_URL: "http://host.docker.internal:${SYMBIO_AGENT_BRIDGE_PORT:-18768}"
+    # Docker resolves this name to its bridge gateway, never a public host address.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - mothership-data:/data
+    secrets:
+      - agent_token
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    pids_limit: 128
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+
+  agent:
+    build:
+      context: ./agent
+    image: symbio-agent:beta
+    container_name: symbio-agent
+    restart: unless-stopped
+    network_mode: host
+    # Ubuntu's standard web-server logs are commonly root/www-data:adm 0640.
+    # This supplementary host GID retains the non-root agent while allowing
+    # only files already group-readable by the configured log-reader group.
+    group_add:
+      - "${SYMBIO_AGENT_LOG_GROUP_GID:-4}"
+      # Host docker group GID — configurable because it varies across distros.
+      # Find yours with: getent group docker | cut -d: -f3
+      - "${SYMBIO_DOCKER_GROUP_GID:-999}"
+    uts: host
+    depends_on:
+      mothership:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      SYMBIO_MOTHERSHIP_URL: "http://127.0.0.1:${SYMBIO_INTERNAL_PORT:-18766}/internal/v1"
+      SYMBIO_AGENT_HEALTH_PORT: "${SYMBIO_AGENT_HEALTH_PORT:-18767}"
+      SYMBIO_AGENT_BRIDGE_PORT: "${SYMBIO_AGENT_BRIDGE_PORT:-18768}"
+      SYMBIO_AGENT_BRIDGE_IP: "${SYMBIO_AGENT_BRIDGE_IP:-172.17.0.1}"
+      SYMBIO_SERVER_IP: "${SYMBIO_SERVER_IP:-}"
+    volumes:
+      - agent-data:/data
+      - type: bind
+        source: /etc/os-release
+        target: /host/etc/os-release
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /etc/hostname
+        target: /host/etc/hostname
+        read_only: true
+        bind:
+          create_host_path: false
+      - /proc:/host/proc:ro
+      # Host-root bind enables statfs, network inventory, log reading, and
+      # the read-only file manager. No agent route accepts raw browser input.
+      - /:/host/root:ro
+      # Read-only Docker socket for per-component container, volume, and
+      # network inventory (Phase 2). No create/start/stop/exec is performed.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    secrets:
+      - agent_token
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    pids_limit: 128
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:'+(process.env.SYMBIO_AGENT_HEALTH_PORT||18767)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+
+volumes:
+  mothership-data:
+    name: symbio-mothership-data
+  agent-data:
+    name: symbio-agent-data
+
+secrets:
+  agent_token:
+    file: ${SYMBIO_CONFIG_DIR:-./.symbio}/agent-token

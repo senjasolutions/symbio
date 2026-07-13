@@ -1,0 +1,176 @@
+/**
+ * Symbio's clean-room administrative visual system. It borrows familiar
+ * hosting-control-panel hierarchy without reusing third-party source or assets.
+ */
+
+:root {
+  --symbio-sidebar: #213243;
+  --symbio-sidebar-deep: #182735;
+  --symbio-sidebar-hover: #31475a;
+  --symbio-primary: #216fa8;
+  --symbio-primary-dark: #185984;
+  --symbio-background: #edf1f4;
+  --symbio-panel: #ffffff;
+  --symbio-border: #cbd5de;
+  --symbio-muted: #647586;
+  --symbio-heading: #263846;
+}
+
+/* A quiet neutral canvas keeps dense operational information readable. */
+body { background: var(--symbio-background); color: #253746; font-size: .925rem; min-height: 100vh; }
+a { color: #17699f; }
+a:hover { color: #104d76; }
+.app-shell { display: grid; grid-template-columns: 252px minmax(0, 1fr); min-height: 100vh; }
+.sidebar { background: var(--symbio-sidebar); border-right: 1px solid #14222e; color: #eaf1f6; min-width: 0; padding: 0 0 1.5rem; }
+.sidebar-header { background: var(--symbio-sidebar-deep); border-bottom: 1px solid #3b4e5e; padding: 1rem 1.15rem .85rem; }
+.sidebar-brand { align-items: center; color: #fff; display: flex; font-size: 1.1rem; font-weight: 700; gap: .55rem; letter-spacing: .08em; text-decoration: none; }
+.sidebar-brand:hover { color: #fff; text-decoration: none; }
+.sidebar-brand-mark { align-items: center; background: #2c82bb; border: 1px solid #70b4dc; display: inline-flex; font-size: .85rem; height: 1.75rem; justify-content: center; letter-spacing: 0; width: 1.75rem; }
+.sidebar-caption { color: #aebdca; display: block; font-size: .7rem; letter-spacing: .06em; margin: .65rem 0 0 2.3rem; text-transform: uppercase; }
+.sidebar-toggle { background: #2c4050; border: 1px solid #465c6d; color: #edf4f8; display: none; font-size: .8rem; margin: .75rem 1rem 0; padding: .38rem .65rem; }
+.sidebar-nav { padding-top: .7rem; }
+.nav-group { border-bottom: 1px solid rgba(214, 228, 238, .13); padding: .35rem 0 .75rem; }
+.nav-group + .nav-group { margin-top: .5rem; }
+.nav-group-title { color: #9eb1bf; font-size: .68rem; font-weight: 700; letter-spacing: .095em; margin: 0; padding: .45rem 1.15rem; text-transform: uppercase; }
+.sidebar .nav-link { align-items: center; border-left: 3px solid transparent; color: #d7e3eb; display: flex; font-size: .88rem; gap: .65rem; min-height: 2.35rem; padding: .52rem 1.15rem; }
+.sidebar .nav-link i { color: #a9c1d1; text-align: center; width: 1rem; }
+.sidebar .nav-link:hover, .sidebar .nav-link:focus { background: var(--symbio-sidebar-hover); border-left-color: #8ec8ea; color: #fff; }
+.sidebar .nav-link.is-active { background: #37576d; border-left-color: #fff; color: #fff; font-weight: 700; }
+.sidebar .nav-link.is-active i { color: #fff; }
+.sidebar .nav-submenu { font-size: .82rem; padding-left: 2.7rem; }
+
+/* The header provides constant server context while keeping account controls predictable. */
+.main-column { min-width: 0; }
+.topbar { align-items: center; background: var(--symbio-panel); border-bottom: 1px solid var(--symbio-border); display: flex; justify-content: space-between; min-height: 60px; padding: .55rem 1.5rem; }
+.topbar-context { align-items: center; color: #4c6273; display: flex; gap: .65rem; }
+.topbar-context > i { color: var(--symbio-primary); font-size: 1.1rem; }
+.topbar-context strong, .topbar-context small { display: block; }
+.topbar-context strong { color: var(--symbio-heading); font-size: .86rem; }
+.topbar-context small { color: var(--symbio-muted); font-size: .72rem; }
+.user-controls { align-items: center; display: flex; gap: .8rem; }
+.user-name { color: #506474; font-size: .82rem; }
+.user-name i { color: #778b9a; }
+.content { padding: 1.35rem 1.5rem 2.25rem; }
+.admin-content { margin: 0 auto; max-width: 1620px; }
+
+/* Familiar page framing gives every existing SSR view the same hierarchy. */
+.breadcrumb { background: transparent; border-bottom: 1px solid #d7e0e6; border-radius: 0; font-size: .78rem; margin-bottom: 1rem; padding: 0 0 .65rem; }
+.breadcrumb-item + .breadcrumb-item::before { color: #8393a0; }
+.h3, h1.h3 { color: var(--symbio-heading); font-size: 1.45rem; font-weight: 600; }
+.text-uppercase { font-size: .7rem !important; font-weight: 700; letter-spacing: .08em; }
+.card { background: var(--symbio-panel); border: 1px solid var(--symbio-border); border-radius: 2px; box-shadow: 0 1px 2px rgba(24, 43, 58, .06); }
+.card-header { background: #f3f6f8; border-bottom: 1px solid var(--symbio-border); color: #344b5c; font-size: .87rem; min-height: 2.65rem; padding: .65rem .85rem; }
+.card-footer { background: #f7f9fa; border-top: 1px solid var(--symbio-border); padding: .7rem .85rem; }
+.table { color: #314553; }
+.table > :not(caption) > * > * { padding: .62rem .75rem; }
+.table thead th { background: #e9eff3; border-bottom: 2px solid #aab9c4; color: #435969; font-size: .69rem; font-weight: 700; letter-spacing: .065em; text-transform: uppercase; vertical-align: middle; }
+.table tbody tr:nth-child(even) > * { background-color: #f8fafb; }
+.table tbody tr:hover > * { background-color: #eef6fa; }
+.table tbody th { color: #445a6a; font-weight: 600; }
+.table-responsive { border-radius: 0 0 2px 2px; }
+.btn { border-radius: 2px; font-size: .82rem; font-weight: 600; }
+.btn-primary { background-color: var(--symbio-primary); border-color: var(--symbio-primary-dark); }
+.btn-primary:hover, .btn-primary:focus { background-color: var(--symbio-primary-dark); border-color: #134667; }
+.btn-outline-primary { border-color: #5d91b2; color: #17699f; }
+.btn-outline-primary:hover, .btn-outline-primary:focus { background: #17699f; border-color: #17699f; color: #fff; }
+.btn-outline-secondary { border-color: #94a6b3; color: #4a6170; }
+.form-control, .form-select { border-color: #aebdc8; border-radius: 2px; color: #283b49; }
+.form-control:focus, .form-select:focus { border-color: #5899c3; box-shadow: 0 0 0 .18rem rgba(33, 111, 168, .15); }
+.form-label, legend { color: #354d5e; font-size: .84rem; font-weight: 700; }
+.form-text { color: #687b8a; }
+.alert { border-radius: 2px; }
+
+/* Monitoring-specific components remain compact but inherit the panel system. */
+.metric-value { color: #1f3444; font-size: 1.8rem; font-weight: 700; line-height: 1.1; }
+.metric-card { align-items: flex-start; display: flex; gap: .75rem; justify-content: space-between; }
+.metric-capacity { color: #1f2933; display: block; font-size: .78rem; line-height: 1.25; margin-top: .2rem; }
+.metric-detail { color: #7b8794; display: block; font-size: .74rem; line-height: 1.25; margin-top: .2rem; }
+.cpu-core-grid { display: grid; gap: .3rem .6rem; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); max-height: 5rem; overflow-y: auto; }
+.cpu-core { align-items: center; color: #526475; display: flex; font-size: .72rem; gap: .2rem; justify-content: space-between; white-space: nowrap; }
+.cpu-core i { color: #7b8794; font-size: .65rem; }
+.cpu-core strong { color: #1f2933; font-variant-numeric: tabular-nums; }
+.progress-ring { flex: 0 0 52px; height: 52px; transform: rotate(-90deg); width: 52px; }
+.progress-ring-track, .progress-ring-value { fill: none; stroke-width: 5; }
+.progress-ring-track { stroke: #e1e8ef; }
+.progress-ring-value { stroke: #237db8; stroke-linecap: round; }
+.status-badge { font-size: .72rem; min-width: 6rem; text-transform: capitalize; }
+.symbio-chart { background: #fff; border: 1px solid var(--symbio-border); margin: 0; padding: .85rem; }
+.symbio-chart figcaption { color: #34495e; font-size: .95rem; font-weight: 600; margin-bottom: .6rem; }
+.symbio-chart svg { display: block; height: 220px; width: 100%; }
+.chart-line { fill: none; stroke: #0d6efd; stroke-linecap: round; stroke-linejoin: round; stroke-width: 3; }
+.chart-line-primary { stroke-width: 4; }
+.chart-line-muted { opacity: .3; stroke: #60758a; stroke-width: 1.25; }
+.chart-axis { fill: none; stroke: #7b8a99; stroke-width: 1; }
+.chart-grid { stroke: #e4eaf0; stroke-width: 1; }
+.chart-label { fill: #435466; font-size: 12px; font-weight: 600; }
+.chart-legend-primary { color: #0d6efd; font-weight: 700; margin-left: .5rem; }
+.chart-legend-muted { color: #607080; font-weight: 600; margin-left: .5rem; }
+.service-disabled { color: #7c8792; text-decoration: line-through; }
+.service-disabled .btn, .service-disabled .badge { text-decoration: none; }
+.login-shell { align-items: center; display: flex; justify-content: center; min-height: 100vh; padding: 1rem; }
+.login-card { border-top: 4px solid var(--symbio-primary); max-width: 430px; width: 100%; }
+.warning-banner { background: #fff3cd; border-bottom: 1px solid #e7c86c; color: #664d03; font-size: .83rem; padding: .45rem 1rem; text-align: center; }
+code { word-break: break-word; }
+/* Log output remains plain, selectable text with a fixed viewport rather than a page-length dump. */
+.log-output { background: #17232d; border: 1px solid #0e1820; color: #e7eef3; font: .78rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; max-height: 34rem; min-height: 18rem; overflow: auto; padding: .85rem; white-space: pre-wrap; word-break: break-word; }
+
+/* File viewer renders line numbers and monospace text side by side without mangling formatting. */
+.file-viewer { display: flex; }
+.file-lines { background: #f0f3f6; border-right: 1px solid var(--symbio-border); color: #5f7383; flex-shrink: 0; font: .82rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; padding: .85rem .5rem .85rem .75rem; text-align: right; user-select: none; }
+.file-text { background: #fff; flex: 1; font: .82rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin: 0; min-height: 20rem; overflow-x: auto; padding: .85rem .85rem .85rem .65rem; tab-size: 2; white-space: pre; }
+
+/* --- File Manager --- */
+.file-manager-toolbar { align-items: center; }
+.file-tree { font-size: .84rem; user-select: none; }
+.file-tree-node { padding-left: .15rem; }
+.file-tree-toggle { color: #5a6d7f; cursor: pointer; display: inline-block; font-size: .7rem; min-width: 1rem; text-align: center; }
+.file-tree-toggle:hover { color: #1b3447; }
+.file-tree-icon { color: #b8943b; margin-right: .25rem; }
+.file-tree-link { color: #23445c; text-decoration: none; }
+.file-tree-link:hover { color: #0c2b40; text-decoration: underline; }
+.file-tree-children { padding-left: 1.3rem; }
+.file-list .file-link { color: #1f3d52; text-decoration: none; cursor: pointer; }
+.file-list .file-link:hover { text-decoration: underline; }
+.file-list .file-row[data-type="directory"] .file-link { color: #17486d; }
+/* When the tree is collapsed the body hides but the card header stays visible. */
+.fm-tree-collapsed .file-tree { display: none; }
+/* File items are not clickable until a later file-viewer phase; just dim them slightly. */
+.file-list .file-row[data-type="file"] .file-link { color: #506573; cursor: default; }
+.file-list .file-row[data-type="file"] .file-link:hover { text-decoration: none; }
+
+/* --- Server Management Tools (cPanel-style icon grid) --- */
+.server-tools-category { margin-bottom: 1.75rem; }
+.server-tools-category:last-child { margin-bottom: 0; }
+.server-tools-category-header { border-bottom: 1px solid var(--symbio-border); color: var(--symbio-heading); font-size: .82rem; font-weight: 700; margin-bottom: .7rem; padding-bottom: .35rem; text-transform: uppercase; }
+.server-tools-items { display: flex; flex-wrap: wrap; gap: .5rem; }
+/* Tool items fill half the row on mobile and one-third on desktop so the grid stays compact. */
+.server-tool-item { align-items: center; background: #f5f8fa; border: 1px solid var(--symbio-border); border-radius: 3px; color: #2a4b63; display: flex; flex: 0 0 calc(50% - 0.5rem); flex-direction: column; font-size: .84rem; gap: .3rem; justify-content: center; min-height: 5rem; padding: .75rem .6rem; text-align: center; text-decoration: none; }
+.server-tool-item:hover { background: #e3ecf4; border-color: #8aa9be; color: #113753; text-decoration: none; }
+.server-tool-item i { color: #4d7ea3; font-size: 1.4rem; }
+.server-tool-label { font-weight: 700; }
+.server-tool-hint { color: #6e828f; font-size: .72rem; font-weight: 400; }
+@media (min-width: 768px) {
+  .server-tool-item { flex: 0 0 calc(33.333% - 0.5rem); }
+}
+
+/* JavaScript only collapses mobile navigation; no-JS users retain every link. */
+@media (max-width: 800px) {
+  .app-shell { display: block; }
+  .sidebar { border-right: 0; padding-bottom: .75rem; }
+  .sidebar-header { align-items: center; display: flex; justify-content: space-between; }
+  .sidebar-caption { margin: 0; }
+  .sidebar-toggle { display: inline-block; }
+  .js-enabled .sidebar.is-collapsed .sidebar-nav { display: none; }
+  .sidebar-nav { padding-top: .45rem; }
+  .sidebar .nav-link { padding-left: 1rem; }
+  .content, .topbar { padding-left: 1rem; padding-right: 1rem; }
+  .topbar { min-height: 54px; }
+  .user-name { display: none; }
+}
+
+@media (max-width: 480px) {
+  .sidebar-caption { display: none; }
+  .topbar-context small { display: none; }
+  .content { padding-top: 1rem; }
+  .h3, h1.h3 { font-size: 1.25rem; }
+}

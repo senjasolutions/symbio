@@ -1,364 +1,223 @@
 # Symbio
 
-Open-source AI runtime resilience for web servers.
+Symbio is a lightweight, server-rendered monitoring dashboard for one Ubuntu server. It runs a private host-aware agent beside a public management dashboard and reports host metrics, known-service evidence, and HTTP application health without a SPA or a large monitoring stack.
 
-Symbio is being built as a self-hosted Docker agent that lives beside a website or web application, observes the webserver from inside the machine, helps diagnose failures, prepares safe fixes, and starts from a browser-based onboarding flow.
+Current status: Phase 1 Beta.
 
-This repository currently contains the first implementation slice: a Dockerized local onboarding prototype.
+## What Works
 
-## Current Status
+- Superadmin login with Argon2id passwords, hashed sessions, CSRF, and throttling.
+- CPU, RAM, root disk, load, uptime, hostname, IP, OS, and kernel monitoring.
+- Evidence-aware status for Docker, PM2, MySQL/MariaDB, PostgreSQL, Redis, Nginx, and Apache.
+- HTTP application create/edit/delete/restore and up/slow/down checks.
+- Application tag CRUD, inline tag creation, and filtering.
+- Seven-day history, recent tables, and 24-hour/7-day SVG charts.
+- Durable agent outbox and idempotent report replay.
+- Read-only file manager with directory tree, file preview, and per-application source shortcuts.
+- Two hardened Docker containers and a fresh-install Beta script.
 
-Prototype stage.
+Not implemented: multiple servers, additional roles, HTTPS automation, alerts, Docker/PM2 inspection, commands, AI, or repairs.
 
-Implemented:
+## Architecture
 
-- One-command local install script.
-- Docker image build from this repository.
-- Local container named `symbio-agent`.
-- Browser onboarding UI.
-- Onboarding config persistence in a Docker volume.
-- Basic health/status endpoint.
-- Read-only multi-page target health checks.
-- Internal access target configuration for repositories, logs, configs, Docker, and database access policy.
-- Capability reporting endpoint.
-- Protection against saving the OpenRouter key value into onboarding JSON.
+- `symbio-mothership`: Hono, Mustache, Bootstrap, Sequelize 6, SQLite.
+- `symbio-agent`: Hono diagnostics, host collectors, protocol/HTTP probes, SQLite outbox.
+- `compose.yaml`: public dashboard, loopback agent API, host-networked read-only agent.
+- `docs/001_first_phase.md`: complete Phase 1 requirements.
+- `docs/002_first_phase_packing.md`: supporting Phase 1 packaging notes.
+- `docs/003_first_and_half_phase.md`: canonical Phase 1.5 release and bounded-log draft.
 
-Not implemented yet:
+All application code is plain JavaScript ESM. There is no TypeScript or SPA framework.
 
-- Continuous website monitoring.
-- Docker or application inspection.
-- Repository inspection.
-- Log inspection.
-- OpenRouter model calls.
-- Stack adapters.
-- Incident diagnosis.
-- Repair proposals.
-- Security patching.
-- Production mutation.
-- Cloud intelligence.
-
-## Install
+## Beta Installation
 
 Prerequisites:
 
-- Docker installed and running on the webserver.
-- Git installed on the webserver.
+- Ubuntu 22.04, 24.04, or 26.04 LTS on amd64/arm64.
+- Root access.
+- Git.
+- Docker Engine running.
+- Docker Compose v2 (`docker compose`).
 
 Run:
 
-```bash
-git clone https://github.com/senjasolutions/symbio.git && ./symbio/install.sh
+```sh
+curl -fsSL https://raw.githubusercontent.com/senjasolutions/symbio/main/install.sh | sudo sh
 ```
 
-Default onboarding URL:
+The installer clones `main` because this is Beta software, builds both images, creates the superadmin interactively, waits for healthy containers, and installs under `/opt/symbio`.
+
+### Security warning
+
+The default dashboard is `http://0.0.0.0:8765`. It has no transport encryption. A public-IP deployment exposes login credentials and sessions to network interception even though passwords are safely hashed at rest.
+
+Use only for Beta testing on a trusted network or behind an existing HTTPS reverse proxy. Symbio does not claim production-safe public access until HTTPS is provided.
+
+The agent does not mount the Docker socket and does not offer commands or arbitrary filesystem access. It does use read-only host mounts for metrics/process evidence; review `docs/001_first_phase.md` before deployment.
+
+## Local Docker Development
+
+For the normal debugging loop, use the local development launcher:
+
+```sh
+./deploy-local.sh
+```
+
+It bind-mounts current mothership and agent source into the containers. Node
+restarts automatically for imported JavaScript changes; Mustache, CSS, and
+browser JavaScript changes appear on browser refresh. Useful controls:
+
+```sh
+./deploy-local.sh restart  # Fast manual process restart.
+./deploy-local.sh logs     # Follow both service logs.
+./deploy-local.sh status   # Show container and agent state.
+./deploy-local.sh rebuild  # Required after dependency or Dockerfile changes.
+./deploy-local.sh stop     # Retain local databases.
+./deploy-local.sh reset    # Delete local databases and recreate the stack.
+```
+
+`deploy.sh` remains the separate Ubuntu VM installation test.
+
+### Manual Compose workflow
+
+Create a local agent token:
+
+```sh
+mkdir -p .symbio
+umask 077
+openssl rand -hex 32 > .symbio/agent-token
+```
+
+Build, migrate, and seed:
+
+```sh
+docker compose build
+docker compose run --rm mothership npm run migrate
+docker compose run --rm mothership npm run seed:superadmin
+docker compose up -d
+```
+
+Open:
 
 ```text
 http://127.0.0.1:8765
 ```
 
-If this is a remote webserver, use SSH port forwarding or expose port `8765` only to trusted networks.
+Inspect local agent status:
 
-Example SSH port forwarding:
-
-```bash
-ssh -L 8765:127.0.0.1:8765 user@your-server
+```sh
+curl http://127.0.0.1:18767/api/v1/status
 ```
 
-Then open:
+Stop while retaining data:
 
-```text
-http://127.0.0.1:8765
+```sh
+docker compose down
 ```
 
-## What The Installer Does
+Remove Beta data explicitly:
 
-`install.sh` performs these steps:
-
-1. Checks that Docker is installed and the Docker daemon is reachable.
-2. Builds a local Docker image named `symbio-agent:local`.
-3. Creates a Docker volume named `symbio-agent-data`.
-4. Removes any existing container named `symbio-agent`.
-5. Starts a new `symbio-agent` container.
-6. Maps host port `8765` to container port `8080`.
-7. Prints the onboarding URL.
-8. Attempts to open the onboarding URL when a local browser opener exists.
-
-The container runs a dependency-free Node.js HTTP server from `app/server.js`.
-
-Optional host access mounts:
-
-```bash
-SYMBIO_REPOS_PATH=/srv/www \
-SYMBIO_LOGS_PATH=/var/log \
-SYMBIO_CONFIGS_PATH=/etc/nginx \
-./install.sh
+```sh
+docker compose down -v
 ```
 
-Optional Docker socket access:
+## Non-Docker Development
 
-```bash
-SYMBIO_ENABLE_DOCKER_SOCKET=1 ./install.sh
+Install both dependency sets:
+
+```sh
+sudo apt-get install build-essential python3
+npm run install:all
 ```
 
-Docker socket access is high risk because it can imply host-level control. Use
-it only for trusted local testing until the policy executor is implemented.
+The project postinstall step compiles SQLite against the local glibc so Ubuntu
+22.04, 24.04, and 26.04 do not depend on an incompatible prebuilt binary.
 
-## Update Existing Install
+Run checks and tests:
 
-From the parent folder that contains the existing `symbio` clone:
-
-```bash
-git -C symbio pull && ./symbio/install.sh
-```
-
-This rebuilds the local image and replaces the running `symbio-agent`
-container while preserving the `symbio-agent-data` Docker volume.
-
-## Onboarding Flow
-
-The browser onboarding form currently asks for:
-
-- Mode: `Self-Hosted Solo Mode` or `Agency Mode`.
-- Access profile.
-- Site name.
-- Site URL.
-- Health check paths.
-- Repository paths.
-- Log paths.
-- Config paths.
-- Database access policy.
-- Docker socket request.
-- Owner email.
-- Automation level.
-- OpenRouter key.
-
-The default automation level is `Guided Repair`.
-
-The prototype records whether an OpenRouter key was provided, but it does not save the key value into `onboarding.json`.
-
-## Data Storage
-
-Onboarding data is saved inside the Docker volume:
-
-```text
-symbio-agent-data
-```
-
-Inside the container, the config path is:
-
-```text
-/data/onboarding.json
-```
-
-The saved JSON includes:
-
-- Setup ID.
-- Timestamps.
-- Mode.
-- Access profile.
-- Site name.
-- Site URL.
-- Health check paths.
-- Repository paths.
-- Log paths.
-- Config paths.
-- Database access policy.
-- Docker socket request.
-- Owner email.
-- Automation level.
-- Whether an OpenRouter key was provided.
-- Protected-zone lock status.
-
-It does not store:
-
-- OpenRouter key value.
-- Secrets.
-- Environment values.
-- Database data.
-- Source code.
-- Logs.
-
-## Safety Boundaries In This Prototype
-
-This prototype does not mutate production systems.
-
-It does not:
-
-- Edit files.
-- Edit configs.
-- Edit `.env` values.
-- Read or write databases.
-- Upgrade dependencies.
-- Restart target application containers.
-- Run repair commands.
-- Upload logs or source code.
-- Send telemetry to Symbio Cloud.
-
-The onboarding config always marks protected zones as locked.
-
-Protected zones include:
-
-- Secrets.
-- Auth.
-- Billing.
-- Payments.
-- Production database schema.
-- Production database data.
-
-Read-only health checks only send HTTP GET requests to the configured site URL
-and same-origin paths saved during onboarding.
-
-Internal access configuration records intended repository, log, config, Docker,
-and database access boundaries. It does not yet inspect or mutate those targets.
-
-## Local Development
-
-Run the server without Docker:
-
-```bash
-PORT=8766 SYMBIO_DATA_DIR=/tmp/symbio-agent-test npm start
-```
-
-Health check:
-
-```bash
-curl http://127.0.0.1:8766/api/status
-```
-
-Target page health check:
-
-```bash
-curl http://127.0.0.1:8766/api/health
-```
-
-Capability check:
-
-```bash
-curl http://127.0.0.1:8766/api/capabilities
-```
-
-Syntax check:
-
-```bash
+```sh
 npm run check
+npm test
 ```
 
-## API Endpoints
+Run mothership with temporary local state:
 
-### `GET /api/status`
-
-Returns service health and saved onboarding config when present.
-
-Example:
-
-```bash
-curl http://127.0.0.1:8765/api/status
+```sh
+SYMBIO_DATABASE_PATH=/tmp/symbio-mothership.sqlite \
+SYMBIO_AGENT_TOKEN=development-token \
+PORT=8765 \
+SYMBIO_INTERNAL_PORT=18766 \
+npm --prefix mothership start
 ```
 
-### `GET /api/health`
+The agent normally needs the Compose host mounts and host network; run it through Compose for realistic collection.
 
-Runs read-only HTTP checks against the configured site URL and saved health
-paths.
+## Disposable VM Installation Test
 
-Example:
+`deploy.sh` builds both images locally with Docker's cache, transfers the images
+and exact current working tree directly to the configured Ubuntu test VM, runs
+the real interactive installer in copied-source mode, and verifies both
+container health and the first agent delivery. The VM test path does not
+require or create a Git repository and does not rebuild images on the VM.
 
-```bash
-curl http://127.0.0.1:8765/api/health
-```
-
-The response includes:
-
-- Overall status: `healthy`, `warning`, or `down`.
-- Counts for total, ok, and failing pages.
-- Per-page URL, status code, response time, content type, and error when
-  present.
-- A safety marker confirming read-only mode and no production mutation.
-
-### `GET /api/capabilities`
-
-Returns configured internal access targets, detected container mounts, and the
-capabilities that are implemented versus still disabled.
-
-Example:
-
-```bash
-curl http://127.0.0.1:8765/api/capabilities
-```
-
-### `POST /api/onboarding`
-
-Saves onboarding setup.
-
-Example:
-
-```bash
-curl -X POST http://127.0.0.1:8765/api/onboarding \
-  -H 'content-type: application/json' \
-  --data '{
-    "mode": "self-hosted-solo",
-    "siteName": "Example Site",
-    "siteUrl": "https://example.com",
-    "ownerEmail": "owner@example.com",
-    "automationLevel": "guided-repair",
-    "accessProfile": "internal-observer",
-    "healthPaths": "/\n/features\n/pricing\n/blog\n/help",
-    "repoPaths": "/host/repos/example-site",
-    "logPaths": "/host/logs/nginx\n/host/logs/app",
-    "configPaths": "/host/configs/nginx",
-    "databaseAccess": "none",
-    "dockerSocketRequested": false,
-    "openRouterKey": "not-saved"
-  }'
-```
-
-## Troubleshooting
-
-### Docker daemon is not reachable
-
-If install prints:
+Defaults:
 
 ```text
-Docker CLI is installed, but the Docker daemon is not reachable.
+Remote: root@192.168.123.242
+SSH key: ~/.ssh/id_rsa
 ```
 
-Start Docker, then rerun:
+Run against a fresh VM:
 
-```bash
-./symbio/install.sh
+```sh
+./deploy.sh
 ```
 
-### Port 8765 is already in use
+Override the target or key without editing the script:
 
-Choose another host port:
-
-```bash
-SYMBIO_PORT=8877 ./symbio/install.sh
+```sh
+SYMBIO_TEST_REMOTE=root@192.0.2.10 \
+SYMBIO_TEST_SSH_KEY="$HOME/.ssh/symbio-test" \
+./deploy.sh
 ```
 
-Then open:
+The script refuses to overwrite an existing installation without an explicit
+mode. Replace application files and containers while preserving users,
+monitoring history, applications, tags, settings, credentials, and databases:
 
-```text
-http://127.0.0.1:8877
+```sh
+./deploy.sh --reset
 ```
 
-### Replace the existing container
+On a disposable test VM only, delete the complete installation and all data:
 
-The installer automatically replaces an existing container named `symbio-agent`.
+```sh
+./deploy.sh --reset-data
+```
 
-The data volume is preserved unless you manually remove it.
+`--reset-data` deletes the Symbio containers, named data volumes,
+`/opt/symbio`, `/etc/symbio`, and `/var/log/symbio`. It cannot be combined with
+`--reset`.
 
-## Roadmap
+## Runtime Paths
 
-Next implementation targets:
+- Installation source: `/opt/symbio`
+- Deployment settings and agent token: `/etc/symbio`
+- Installer log: `/var/log/symbio/install.log`
+- Mothership SQLite: `/data/mothership.sqlite` inside its volume.
+- Agent SQLite: `/data/agent.sqlite` inside its volume.
 
-1. Add scheduled health checks and incident persistence.
-2. Add read-only repository, log, Docker, and service inspection.
-3. Add adapter detection for WordPress and Laravel.
-4. Add incident model: Incident, Issue, Action, PolicyDecision, Execution, Validation, AuditEvent.
-5. Add policy-gated safe recovery actions.
-6. Add safe workspace patch generation.
-7. Add OpenRouter proposal layer through controlled tools.
-8. Add benchmark lab for Laravel operational recovery and WordPress security patching.
+## Configuration
+
+Common deployment overrides:
+
+- `SYMBIO_BIND_IP` — public bind address, default `0.0.0.0`.
+- `SYMBIO_PORT` — public dashboard port, default `8765`.
+- `SYMBIO_INTERNAL_PORT` — loopback mothership agent port, default `18766`.
+- `SYMBIO_AGENT_HEALTH_PORT` — loopback agent diagnostics, default `18767`.
+- `SYMBIO_COOKIE_SECURE=1` — enable Secure session cookies only when the browser uses HTTPS.
+
+Service host/port/URL overrides are edited from the authenticated Services page.
 
 ## License
 

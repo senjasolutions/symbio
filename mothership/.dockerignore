@@ -1,0 +1,5 @@
+# Mothership build excludes development tests and local state.
+node_modules
+test
+*.sqlite*
+*.log

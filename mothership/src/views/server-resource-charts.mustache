@@ -1,0 +1,6 @@
+<!-- Resource usage charts render CPU, memory, and disk history with a 24-hour or 7-day range selector. -->
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/servers">Servers</a></li><li class="breadcrumb-item"><a href="/servers/{{server.id}}">{{server.displayName}}</a></li><li class="breadcrumb-item active">Resource Usage Charts</li></ol></nav>
+<h1 class="h3 mb-1">Resource Usage Charts</h1>
+<p class="text-secondary small mb-3">CPU average and per-core, memory, and root disk usage over the selected time window. Historical data is retained for 7&nbsp;days.</p>
+<div class="btn-group mb-3"><a class="btn btn-outline-primary {{#range.is24h}}active{{/range.is24h}}" href="?range=24h">24 hours</a><a class="btn btn-outline-primary {{#range.is7d}}active{{/range.is7d}}" href="?range=7d">7 days</a></div>
+<div class="row g-3 mb-4"><div class="col-12">{{{cpuChart}}}</div><div class="col-lg-6">{{{memoryChart}}}</div><div class="col-lg-6">{{{diskChart}}}</div></div>

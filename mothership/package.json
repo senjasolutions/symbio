@@ -1,0 +1,29 @@
+{
+  "name": "symbio-mothership",
+  "version": "0.1.0-beta.1",
+  "private": true,
+  "type": "module",
+  "description": "Server-rendered Symbio monitoring dashboard and source of truth.",
+  "scripts": {
+    "start": "node src/index.js",
+    "postinstall": "cd node_modules/sqlite3 && ../.bin/node-gyp rebuild",
+    "migrate": "node scripts/migrate.js",
+    "seed:superadmin": "node scripts/seed-superadmin.js",
+    "check": "find src scripts test -name '*.js' -print0 | xargs -0 -n1 node --check",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.3.0",
+    "@hono/node-server": "^1.19.6",
+    "@yaireo/tagify": "^4.38.0",
+    "argon2": "^0.44.0",
+    "bootstrap": "^5.3.8",
+    "hono": "^4.10.6",
+    "mustache": "^4.2.0",
+    "sequelize": "^6.37.7",
+    "sqlite3": "^6.0.1"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
+  }
+}

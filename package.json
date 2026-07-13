@@ -1,11 +1,13 @@
 {
-  "name": "symbio-agent",
-  "version": "0.1.0",
+  "name": "symbio",
+  "version": "0.1.0-beta.1",
   "private": true,
-  "description": "Symbio local agent prototype with browser onboarding.",
+  "description": "Lightweight single-server monitoring dashboard and host agent.",
   "scripts": {
-    "start": "node app/server.js",
-    "check": "node --check app/server.js"
+    "install:all": "npm --prefix mothership install && npm --prefix agent install",
+    "check": "npm --prefix mothership run check && npm --prefix agent run check",
+    "test": "npm --prefix mothership test && npm --prefix agent test",
+    "audit": "npm --prefix mothership audit --audit-level=high && npm --prefix agent audit --audit-level=high"
   },
   "license": "Apache-2.0"
 }

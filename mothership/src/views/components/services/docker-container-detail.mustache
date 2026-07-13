@@ -1,0 +1,16 @@
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/servers/{{service.serverId}}/services">Services</a></li><li class="breadcrumb-item"><a href="/servers/{{service.serverId}}/services/{{service.id}}">Docker</a></li><li class="breadcrumb-item"><a href="/servers/{{service.serverId}}/services/{{service.id}}">Containers</a></li><li class="breadcrumb-item active">{{container.name}}</li></ol></nav>
+{{#error}}
+<div class="alert alert-danger">{{error}}</div>
+<a class="btn btn-outline-primary" href="/servers/{{service.serverId}}/services/{{service.id}}">Back to Docker</a>
+{{/error}}
+{{^error}}
+<div class="d-flex justify-content-between mb-3"><div><h1 class="h3 mb-1"><i class="{{service.serviceIcon}} me-1" aria-hidden="true"></i> {{container.name}}</h1></div><div><span class="badge text-bg-{{#container.state.running}}success{{/container.state.running}}{{^container.state.running}}secondary{{/container.state.running}} status-badge">{{container.state.status}}</span></div></div>
+<section class="card mb-3"><div class="card-header"><strong><i class="fa-solid fa-circle-info me-1" aria-hidden="true"></i> General</strong></div><table class="table table-sm mb-0"><tbody><tr><th style="width:120px">ID</th><td><code>{{container.id}}</code></td></tr><tr><th>Image</th><td>{{container.image}}</td></tr><tr><th>Platform</th><td>{{container.platform}}</td></tr><tr><th>Created</th><td>{{container.created}}</td></tr><tr><th>Started</th><td>{{container.state.startedAt}}</td></tr><tr><th>Restart count</th><td>{{container.state.restartCount}}</td></tr></tbody></table></section>
+{{#container.ports}}
+<section class="card mb-3"><div class="card-header"><strong><i class="fa-solid fa-plug me-1" aria-hidden="true"></i> Ports</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Container port</th><th>Protocol</th><th>Host IP</th><th>Host port</th></tr></thead><tbody>{{#container.ports}}<tr><td>{{containerPort}}</td><td>{{protocol}}</td><td>{{#bindings}}{{hostIp}}{{/bindings}}{{^bindings}}—{{/bindings}}</td><td>{{#bindings}}{{hostPort}}{{/bindings}}{{^bindings}}—{{/bindings}}</td></tr>{{/container.ports}}</tbody></table></div></section>
+{{/container.ports}}
+{{#container.network}}
+<section class="card mb-3"><div class="card-header"><strong><i class="fa-solid fa-network-wired me-1" aria-hidden="true"></i> Network</strong></div><table class="table table-sm mb-0"><tbody><tr><th style="width:120px">Name</th><td>{{container.network.name}}</td></tr><tr><th>IP address</th><td>{{container.network.ip}}</td></tr><tr><th>Gateway</th><td>{{container.network.gateway}}</td></tr></tbody></table></section>
+{{/container.network}}
+<a class="btn btn-outline-primary" href="/servers/{{service.serverId}}/services/{{service.id}}">Back to Docker</a>
+{{/error}}

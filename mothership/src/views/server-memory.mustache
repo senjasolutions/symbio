@@ -1,0 +1,6 @@
+<!-- Memory detail reads every /proc/meminfo field with a short description for each kernel-reported memory metric. -->
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/servers">Servers</a></li><li class="breadcrumb-item"><a href="/servers/{{server.id}}">{{server.displayName}}</a></li><li class="breadcrumb-item active">Memory Detail</li></ol></nav>
+<h1 class="h3 mb-1">Memory Detail</h1>
+<p class="text-secondary small mb-3">Complete /proc/meminfo breakdown showing every kernel-reported memory field with a short description. Total system memory is {{memory.total}}{{#memory.total}} ({{memory.total}} bytes){{/memory.total}}.</p>
+{{#error}}<div class="alert alert-warning" role="alert">Agent unavailable: {{error}}</div>{{/error}}
+<section class="card"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Field</th><th class="text-end">Value</th><th class="d-none d-lg-table-cell">Description</th></tr></thead><tbody>{{#detail}}<tr><td class="font-monospace small">{{key}}</td><td class="text-end">{{label}}</td><td class="d-none d-lg-table-cell small text-muted">{{description}}</td></tr>{{/detail}}{{^detail}}<tr><td colspan="3" class="text-muted">No memory data available or agent is unavailable.</td></tr>{{/detail}}</tbody></table></div></section>

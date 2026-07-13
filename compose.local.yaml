@@ -1,0 +1,18 @@
+# Local development overrides bind repository source into the hardened images;
+# Node watch restarts JavaScript services while views and assets update on read.
+services:
+  mothership:
+    environment:
+      NODE_ENV: development
+    command: ["node", "--watch", "--watch-preserve-output", "src/index.js"]
+    volumes:
+      - ./mothership/src:/app/src:ro
+      - ./mothership/scripts:/app/scripts:ro
+      - ./mothership/public:/app/public:ro
+
+  agent:
+    environment:
+      NODE_ENV: development
+    command: ["node", "--watch", "--watch-preserve-output", "src/index.js"]
+    volumes:
+      - ./agent/src:/app/src:ro

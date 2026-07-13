@@ -1,5 +1,9 @@
-.DS_Store
+# Root-level build context exclusions for development tooling and runtime data.
+.git
+.symbio
 node_modules
-npm-debug.log
-symbio-agent-data
-
+**/node_modules
+*.sqlite*
+*.log
+docs
+test

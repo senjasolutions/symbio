@@ -1,0 +1,28 @@
+<!-- Listening ports show TCP and UDP sockets and the owning process where resolvable. -->
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/servers">Servers</a></li><li class="breadcrumb-item"><a href="/servers/{{server.id}}">{{server.displayName}}</a></li><li class="breadcrumb-item active">Listening Ports</li></ol></nav>
+<h1 class="h3 mb-1">Listening Ports</h1>
+<p class="text-secondary small mb-3">All listening TCP and UDP sockets with their bound addresses, ports, and the owning process where /proc file descriptors can be resolved. Search by process name, port number, or protocol.</p>
+{{#error}}<div class="alert alert-warning" role="alert">Agent unavailable: {{error}}</div>{{/error}}
+
+<form class="row g-2 mb-3" method="get">
+  <div class="col-sm-8 col-md-6 col-lg-5">
+    <div class="input-group input-group-sm">
+      <span class="input-group-text"><i class="fa-solid fa-search" aria-hidden="true"></i></span>
+      <input class="form-control" type="text" name="q" value="{{query}}" placeholder="Filter by process, port, or protocol...">
+      {{#query}}<a class="btn btn-outline-secondary" href="?page=1"><i class="fa-solid fa-xmark" aria-hidden="true"></i></a>{{/query}}
+      <button class="btn btn-primary" type="submit">Search</button>
+    </div>
+  </div>
+  {{#showing}}<div class="col-sm-4 col-md-6 col-lg-7 text-end small pt-1 text-muted">Showing {{showing.from}}–{{showing.to}} of {{total}} sockets</div>{{/showing}}
+</form>
+
+<section class="card"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Protocol</th><th>Local Address</th><th>Port</th><th class="d-none d-md-table-cell">State</th><th>Process</th><th>PID</th></tr></thead><tbody>{{#ports}}<tr><td><span class="badge text-bg-secondary">{{protocol}}</span></td><td class="font-monospace small">{{localAddr}}</td><td>{{localPort}}</td><td class="d-none d-md-table-cell">{{state}}</td><td class="font-monospace small">{{processName}}</td><td>{{pid}}</td></tr>{{/ports}}{{^ports}}<tr><td colspan="6" class="text-muted">{{#query}}No sockets match your search.{{/query}}{{^query}}No listening ports found or agent is unavailable.{{/query}}</td></tr>{{/ports}}</tbody></table></div></section>
+
+{{#totalPages}}{{#showPagination}}<nav class="d-flex justify-content-between align-items-center mt-3" aria-label="Ports pagination">
+  <small class="text-muted">Page {{page}} of {{totalPages}}</small>
+  <ul class="pagination pagination-sm mb-0">
+    {{#page}}{{#isFirst}}<li class="page-item disabled"><span class="page-link">&laquo;</span></li>{{/isFirst}}{{^isFirst}}<li class="page-item"><a class="page-link" href="?page={{prevPage}}{{#query}}&q={{query}}{{/query}}">&laquo;</a></li>{{/isFirst}}{{/page}}
+    {{#pages}}<li class="page-item {{#active}}active{{/active}}"><a class="page-link" href="?page={{num}}{{#query}}&q={{query}}{{/query}}">{{num}}</a></li>{{/pages}}
+    {{#page}}{{#isLast}}<li class="page-item disabled"><span class="page-link">&raquo;</span></li>{{/isLast}}{{^isLast}}<li class="page-item"><a class="page-link" href="?page={{nextPage}}{{#query}}&q={{query}}{{/query}}">&raquo;</a></li>{{/isLast}}{{/page}}
+  </ul>
+</nav>{{/showPagination}}{{/totalPages}}

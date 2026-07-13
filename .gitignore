@@ -1,0 +1,15 @@
+# Runtime dependencies and local Symbio secrets are never committed.
+node_modules/
+mothership/node_modules/
+agent/node_modules/
+.symbio/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.log
+.DS_Store
+/docs/cpanel_html
+/docs/old_code_ref
+/docs/pma_html
+MEMORY.md
+AGENTS.md

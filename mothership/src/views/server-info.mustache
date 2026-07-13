@@ -1,0 +1,33 @@
+<!-- Server information collects CPU, OS, memory, and boot details for a complete system profile. -->
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/servers">Servers</a></li><li class="breadcrumb-item"><a href="/servers/{{server.id}}">{{server.displayName}}</a></li><li class="breadcrumb-item active">Server Information</li></ol></nav>
+<h1 class="h3 mb-1">Server Information</h1>
+<p class="text-secondary small mb-3">Complete system profile including operating system details, CPU specifications, memory totals, boot time, and uptime. Values are read live from /proc and /sys.</p>
+{{#error}}<div class="alert alert-warning" role="alert">Agent unavailable: {{error}}</div>{{/error}}
+<div class="row g-3">
+  <div class="col-lg-6">
+    <section class="card mb-3"><div class="card-header"><strong><i class="fa-solid fa-laptop me-1" aria-hidden="true"></i>Operating System</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><tbody>
+      <tr><th>Operating System</th><td>{{info.os}}</td></tr>
+      <tr><th>OS Identifier</th><td>{{info.osId}}{{#info.osVersion}} {{info.osVersion}}{{/info.osVersion}}</td></tr>
+      <tr><th>Hostname</th><td>{{server.hostname}}</td></tr>
+      <tr><th>Primary IP</th><td>{{server.primaryIp}}</td></tr>
+      <tr><th>Kernel</th><td>{{server.kernelVersion}}</td></tr>
+      <tr><th>Architecture</th><td>{{server.hardware.architecture}}</td></tr>
+    </tbody></table></div></section>
+    <section class="card"><div class="card-header"><strong><i class="fa-solid fa-clock me-1" aria-hidden="true"></i>Uptime & Boot</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><tbody>
+      <tr><th>Boot time</th><td>{{info.bootTime}}{{#info.bootTime}} ({{info.uptime}} seconds ago){{/info.bootTime}}</td></tr>
+    </tbody></table></div></section>
+  </div>
+  <div class="col-lg-6">
+    <section class="card mb-3"><div class="card-header"><strong><i class="fa-solid fa-microchip me-1" aria-hidden="true"></i>CPU</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><tbody>
+      <tr><th>Model</th><td>{{info.cpu.model}}</td></tr>
+      <tr><th>Cores</th><td>{{info.cpu.cores}} physical</td></tr>
+      <tr><th>Threads</th><td>{{info.cpu.threads}} logical</td></tr>
+      <tr><th>Frequency</th><td>{{info.cpu.mhz}} MHz</td></tr>
+      <tr><th>L3 Cache</th><td>{{info.cpu.cacheL3}}</td></tr>
+    </tbody></table></div></section>
+    <section class="card"><div class="card-header"><strong><i class="fa-solid fa-memory me-1" aria-hidden="true"></i>Memory</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><tbody>
+      <tr><th>Total RAM</th><td>{{info.memory.totalLabel}}</td></tr>
+      <tr><th>Total Swap</th><td>{{info.memory.swapLabel}}</td></tr>
+    </tbody></table></div></section>
+  </div>
+</div>

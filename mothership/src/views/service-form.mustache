@@ -1,0 +1,10 @@
+<!-- Service configuration accepts only adapter-safe host, port, and HTTP values. -->
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/servers/{{service.serverId}}/services">Services</a></li><li class="breadcrumb-item"><a href="/servers/{{service.serverId}}/services/{{service.id}}">{{service.displayName}}</a></li><li class="breadcrumb-item active">Configure</li></ol></nav>
+<h1 class="h3 mb-3">Configure {{service.displayName}}</h1>
+{{#error}}<div class="alert alert-danger">{{error}}</div>{{/error}}
+<form class="card" method="post" action="/servers/{{service.serverId}}/services/{{service.id}}/edit"><div class="card-body">
+  <input type="hidden" name="_csrf" value="{{csrfToken}}">
+  <div class="form-check mb-3"><input class="form-check-input" id="enabled" name="enabled" type="checkbox" value="1" {{#service.enabled}}checked{{/service.enabled}}><label class="form-check-label" for="enabled">Enable monitoring for this service</label></div>
+  <div class="row g-3"><div class="col-md-6"><label class="form-label" for="host">Probe host</label><input class="form-control" id="host" name="host" value="{{service.host}}" placeholder="127.0.0.1"></div><div class="col-md-6"><label class="form-label" for="port">Probe port</label><input class="form-control" id="port" name="port" type="number" min="1" max="65535" value="{{service.port}}"></div><div class="col-12"><label class="form-label" for="probeUrl">HTTP probe URL (Nginx/Apache)</label><input class="form-control" id="probeUrl" name="probeUrl" type="url" value="{{service.probeUrl}}" placeholder="http://127.0.0.1/"></div></div>
+  <p class="form-text mt-3">Unsupported fields are ignored by adapters that do not use them. No service credentials are stored in Phase 1.</p>
+</div><div class="card-footer"><button class="btn btn-primary" type="submit">Save configuration</button> <a class="btn btn-outline-secondary" href="/servers/{{service.serverId}}/services/{{service.id}}">Cancel</a></div></form>
