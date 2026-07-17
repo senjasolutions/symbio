@@ -28,3 +28,5 @@ export const fetchMemoryDetail = () => agentFetch("/api/v1/system/memory");
 export const fetchDiskIO = () => agentFetch("/api/v1/system/disk-io");
 export const fetchLoggedInUsers = () => agentFetch("/api/v1/system/users");
 export const fetchInstalledPackages = () => agentFetch("/api/v1/system/packages");
+/** Fetches top 5 CPU and memory consumers from the agent for alert diagnostics. */
+export const fetchTopProcesses = () => agentFetch("/api/v1/system/top-processes");

@@ -1,0 +1,33 @@
+<!-- Page 1 of the AI Application Discovery wizard: intro screen. -->
+<nav aria-label="{{#t}}common.breadcrumb{{/t}}"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/applications">{{#t}}nav.applications{{/t}}</a></li><li class="breadcrumb-item active">{{#t}}ai.discover.title{{/t}}</li></ol></nav>
+<h1 class="h3 mb-3"><i class="fa-solid fa-brain me-1" aria-hidden="true"></i>{{#t}}ai.discover.title{{/t}}</h1>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <p>{{#t}}ai.discover.intro1{{/t}}</p>
+    <p>{{#t}}ai.discover.intro2{{/t}}</p>
+    <ul>
+      <li>{{#t}}ai.discover.introStep1{{/t}}</li>
+      <li>{{#t}}ai.discover.introStep2{{/t}}</li>
+      <li>{{#t}}ai.discover.introStep3{{/t}}</li>
+      <li>{{#t}}ai.discover.introStep4{{/t}}</li>
+    </ul>
+    <p class="text-secondary small">{{#t}}ai.discover.introHuman{{/t}}</p>
+  </div>
+</div>
+
+{{#llmError}}
+<div class="alert alert-danger"><i class="fa-solid fa-circle-exclamation me-1" aria-hidden="true"></i>{{llmError}}</div>
+{{/llmError}}
+{{^llmError}}
+{{#isAnthropic}}
+<div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation me-1" aria-hidden="true"></i>{{#t}}ai.discover.anthropicWarning{{/t}} <a href="/settings?tab=llm">{{#t}}settings.llm{{/t}}</a>.</div>
+{{/isAnthropic}}
+{{^isAnthropic}}
+<form method="post" action="/applications/ai-discover">
+  <input type="hidden" name="_csrf" value="{{csrfToken}}">
+  <button class="btn btn-primary" type="submit"><i class="fa-solid fa-magnifying-glass me-1" aria-hidden="true"></i> {{#t}}ai.discover.startScan{{/t}}</button>
+  <a class="btn btn-outline-secondary ms-2" href="/applications">{{#t}}common.cancel{{/t}}</a>
+</form>
+{{/isAnthropic}}
+{{/llmError}}

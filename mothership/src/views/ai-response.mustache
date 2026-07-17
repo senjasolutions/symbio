@@ -1,0 +1,59 @@
+<!-- AI analysis response page — shows the AI's answer to a question about server logs. -->
+<nav aria-label="{{#t}}common.breadcrumb{{/t}}"><ol class="breadcrumb">{{#sourceUrl}}<li class="breadcrumb-item"><a href="/ai">{{#t}}ai.symbioIntelligence{{/t}}</a></li><li class="breadcrumb-item"><a href="/ai/history">{{#t}}ai.history{{/t}}</a></li>{{#historyId}}<li class="breadcrumb-item"><a href="/ai/history/{{historyId}}">#{{historyId}}</a></li>{{/historyId}}<li class="breadcrumb-item active">{{#t}}ai.pageTitle{{/t}}</li>{{/sourceUrl}}{{^sourceUrl}}<li class="breadcrumb-item"><a href="/ai">{{#t}}ai.symbioIntelligence{{/t}}</a></li><li class="breadcrumb-item active">{{#t}}ai.pageTitle{{/t}}</li>{{/sourceUrl}}</ol></nav>
+
+<h1 class="h3 mb-3"><i class="fa-solid fa-brain me-1" aria-hidden="true"></i>{{#t}}ai.pageTitle{{/t}}</h1>
+
+{{#error}}
+<div class="alert alert-danger" role="alert"><i class="fa-solid fa-circle-exclamation me-1" aria-hidden="true"></i>{{error}}</div>
+{{/error}}
+
+{{^error}}
+<div class="card mb-3">
+  <div class="card-header"><strong>{{#t}}ai.yourQuestion{{/t}}</strong></div>
+  <div class="card-body"><p class="mb-0">{{question}}</p></div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <strong><i class="fa-solid fa-file-lines me-1" aria-hidden="true"></i>{{#t}}ai.response{{/t}}</strong>
+    <small class="text-secondary">{{#t}}ai.analyzed{{/t}} — {{logName}}</small>
+  </div>
+  {{#contentHtml}}
+  <div class="card-body p-3 ai-content">{{{contentHtml}}}</div>
+  {{/contentHtml}}
+  {{^contentHtml}}
+  <div class="card-body p-0">
+    <pre class="log-output mb-0" tabindex="0" style="border:0; white-space:pre-wrap">{{content}}</pre>
+  </div>
+  {{/contentHtml}}
+  <div class="card-footer text-secondary small d-flex justify-content-between align-items-center">
+    <span>{{#model}}<strong>{{#t}}ai.model{{/t}}:</strong> {{model}} &middot; {{/model}}{{#responseTimeMs}}<strong>{{#t}}ai.responseTime{{/t}}:</strong> {{responseTimeMs}}ms &middot; {{/responseTimeMs}}{{#usage}}<strong>{{#t}}ai.tokensUsed{{/t}}:</strong> {{totalTokens}} ({{#t}}ai.promptTokens{{/t}}: {{promptTokens}}, {{#t}}ai.completionTokens{{/t}}: {{completionTokens}}){{/usage}}</span>
+    {{#historyId}}<span class="text-secondary"><strong>ID:</strong> #{{historyId}}</span>{{/historyId}}
+  </div>
+</div>
+
+{{#reasoningContent}}
+<details class="card mb-3">
+  <summary class="card-header" style="cursor:pointer"><i class="fa-solid fa-chevron-right me-1" aria-hidden="true"></i> <strong>{{#t}}ai.thinkingTitle{{/t}}</strong></summary>
+  <div class="card-body p-0">
+    <pre class="log-output mb-0" tabindex="0" style="border:0; white-space:pre-wrap; opacity:0.85; font-size:0.9em">{{reasoningContent}}</pre>
+  </div>
+</details>
+{{/reasoningContent}}
+
+{{#requestText}}
+<details class="card mb-3">
+  <summary class="card-header" style="cursor:pointer"><i class="fa-solid fa-chevron-right me-1" aria-hidden="true"></i> <strong>{{#t}}ai.viewRequest{{/t}}</strong></summary>
+  <div class="card-body p-0">
+    <pre class="log-output mb-0" tabindex="0" style="border:0; white-space:pre-wrap; font-size:0.85em; opacity:0.85">{{requestText}}</pre>
+  </div>
+  <div class="card-footer text-secondary small">{{#t}}ai.requestHelp{{/t}}</div>
+</details>
+{{/requestText}}
+{{/error}}
+
+<div class="mt-3 d-flex align-items-center gap-2">
+  <a class="btn btn-outline-primary" href="{{sourceUrl}}"><i class="fa-solid fa-arrow-left me-1" aria-hidden="true"></i> {{#t}}ai.backToLog{{/t}}</a>
+  {{#showAskAgain}}<a class="btn btn-primary" href="{{sourceUrl}}#ask-ai"><i class="fa-solid fa-repeat me-1" aria-hidden="true"></i> {{#t}}ai.askAgain{{/t}}</a>{{/showAskAgain}}
+  <a class="btn btn-outline-secondary ms-auto" href="/ai/history"><i class="fa-solid fa-clock-rotate-left me-1" aria-hidden="true"></i> {{#t}}ai.history{{/t}}</a>
+</div>

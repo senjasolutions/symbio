@@ -70,18 +70,23 @@ test("login and server-rendered application CRUD work with session CSRF", async 
   const loginPage = await app.request("/login");
   assert.equal(loginPage.status, 200);
   assert.match(await loginPage.text(), /Server monitoring login/);
+  const loginSetCookie = loginPage.headers.get("set-cookie") || "";
+  const loginCsrfCookie = loginSetCookie.split(";")[0];
+  const loginCsrfValue = (loginCsrfCookie || "").split("=")[1] || "";
   const response = await app.request("/login", {
-    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ username: "operator", password: "a sufficiently long test passphrase" }),
+    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", cookie: loginCsrfCookie },
+    body: new URLSearchParams({ _csrf: loginCsrfValue, username: "operator", password: "a sufficiently long test passphrase" }),
   });
   assert.equal(response.status, 302);
-  const cookie = (response.headers.get("set-cookie") || "").split(";")[0];
-  assert.match(cookie, /symbio_session=/);
+  // Multiple set-cookie headers may be present (login_csrf delete + new session)
+  const allCookies = (response.headers.get("set-cookie") || "").split(",").map(c => c.split(";")[0].trim());
+  const sessionCookie = allCookies.find(c => c.startsWith("symbio_session=")) || allCookies[0];
+  assert.match(sessionCookie, /symbio_session=/);
   assert.equal(await models.Session.count(), 1);
   const session = await models.Session.findOne();
   const createResponse = await app.request("/applications", {
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded", cookie },
+    headers: { "content-type": "application/x-www-form-urlencoded", cookie: sessionCookie },
     body: new URLSearchParams({
       _csrf: session.csrfToken, name: "test_app", displayName: "Test Application",
       healthCheckUrl: "http://127.0.0.1:9999/health", healthCheckTimeoutMs: "5000",
@@ -92,11 +97,11 @@ test("login and server-rendered application CRUD work with session CSRF", async 
   const application = await models.Application.findOne({ where: { name: "test_app" } });
   assert.ok(application);
   assert.equal(await models.ApplicationTag.count(), 2);
-  const listResponse = await app.request("/applications", { headers: { cookie } });
+  const listResponse = await app.request("/applications", { headers: { cookie: sessionCookie } });
   assert.equal(listResponse.status, 200);
   assert.match(await listResponse.text(), /Test Application/);
   const deleteResponse = await app.request(`/applications/${application.id}/delete`, {
-    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", cookie },
+    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", cookie: sessionCookie },
     body: new URLSearchParams({ _csrf: session.csrfToken }),
   });
   assert.equal(deleteResponse.status, 302);
@@ -125,11 +130,14 @@ test("duplicate agent reports are acknowledged without duplicate samples", async
 
 test("server detail renders every collected host identity and runtime field", async () => {
   const app = createPublicApp();
+  const loginPage2 = await app.request("/login");
+  const lc2 = (loginPage2.headers.get("set-cookie") || "").split(";")[0];
+  const lc2val = (lc2 || "").split("=")[1] || "";
   const login = await app.request("/login", {
-    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ username: "operator", password: "a sufficiently long test passphrase" }),
+    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", cookie: lc2 },
+    body: new URLSearchParams({ _csrf: lc2val, username: "operator", password: "a sufficiently long test passphrase" }),
   });
-  const cookie = (login.headers.get("set-cookie") || "").split(";")[0];
+  const cookie = (login.headers.get("set-cookie") || "").split(",").map(c => c.split(";")[0].trim()).find(c => c.startsWith("symbio_session=")) || "";
   const response = await app.request("/servers/1", { headers: { cookie } });
   const html = await response.text();
   assert.equal(response.status, 200);
@@ -145,11 +153,14 @@ test("server detail renders every collected host identity and runtime field", as
 
 test("authenticated pages render the clean-room administrative navigation shell", async () => {
   const app = createPublicApp();
+  const loginPage3 = await app.request("/login");
+  const lc3 = (loginPage3.headers.get("set-cookie") || "").split(";")[0];
+  const lc3val = (lc3 || "").split("=")[1] || "";
   const login = await app.request("/login", {
-    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ username: "operator", password: "a sufficiently long test passphrase" }),
+    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", cookie: lc3 },
+    body: new URLSearchParams({ _csrf: lc3val, username: "operator", password: "a sufficiently long test passphrase" }),
   });
-  const cookie = (login.headers.get("set-cookie") || "").split(";")[0];
+  const cookie = (login.headers.get("set-cookie") || "").split(",").map(c => c.split(";")[0].trim()).find(c => c.startsWith("symbio_session=")) || "";
   const response = await app.request("/servers", { headers: { cookie } });
   const html = await response.text();
   assert.equal(response.status, 200);

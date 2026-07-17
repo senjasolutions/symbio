@@ -6,6 +6,7 @@ import path from "node:path";
 import { config } from "../config.js";
 
 let previousCpu = new Map();
+let previousNet = { timestamp: 0, rxBytes: 0, txBytes: 0 };
 
 const IGNORED_FILESYSTEMS = new Set(["autofs", "bpf", "cgroup", "cgroup2", "configfs", "debugfs", "devpts", "devtmpfs", "efivarfs", "fusectl", "hugetlbfs", "mqueue", "nsfs", "overlay", "proc", "pstore", "ramfs", "securityfs", "sysfs", "tmpfs", "tracefs"]);
 
@@ -14,29 +15,37 @@ const readHostFile = async (relativePath) => {
   try { return await fs.readFile(path.join(config.procPath, relativePath), "utf8"); } catch { return ""; }
 };
 
-/** Parses aggregate and logical-core /proc/stat counters into interval utilization. */
+/** Parses aggregate and logical-core /proc/stat counters into interval utilization.
+ * /proc/stat cpu fields (0-based): 0=user 1=nice 2=system 3=idle 4=iowait 5=irq 6=softirq 7=steal 8=guest 9=guest_nice
+ * CPU busy = total - idle (iowait is busy time — CPU had work waiting on I/O).
+ * IOWait is tracked separately for alert rules that monitor disk I/O pressure. */
 const collectCpu = async () => {
   const counters = (await readHostFile("stat")).split("\n").filter((line) => /^cpu(?:\d+)?\s/.test(line));
   const readings = counters.map((line) => {
     const [label, ...rawValues] = line.trim().split(/\s+/);
     const values = rawValues.map(Number);
-    const current = { idle: (values[3] || 0) + (values[4] || 0), total: values.reduce((sum, value) => sum + value, 0) };
+    // Guard against NaN from corrupt /proc/stat
+    for (let i = 0; i < values.length; i++) if (!Number.isFinite(values[i])) values[i] = 0;
+    const current = { idle: (values[3] || 0) + (values[4] || 0), iowait: (values[4] || 0), total: values.reduce((sum, value) => sum + value, 0) };
     const previous = previousCpu.get(label);
     previousCpu.set(label, current);
     const totalDelta = current.total - (previous?.total || current.total);
     const idleDelta = current.idle - (previous?.idle || current.idle);
+    const iowaitDelta = current.iowait - (previous?.iowait || current.iowait);
     const percent = previous && totalDelta > 0 ? Math.max(0, Math.min(100, ((totalDelta - idleDelta) / totalDelta) * 100)) : null;
-    return { label, percent };
+    const iowaitPercent = previous && totalDelta > 0 ? Math.max(0, Math.min(100, (iowaitDelta / totalDelta) * 100)) : null;
+    return { label, percent, iowaitPercent };
   });
   const aggregate = readings.find((reading) => reading.label === "cpu");
-  return { cpuPercent: aggregate?.percent ?? null, cpuCores: readings.filter((reading) => reading.label !== "cpu").map((reading) => ({ id: reading.label, percent: reading.percent })) };
+  return { cpuPercent: aggregate?.percent ?? null, cpuIowaitPercent: aggregate?.iowaitPercent ?? null, cpuCores: readings.filter((reading) => reading.label !== "cpu").map((reading) => ({ id: reading.label, percent: reading.percent })) };
 };
 
 /** Parses meminfo using MemAvailable so cache is not misreported as consumed RAM. */
 const collectMemory = async () => {
   const entries = Object.fromEntries((await readHostFile("meminfo")).split("\n").map((line) => {
     const [key, raw] = line.split(":");
-    return [key, Number.parseInt(raw, 10) * 1024];
+    const val = Number.isFinite(Number.parseInt(raw, 10)) ? Number.parseInt(raw, 10) * 1024 : null;
+    return [key, val];
   }));
   const total = entries.MemTotal || null;
   const available = entries.MemAvailable ?? entries.MemFree ?? null;
@@ -70,9 +79,10 @@ const collectStorage = async () => {
       const stats = await fs.statfs(path.join(config.hostRootPath, mountPoint), { bigint: true });
       const totalBytes = Number(stats.blocks * stats.bsize);
       const availableBytes = Number(stats.bavail * stats.bsize);
-      if (!totalBytes) continue;
+      if (!totalBytes || !Number.isFinite(totalBytes) || !Number.isFinite(availableBytes)) continue;
       seen.add(key);
-      filesystems.push({ mountPoint, fsType, source: String(source || "").slice(0, 255), totalBytes, usedBytes: totalBytes - availableBytes, availableBytes });
+      const usedBytes = Math.max(0, totalBytes - availableBytes);
+      filesystems.push({ mountPoint, fsType, source: String(source || "").slice(0, 255), totalBytes, usedBytes, availableBytes });
     } catch { /* A mount can disappear while the host is being inspected. */ }
   }
   return filesystems;
@@ -82,7 +92,7 @@ const collectStorage = async () => {
 const rootDiskMetrics = (storage) => {
   const root = storage.find((entry) => entry.mountPoint === "/") || storage[0];
   if (!root) return { diskUsedBytes: null, diskTotalBytes: null, diskPercent: null };
-  return { diskUsedBytes: root.usedBytes, diskTotalBytes: root.totalBytes, diskPercent: (root.usedBytes / root.totalBytes) * 100 };
+  return { diskUsedBytes: root.usedBytes, diskTotalBytes: root.totalBytes, diskPercent: root.totalBytes > 0 ? Math.min(100, (root.usedBytes / root.totalBytes) * 100) : null };
 };
 
 /** Reads stable CPU identity fields without executing host commands. */
@@ -97,7 +107,7 @@ const collectHardware = async () => {
 const collectNetworking = async () => {
   const counters = Object.fromEntries((await readHostFile("net/dev")).split("\n").slice(2).map((line) => {
     const [name, values] = line.trim().split(":");
-    const fields = values?.trim().split(/\s+/).map(Number) || [];
+    const fields = values?.trim().split(/\s+/).map((v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; }) || [];
     return [name?.trim(), { rxBytes: fields[0] || 0, txBytes: fields[8] || 0 }];
   }).filter(([name]) => name));
   return Promise.all(Object.entries(os.networkInterfaces()).map(async ([name, addresses]) => {
@@ -117,19 +127,42 @@ const operatingSystem = async () => {
   } catch { return "Linux"; }
 };
 
+/** Returns aggregate network throughput (bytes/sec) from /proc/net/dev deltas. */
+const collectNetworkThroughput = async () => {
+  const raw = await readHostFile("net/dev");
+  const lines = raw.trim().split("\n").slice(2);
+  let totalRx = 0, totalTx = 0;
+  for (const line of lines) {
+    const [name, values] = line.trim().split(":");
+    const fields = values?.trim().split(/\s+/).map((v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; }) || [];
+    if (name?.trim() === "lo") continue;
+    totalRx += fields[0] || 0;
+    totalTx += fields[8] || 0;
+  }
+  const now = Date.now();
+  const elapsed = (now - previousNet.timestamp) / 1000;
+  let rxPerSec = null, txPerSec = null;
+  if (previousNet.timestamp > 0 && elapsed > 0) {
+    rxPerSec = Math.max(0, (totalRx - previousNet.rxBytes) / elapsed);
+    txPerSec = Math.max(0, (totalTx - previousNet.txBytes) / elapsed);
+  }
+  previousNet = { timestamp: now, rxBytes: totalRx, txBytes: totalTx };
+  return { networkRxBytesPerSec: rxPerSec, networkTxBytesPerSec: txPerSec };
+};
+
 /** Collects one consistent host identity and metrics snapshot. */
 export const collectHost = async () => {
-  const [cpu, memory, storage, hardware, networking, loadText, uptimeText, kernelVersion, osName] = await Promise.all([
+  const [cpu, memory, storage, hardware, networking, loadText, uptimeText, kernelVersion, osName, netThroughput] = await Promise.all([
     collectCpu(), collectMemory(), collectStorage(), collectHardware(), collectNetworking(), readHostFile("loadavg"), readHostFile("uptime"),
-    readHostFile("sys/kernel/osrelease"), operatingSystem(),
+    readHostFile("sys/kernel/osrelease"), operatingSystem(), collectNetworkThroughput(),
   ]);
-  const loads = loadText.trim().split(/\s+/).slice(0, 3).map(Number);
+  const loads = loadText.trim().split(/\s+/).slice(0, 3).map((v) => { const n = Number(v); return Number.isFinite(n) ? n : null; });
   let hostname = os.hostname();
   try { hostname = (await fs.readFile(config.hostnamePath, "utf8")).trim() || hostname; } catch { /* UTS hostname is the fallback. */ }
   return {
     host: { hostname, primaryIp: config.serverIp, operatingSystem: osName, kernelVersion: kernelVersion.trim(), hardware, storage, networking },
     metrics: {
-      ...cpu, ...memory, ...rootDiskMetrics(storage),
+      ...cpu, ...memory, ...rootDiskMetrics(storage), ...netThroughput,
       load1: loads[0] ?? null, load5: loads[1] ?? null, load15: loads[2] ?? null,
       uptimeSeconds: Math.floor(Number(uptimeText.split(" ")[0])) || null,
     },

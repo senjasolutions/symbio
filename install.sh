@@ -1,288 +1,232 @@
 #!/bin/sh
-# Symbio Beta installer performs a fresh, rollback-capable source build on supported Ubuntu hosts.
-set -eu
+# Symbio single-command installer — builds containers, seeds superadmin, shows URL.
 
-INSTALL_DIR="${SYMBIO_INSTALL_DIR:-/opt/symbio}"
-CONFIG_DIR="${SYMBIO_CONFIG_DIR:-/etc/symbio}"
-LOG_DIR="${SYMBIO_LOG_DIR:-/var/log/symbio}"
-LOG_FILE="${LOG_DIR}/install.log"
-REPOSITORY="${SYMBIO_REPOSITORY:-https://github.com/senjasolutions/symbio.git}"
-SOURCE_DIR="${SYMBIO_SOURCE_DIR:-}"
-SKIP_BUILD="${SYMBIO_SKIP_BUILD:-0}"
-REUSE_DATA="${SYMBIO_REUSE_DATA:-0}"
-DEPLOY_ENV_FILE="${SYMBIO_DEPLOY_ENV_FILE:-}"
-BIND_IP="${SYMBIO_BIND_IP:-0.0.0.0}"
-PUBLIC_PORT="${SYMBIO_PORT:-8765}"
-INTERNAL_PORT="${SYMBIO_INTERNAL_PORT:-18766}"
-AGENT_HEALTH_PORT="${SYMBIO_AGENT_HEALTH_PORT:-18767}"
-AGENT_LOG_READER_PORT="${SYMBIO_AGENT_LOG_READER_PORT:-18768}"
-AGENT_BRIDGE_IP="${SYMBIO_AGENT_BRIDGE_IP:-}"
-AGENT_LOG_GROUP_GID="${SYMBIO_AGENT_LOG_GROUP_GID:-}"
-STAGING_DIR="${INSTALL_DIR}.staging.$$"
-INSTALL_STARTED=0
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
-umask 077
+# ── Remote mode ─────────────────────────────────────────────────────
 
-if [ "$(id -u)" -ne 0 ]; then
-  echo "Symbio installation must run as root."
-  exit 1
+if [ ! -f "${DIR}/compose.yaml" ]; then
+  [ -n "${SOURCE_SERVER:-}" ] || { echo "ERROR: pipe from install server."; exit 1; }
+  TMPDIR=$(mktemp -d /tmp/symbio-install-XXXXXX)
+  trap 'rm -rf "$TMPDIR"' EXIT INT TERM
+  printf '\033[1;34m[Symbio]\033[0m Downloading source...\n' >&2
+  curl -fsSL "${SOURCE_SERVER}/source.tar.gz" -o "${TMPDIR}/source.tar.gz" || exit 1
+  printf '\033[1;34m[Symbio]\033[0m Extracting...\n' >&2
+  tar -xzf "${TMPDIR}/source.tar.gz" -C "$TMPDIR"
+  DIR="$TMPDIR"; cd "$DIR"
+  docker ps -a --filter ancestor=symbio-mothership:beta -q | xargs -r docker rm -f 2>/dev/null || true
+  docker ps -a --filter ancestor=symbio-agent:beta -q | xargs -r docker rm -f 2>/dev/null || true
+  docker volume rm symbio-mothership-data symbio-agent-data 2>/dev/null || true
 fi
 
-mkdir -p "${LOG_DIR}"
-: >"${LOG_FILE}"
+# ── helpers ──────────────────────────────────────────────────────────
 
-# Prints operator progress while retaining the same redacted message in the install log.
-log() {
-  printf '%s\n' "$*"
-  printf '%s\n' "$*" >>"${LOG_FILE}"
-}
+msg() { printf '\033[1;34m[Symbio]\033[0m %s\n' "$*" >&2; }
+ok()  { printf '\033[1;32m[Symbio] \342\234\223\033[0m %s\n' "$*" >&2; }
+err() { printf '\033[1;31m[Symbio] \342\234\227\033[0m %s\n' "$*" >&2; exit 1; }
 
-# Runs a non-secret command with detailed output in the log and a concise failure message.
-run_logged() {
-  description="$1"
-  shift
-  log "${description}"
-  if ! "$@" >>"${LOG_FILE}" 2>&1; then
-    log "FAILED: ${description}. Review ${LOG_FILE}."
-    return 1
-  fi
-}
+trap 'printf "\n" >&2; err "Installation cancelled."' INT TERM
 
-# Removes only resources created by this attempt; data-reuse mode must never
-# delete preserved credentials or named database volumes during rollback.
-rollback() {
-  status=$?
-  trap - EXIT INT TERM
-  if [ "${status}" -eq 0 ]; then return; fi
-  log "Installation failed; rolling back newly created Symbio resources."
-  if [ "${INSTALL_STARTED}" -eq 1 ] && [ -f "${INSTALL_DIR}/compose.yaml" ]; then
-    if [ "${REUSE_DATA}" -eq 1 ]; then
-      (cd "${INSTALL_DIR}" && docker compose down --remove-orphans) >>"${LOG_FILE}" 2>&1 || true
-    else
-      (cd "${INSTALL_DIR}" && docker compose down -v --remove-orphans) >>"${LOG_FILE}" 2>&1 || true
-    fi
-  fi
-  rm -rf "${STAGING_DIR}"
-  if [ "${INSTALL_STARTED}" -eq 1 ]; then
-    rm -rf "${INSTALL_DIR}"
-    if [ "${REUSE_DATA}" -eq 0 ]; then rm -rf "${CONFIG_DIR}"; fi
-  fi
-  exit "${status}"
-}
-trap rollback EXIT INT TERM
+# ── Pre-flight: check compose ───────────────────────────────────────
 
-# Verifies one required executable and stops before changing the server.
-require_command() {
-  if ! command -v "$1" >/dev/null 2>&1; then
-    log "Missing prerequisite: $1"
-    exit 1
-  fi
-}
+docker compose version >/dev/null 2>&1 || err "Docker Compose v2 (docker compose) required."
 
-for command in docker hostname awk od tr; do require_command "${command}"; done
-# Normal public installation clones main. The VM test helper supplies a copied
-# source directory so it can exercise uncommitted code without creating Git data.
-if [ -z "${SOURCE_DIR}" ]; then require_command git; else require_command cp; fi
-if [ "${SKIP_BUILD}" != "0" ] && [ "${SKIP_BUILD}" != "1" ]; then
-  log "SYMBIO_SKIP_BUILD must be 0 or 1."
-  exit 1
-fi
-if [ "${REUSE_DATA}" != "0" ] && [ "${REUSE_DATA}" != "1" ]; then
-  log "SYMBIO_REUSE_DATA must be 0 or 1."
-  exit 1
-fi
-if ! docker info >/dev/null 2>&1; then
-  log "Docker is installed, but its daemon is not reachable."
-  exit 1
-fi
-if ! docker compose version >/dev/null 2>&1; then
-  log "Docker Compose v2 is required (the 'docker compose' command)."
-  exit 1
-fi
+# ─── Collect configuration ──────────────────────────────────────────
 
-if [ ! -r /etc/os-release ]; then
-  log "Cannot identify this operating system. Phase 1 supports Ubuntu only."
-  exit 1
-fi
-. /etc/os-release
-case "${ID:-}:${VERSION_ID:-}" in
-  ubuntu:22.04|ubuntu:24.04|ubuntu:26.04) ;;
-  *) log "Unsupported operating system: ${PRETTY_NAME:-unknown}. Supported: Ubuntu 22.04, 24.04, and 26.04 LTS."; exit 1 ;;
-esac
-case "$(dpkg --print-architecture 2>/dev/null || uname -m)" in
-  amd64|arm64|x86_64|aarch64) ;;
-  *) log "Unsupported CPU architecture. Phase 1 supports amd64 and arm64."; exit 1 ;;
-esac
+PORT="${SYMBIO_PORT:-}"
+SEED_USERNAME=""; SEED_DISPLAY=""; SEED_EMAIL=""; SEED_PASSWORD=""; DO_SEED=0
 
-if [ -e "${INSTALL_DIR}" ]; then
-  log "An existing Symbio application directory was found; nothing was changed."
-  exit 1
-fi
-if [ "${REUSE_DATA}" -eq 1 ]; then
-  if [ -z "${SOURCE_DIR}" ]; then
-    log "Data-reuse mode is available only with an explicit copied source directory."
-    exit 1
-  fi
-  if [ ! -d "${CONFIG_DIR}" ] || [ ! -s "${CONFIG_DIR}/agent-token" ]; then
-    log "Data-reuse mode requires the existing Symbio configuration and agent token."
-    exit 1
-  fi
-else
-  if [ -e "${CONFIG_DIR}" ]; then
-    log "Existing Symbio configuration was found. Fresh installation did not overwrite it."
-    exit 1
-  fi
-fi
-if [ -n "${DEPLOY_ENV_FILE}" ] && [ ! -f "${DEPLOY_ENV_FILE}" ]; then
-  log "The preserved deployment environment file does not exist: ${DEPLOY_ENV_FILE}"
-  exit 1
-fi
-# Application-only redeploy keeps previous binding and diagnostic ports. The
-# file is installer-generated, root-owned data captured before source removal.
-if [ -n "${DEPLOY_ENV_FILE}" ]; then
-  . "${DEPLOY_ENV_FILE}"
-  BIND_IP="${SYMBIO_BIND_IP:-${BIND_IP}}"
-  PUBLIC_PORT="${SYMBIO_PORT:-${PUBLIC_PORT}}"
-  INTERNAL_PORT="${SYMBIO_INTERNAL_PORT:-${INTERNAL_PORT}}"
-  AGENT_HEALTH_PORT="${SYMBIO_AGENT_HEALTH_PORT:-${AGENT_HEALTH_PORT}}"
-  AGENT_LOG_READER_PORT="${SYMBIO_AGENT_LOG_READER_PORT:-${AGENT_LOG_READER_PORT}}"
-  AGENT_BRIDGE_IP="${SYMBIO_AGENT_BRIDGE_IP:-${AGENT_BRIDGE_IP}}"
-  AGENT_LOG_GROUP_GID="${SYMBIO_AGENT_LOG_GROUP_GID:-${AGENT_LOG_GROUP_GID}}"
-fi
+TTY_OK=0
+# Interactive when /dev/tty is accessible (works for curl | bash too)
+[ -c /dev/tty ] 2>/dev/null && TTY_OK=1
 
-# Local-source mode is explicit and validates the complete two-container tree
-# before creating credentials or changing any installation path.
-if [ -n "${SOURCE_DIR}" ]; then
-  case "${SOURCE_DIR}" in
-    /*) ;;
-    *) log "SYMBIO_SOURCE_DIR must be an absolute path."; exit 1 ;;
-  esac
-  if [ ! -f "${SOURCE_DIR}/compose.yaml" ] \
-    || [ ! -d "${SOURCE_DIR}/mothership" ] \
-    || [ ! -d "${SOURCE_DIR}/agent" ]; then
-    log "SYMBIO_SOURCE_DIR does not contain a complete Symbio source tree."
-    exit 1
-  fi
-fi
+if [ "$TTY_OK" -eq 1 ]; then
+  # ── Interactive mode: retry loops on every prompt ──────────────────
 
-# Checks obvious TCP conflicts when ss is available; Docker remains the final authority.
-if command -v ss >/dev/null 2>&1; then
-  for port in "${PUBLIC_PORT}" "${INTERNAL_PORT}" "${AGENT_HEALTH_PORT}" "${AGENT_LOG_READER_PORT}"; do
-    if ss -ltn | awk '{print $4}' | grep -Eq "[:.]${port}$"; then
-      log "TCP port ${port} is already in use. Set a SYMBIO_*_PORT override and retry."
-      exit 1
-    fi
+  # Port
+  while :; do
+    printf '\n\033[1m>>>\033[0m Port for dashboard? (default 8765): ' >&2
+    read -r P </dev/tty || P=""
+    [ -z "$P" ] && P=8765
+    case "$P" in
+      ''|*[!0-9]*) msg "Invalid port. Enter a number (1-65535)." ;;
+      *) [ "$P" -ge 1 ] 2>/dev/null && [ "$P" -le 65535 ] 2>/dev/null && break
+         msg "Port out of range (1-65535)." ;;
+    esac
   done
-fi
+  PORT=$P
 
-# The dedicated log listener binds only to Docker's bridge gateway so the
-# mothership can reach the host-networked agent without exposing a public port.
-if [ -z "${AGENT_BRIDGE_IP}" ]; then
-  AGENT_BRIDGE_IP="$(docker network inspect bridge --format '{{(index .IPAM.Config 0).Gateway}}' 2>/dev/null || true)"
-fi
-if ! printf '%s' "${AGENT_BRIDGE_IP}" | awk -F. 'NF == 4 && $1 <= 255 && $2 <= 255 && $3 <= 255 && $4 <= 255 { exit 0 } { exit 1 }'; then
-  log "Could not determine a valid Docker bridge gateway for the private log reader."
-  exit 1
-fi
-
-# Standard Ubuntu Nginx/Apache logs use the adm group. Docker maps this host
-# numeric GID into the non-root agent as a supplementary read-only group.
-if [ -z "${AGENT_LOG_GROUP_GID}" ]; then
-  AGENT_LOG_GROUP_GID="$(getent group adm | awk -F: '{print $3}' || true)"
-fi
-if ! printf '%s' "${AGENT_LOG_GROUP_GID}" | grep -Eq '^[0-9]+$'; then
-  log "Could not determine the host adm group GID for registered log access."
-  exit 1
-fi
-
-log "WARNING: Symbio Beta defaults to http://${BIND_IP}:${PUBLIC_PORT} without HTTPS."
-log "Passwords and sessions are not protected from network interception on public HTTP."
-log "Do not call this a production-secure public deployment."
-
-INSTALL_STARTED=1
-if [ "${REUSE_DATA}" -eq 1 ]; then
-  log "Reusing existing Symbio credentials and named data volumes."
-else
-  mkdir -p "${CONFIG_DIR}"
-  # Generates a 256-bit shared secret without placing it in process arguments or logs.
-  dd if=/dev/urandom bs=32 count=1 2>/dev/null | od -An -tx1 | tr -d ' \n' >"${CONFIG_DIR}/agent-token"
-fi
-# The root-only parent directory protects this file on the host, while 0444
-# lets the non-root container users read the file after Docker bind-mounts it.
-chmod 700 "${CONFIG_DIR}"
-chmod 444 "${CONFIG_DIR}/agent-token"
-
-if [ -n "${SOURCE_DIR}" ]; then
-  run_logged "Preparing the copied VM test source..." mkdir -p "${STAGING_DIR}"
-  run_logged "Copying the supplied Symbio source tree..." cp -a "${SOURCE_DIR}/." "${STAGING_DIR}/"
-else
-  run_logged "Cloning the current Beta main branch..." git clone --depth 1 --branch main "${REPOSITORY}" "${STAGING_DIR}"
-fi
-if [ "${SKIP_BUILD}" -eq 1 ]; then
-  for image in symbio-mothership:beta symbio-agent:beta; do
-    if ! docker image inspect "${image}" >/dev/null 2>&1; then
-      log "Required preloaded image is missing: ${image}"
-      exit 1
-    fi
+  # Superadmin choice
+  while :; do
+    printf '\n\033[1m>>>\033[0m Create superadmin account? (Y/n): ' >&2
+    read -r S </dev/tty || S="y"
+    case "$S" in
+      y|Y|yes|YES|"") DO_SEED=1; break ;;
+      n|N|no|NO)      DO_SEED=0; break ;;
+      *)              msg "Please answer Y or n." ;;
+    esac
   done
-  log "Using preloaded mothership and agent images."
-else
-  run_logged "Building mothership and agent images locally..." sh -c "cd '${STAGING_DIR}' && SYMBIO_CONFIG_DIR='${CONFIG_DIR}' docker compose build"
-fi
 
-SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
-mv "${STAGING_DIR}" "${INSTALL_DIR}"
-if [ -n "${DEPLOY_ENV_FILE}" ]; then
-  cp "${DEPLOY_ENV_FILE}" "${INSTALL_DIR}/.env"
-else
-  {
-    printf 'SYMBIO_CONFIG_DIR=%s\n' "${CONFIG_DIR}"
-    printf 'SYMBIO_BIND_IP=%s\n' "${BIND_IP}"
-    printf 'SYMBIO_PORT=%s\n' "${PUBLIC_PORT}"
-    printf 'SYMBIO_INTERNAL_PORT=%s\n' "${INTERNAL_PORT}"
-    printf 'SYMBIO_AGENT_HEALTH_PORT=%s\n' "${AGENT_HEALTH_PORT}"
-    printf 'SYMBIO_AGENT_LOG_READER_PORT=%s\n' "${AGENT_LOG_READER_PORT}"
-    printf 'SYMBIO_AGENT_BRIDGE_IP=%s\n' "${AGENT_BRIDGE_IP}"
-    printf 'SYMBIO_AGENT_LOG_GROUP_GID=%s\n' "${AGENT_LOG_GROUP_GID}"
-    printf 'SYMBIO_SERVER_IP=%s\n' "${SERVER_IP}"
-  } >"${INSTALL_DIR}/.env"
-fi
-chmod 600 "${INSTALL_DIR}/.env"
+  if [ "$DO_SEED" -eq 1 ]; then
+    printf '\n  \033[1mCreate your admin account\033[0m\n' >&2
 
-run_logged "Applying explicit database migrations..." sh -c "cd '${INSTALL_DIR}' && docker compose run --rm mothership npm run migrate"
-if [ "${REUSE_DATA}" -eq 1 ]; then
-  log "Preserved existing users; superadmin seeding was skipped."
+    while :; do
+      printf '  Username: ' >&2; read -r SEED_USERNAME </dev/tty || SEED_USERNAME=""
+      [ -n "$SEED_USERNAME" ] && break
+      msg "Username cannot be empty."
+    done
+
+    printf '  Display name (default: Administrator): ' >&2
+    read -r SEED_DISPLAY </dev/tty || SEED_DISPLAY=""
+    [ -z "$SEED_DISPLAY" ] && SEED_DISPLAY="Administrator"
+
+    while :; do
+      printf '  Email: ' >&2; read -r SEED_EMAIL </dev/tty || SEED_EMAIL=""
+      case "$SEED_EMAIL" in
+        *@*) break ;;
+        *)   msg "Email must contain @." ;;
+      esac
+    done
+
+    while :; do
+      printf '  Password (min 8 chars): ' >&2; read -r SEED_PASSWORD </dev/tty || SEED_PASSWORD=""
+      case "$SEED_PASSWORD" in
+        ????????*) break ;;
+        *) msg "Password must be at least 8 characters." ;;
+      esac
+    done
+
+    while :; do
+      printf '  Confirm: ' >&2; read -r SC </dev/tty || SC=""
+      [ "$SEED_PASSWORD" = "$SC" ] && break
+      msg "Passwords do not match."
+    done
+  fi
 else
-  log "Create the initial superadmin. Password input is read from the terminal and is not logged."
-  if ! (cd "${INSTALL_DIR}" && docker compose run --rm mothership npm run seed:superadmin </dev/tty >/dev/tty 2>/dev/tty); then
-    log "Superadmin creation failed or was cancelled."
-    exit 1
+  # ── Non-interactive mode: read from env vars ────────────────────
+  PORT="${SYMBIO_PORT:-8765}"
+  if [ -n "${SYMBIO_SEED_USERNAME:-}" ]; then
+    DO_SEED=1
+    SEED_USERNAME="$SYMBIO_SEED_USERNAME"
+    SEED_DISPLAY="${SYMBIO_SEED_DISPLAY_NAME:-Administrator}"
+    SEED_EMAIL="${SYMBIO_SEED_EMAIL:-}"
+    SEED_PASSWORD="${SYMBIO_SEED_PASSWORD:-}"
+    [ -n "$SEED_EMAIL" ]    || err "SYMBIO_SEED_EMAIL required."
+    [ -n "$SEED_PASSWORD" ] || err "SYMBIO_SEED_PASSWORD required."
   fi
 fi
 
-if ! run_logged "Starting Symbio..." sh -c "cd '${INSTALL_DIR}' && docker compose up -d"; then
-  log "Capturing failed container status and logs before rollback."
-  (cd "${INSTALL_DIR}" && docker compose ps && docker compose logs --no-color --tail=200) >>"${LOG_FILE}" 2>&1 || true
-  exit 1
+msg "Dashboard: http://127.0.0.1:${PORT}"
+[ "$DO_SEED" -eq 1 ] && msg "Admin: ${SEED_USERNAME} <${SEED_EMAIL}>"
+
+# ─── Write config ────────────────────────────────────────────────────
+
+CONFIG_DIR="${DIR}/.symbio"
+LOG_FILE="${DIR}/install.log"
+if [ -s "$CONFIG_DIR/agent-token" ]; then
+  ok "Reusing agent token"
+else
+  mkdir -p "$CONFIG_DIR" && chmod 700 "$CONFIG_DIR"
+  dd if=/dev/urandom bs=32 count=1 2>/dev/null | od -An -tx1 | tr -d ' \n' >"$CONFIG_DIR/agent-token"
+  chmod 444 "$CONFIG_DIR/agent-token"
+  ok "Agent token created"
 fi
 
-# Waits for Compose health rather than mistaking a merely started process for readiness.
-attempt=0
-while [ "${attempt}" -lt 30 ]; do
-  mothership_health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' symbio-mothership 2>/dev/null || true)"
-  agent_health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' symbio-agent 2>/dev/null || true)"
-  if [ "${mothership_health}" = "healthy" ] && [ "${agent_health}" = "healthy" ]; then break; fi
-  attempt=$((attempt + 1))
+BRIDGE_IP=$(docker network inspect bridge --format '{{(index .IPAM.Config 0).Gateway}}' 2>/dev/null || echo "172.17.0.1")
+ADM_GID=$(getent group adm 2>/dev/null | awk -F: '{print $3}' || echo 4)
+DOCKER_GID=$(getent group docker 2>/dev/null | awk -F: '{print $3}' || echo 998)
+SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "")
+
+cat > "${DIR}/.env" <<EOF
+SYMBIO_CONFIG_DIR=${CONFIG_DIR}
+SYMBIO_PORT=${PORT}
+SYMBIO_BIND_IP=0.0.0.0
+SYMBIO_INTERNAL_PORT=18766
+SYMBIO_AGENT_HEALTH_PORT=18767
+SYMBIO_AGENT_BRIDGE_IP=${BRIDGE_IP}
+SYMBIO_AGENT_LOG_GROUP_GID=${ADM_GID}
+SYMBIO_DOCKER_GROUP_GID=${DOCKER_GID}
+SYMBIO_SERVER_IP=${SERVER_IP}
+EOF
+chmod 600 "${DIR}/.env"
+ok "Configuration written"
+
+# ─── Build ───────────────────────────────────────────────────────────
+
+msg "Building containers..."
+cd "$DIR" || err "Cannot enter install directory"
+if ! docker compose build > "$LOG_FILE" 2>&1; then
+  tail -20 "$LOG_FILE" >&2
+  err "Build failed. See ${LOG_FILE}"
+fi
+ok "Build complete"
+
+# ─── Start ───────────────────────────────────────────────────────────
+
+msg "Starting containers..."
+docker compose up -d || err "Failed to start containers."
+
+msg "Waiting for services..."
+ATTEMPT=0
+while [ "$ATTEMPT" -lt 30 ]; do
+  M=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' symbio-mothership 2>/dev/null || echo "")
+  A=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' symbio-agent 2>/dev/null || echo "")
+  [ "$M" = "healthy" ] && [ "$A" = "healthy" ] && break
+  ATTEMPT=$((ATTEMPT + 1))
   sleep 2
 done
-if [ "${mothership_health:-}" != "healthy" ] || [ "${agent_health:-}" != "healthy" ]; then
-  log "Containers did not become healthy before the installation timeout."
-  exit 1
+[ "$M" = "healthy" ] && [ "$A" = "healthy" ] || err "Containers did not become healthy."
+
+# ─── Migrate ─────────────────────────────────────────────────────────
+
+msg "Running database migrations..."
+docker exec -i symbio-mothership npm run migrate < /dev/null || err "Migration failed."
+ok "Migrations applied"
+
+# ─── Seed ────────────────────────────────────────────────────────────
+
+if [ "$DO_SEED" -eq 1 ]; then
+  msg "Creating admin account..."
+  envf=$(mktemp /tmp/symbio-seed.XXXXXX) || err "Cannot create temp file"
+  # printf %s is safe for any value — newlines, special chars, etc.
+  printf 'SYMBIO_SEED_USERNAME=%s\n'         "$SEED_USERNAME"  > "$envf"
+  printf 'SYMBIO_SEED_DISPLAY_NAME=%s\n'     "$SEED_DISPLAY"   >> "$envf"
+  printf 'SYMBIO_SEED_EMAIL=%s\n'            "$SEED_EMAIL"     >> "$envf"
+  printf 'SYMBIO_SEED_PASSWORD=%s\n'         "$SEED_PASSWORD"  >> "$envf"
+  printf 'SYMBIO_SEED_PASSWORD_CONFIRM=%s\n' "$SEED_PASSWORD"  >> "$envf"
+
+  # Pipe env file bytes directly into Node.js (avoids shell expansion of
+  # special characters like $, !, ` in password values). Node reads from
+  # stdin, sets process.env literally, then imports the seed script.
+  docker exec -i symbio-mothership node --input-type=module -e '
+    import { readFileSync } from "node:fs";
+    const text = readFileSync("/dev/stdin", "utf8");
+    for (const line of text.split("\n").filter(Boolean)) {
+      const idx = line.indexOf("=");
+      if (idx > 0) process.env[line.slice(0, idx)] = line.slice(idx + 1);
+    }
+    await import("./scripts/seed-superadmin.js");
+  ' < "$envf"
+  rc=$?
+  rm -f "$envf"
+  [ $rc -eq 0 ] || err "Superadmin creation failed."
+  ok "Admin ${SEED_USERNAME} created"
 fi
 
-trap - EXIT INT TERM
-log "Symbio Beta installation completed."
-log "Dashboard: http://127.0.0.1:${PUBLIC_PORT}"
-if [ -n "${SERVER_IP}" ]; then log "Detected server address: http://${SERVER_IP}:${PUBLIC_PORT}"; fi
-log "Installation log: ${LOG_FILE}"
-log "REMINDER: direct public HTTP is unencrypted. Place Symbio behind HTTPS before production use."
+# ─── Done ────────────────────────────────────────────────────────────
+
+printf '\n'
+printf '  \033[1;34m╔══════════════════════════════════════════════════╗\033[0m\n'
+printf '  \033[1;34m║\033[0m              \033[1mSymbio is ready\033[0m                      \033[1;34m║\033[0m\n'
+printf '  \033[1;34m║\033[0m                                              \033[1;34m║\033[0m\n'
+printf '  \033[1;34m║\033[0m  Open:  \033[1mhttp://127.0.0.1:%s\033[0m                \033[1;34m║\033[0m\n' "${PORT}"
+[ -n "$SERVER_IP" ] && printf '  \033[1;34m║\033[0m         \033[1mhttp://%s:%s\033[0m                     \033[1;34m║\033[0m\n' "${SERVER_IP}" "${PORT}"
+printf '  \033[1;34m║\033[0m                                              \033[1;34m║\033[0m\n'
+[ "$DO_SEED" -eq 1 ] && printf '  \033[1;34m║\033[0m  Admin:  \033[1m%s\033[0m (\033[2m%s\033[0m)               \033[1;34m║\033[0m\n' "${SEED_USERNAME}" "${SEED_EMAIL}"
+printf '  \033[1;34m║\033[0m                                              \033[1;34m║\033[0m\n'
+printf '  \033[1;34m║\033[0m  Run the Setup Wizard to finish config.    \033[1;34m║\033[0m\n'
+printf '  \033[1;34m║\033[0m                                              \033[1;34m║\033[0m\n'
+printf '  \033[1;34m║\033[0m  \033[2mStop:\033[0m  docker compose -p symbio down          \033[1;34m║\033[0m\n'
+printf '  \033[1;34m║\033[0m  \033[2mLogs:\033[0m  docker compose -p symbio logs -f       \033[1;34m║\033[0m\n'
+printf '  \033[1;34m╚══════════════════════════════════════════════════╝\033[0m\n'
+printf '\n'

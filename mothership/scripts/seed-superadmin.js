@@ -1,6 +1,9 @@
 /**
  * Interactive superadmin seeder reads secrets directly from the terminal so
  * installation logs and shell history never contain the password.
+ *
+ * Non-interactive mode: set SYMBIO_SEED_USERNAME, SYMBIO_SEED_DISPLAY_NAME,
+ * SYMBIO_SEED_EMAIL, SYMBIO_SEED_PASSWORD, and SYMBIO_SEED_PASSWORD_CONFIRM.
  */
 
 import process from "node:process";
@@ -14,8 +17,6 @@ const prompt = (rl, label) => new Promise((resolve) => rl.question(label, (value
 
 /**
  * Temporarily masks terminal input while preserving spaces inside passphrases.
- * A paste may arrive as one data chunk, so every character must be processed
- * individually or the trailing Enter would become part of the password.
  */
 const promptHidden = (label) => new Promise((resolve) => {
   const input = process.stdin;
@@ -50,21 +51,32 @@ const rl = readline.createInterface({ input: process.stdin, output: process.stdo
 try {
   await connectDatabase();
   await runMigrations();
-  const username = await prompt(rl, "Username: ");
-  const displayName = await prompt(rl, "Display name: ");
-  const email = await prompt(rl, "Email: ");
-  rl.close();
-  const password = await promptHidden("Password (minimum 8 characters): ");
-  const confirmation = await promptHidden("Confirm password: ");
+
+  const username = process.env.SYMBIO_SEED_USERNAME || await prompt(rl, "Username: ");
+  const displayName = process.env.SYMBIO_SEED_DISPLAY_NAME || await prompt(rl, "Display name: ");
+  const email = process.env.SYMBIO_SEED_EMAIL || await prompt(rl, "Email: ");
+
+  let password, confirmation;
+  if (process.env.SYMBIO_SEED_PASSWORD) {
+    password = process.env.SYMBIO_SEED_PASSWORD;
+    confirmation = process.env.SYMBIO_SEED_PASSWORD_CONFIRM;
+  } else {
+    rl.close();
+    password = await promptHidden("Password (minimum 8 characters): ");
+    confirmation = await promptHidden("Confirm password: ");
+  }
+
   if (password !== confirmation) throw new Error("Passwords do not match.");
   if (!/^[a-z0-9][a-z0-9_.-]{2,63}$/i.test(username)) throw new Error("Username format is invalid.");
   if (!email.includes("@") || email.length > 180) throw new Error("Email format is invalid.");
   if (!displayName || displayName.length > 120) throw new Error("Display name is required.");
+  if (password.length < 8) throw new Error("Password must be at least 8 characters.");
+
   const passwordHash = await hashPassword(password);
   await models.User.create({ username, displayName, email, passwordHash, role: "superadmin" });
   console.log(`Superadmin ${username} created.`);
 } catch (error) {
-  rl.close();
+  try { rl.close(); } catch {}
   console.error(error instanceof Error ? error.message : "Superadmin creation failed.");
   process.exitCode = 1;
 } finally {

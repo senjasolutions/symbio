@@ -16,23 +16,8 @@
 
   const targets = document.querySelectorAll("[data-summary-key]");
 
-  /** Applies shallow JSON fields to marked nodes while preserving SSR as the initial and fallback state. */
-  const refresh = async () => {
-    try {
-      const response = await fetch("/api/v1/summary", { headers: { Accept: "application/json" }, credentials: "same-origin" });
-      if (!response.ok) return;
-      const payload = await response.json();
-      targets.forEach((target) => {
-        const key = target.getAttribute("data-summary-key");
-        if (key && payload[key] !== undefined && payload[key] !== null) target.textContent = String(payload[key]);
-      });
-    } catch {
-      // The server-rendered values remain visible when polling is unavailable.
-    }
-  };
-
-  // Forms still need their enhancements on pages without dashboard summary nodes.
-  if (targets.length && window.fetch) setInterval(refresh, 30_000);
+  /** No-op placeholder — the /api/v1/summary endpoint no longer exists. SSR values remain without polling. */
+  var refresh = function(){};
 
   // Tagify is optional: this enhancement retains the ordinary comma-separated input for no-JS use.
   const tagInput = document.querySelector("#tagNames");
@@ -51,4 +36,29 @@
       if (!window.confirm(form.getAttribute("data-confirm"))) event.preventDefault();
     });
   });
+})();
+
+// Log viewer auto-refresh toggle
+(function() {
+  var toggle = document.getElementById('logAutoRefresh');
+  var output = document.getElementById('logOutput');
+  if (!toggle || !output) return;
+  var key = 'symbio-log-auto-refresh';
+  var saved = localStorage.getItem(key) === 'true';
+  toggle.checked = saved;
+  var timer = null;
+  var doRefresh = function() {
+    if (!toggle.checked) return;
+    var url = output.getAttribute('data-refresh-url');
+    if (!url) return;
+    fetch(url).then(function(r) { return r.text(); }).then(function(html) {
+      output.innerHTML = html;
+    }).catch(function(){});
+  };
+  toggle.addEventListener('change', function() {
+    localStorage.setItem(key, toggle.checked);
+    if (toggle.checked) { timer = setInterval(doRefresh, 10000); }
+    else { if (timer) clearInterval(timer); timer = null; }
+  });
+  if (saved) timer = setInterval(doRefresh, 10000);
 })();

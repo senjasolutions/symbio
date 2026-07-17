@@ -11,5 +11,7 @@ agent/node_modules/
 /docs/cpanel_html
 /docs/old_code_ref
 /docs/pma_html
+/docs/deepseek_docs_html
+/docs
 MEMORY.md
 AGENTS.md

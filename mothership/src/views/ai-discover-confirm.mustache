@@ -1,0 +1,40 @@
+<!-- Page 4 of the AI Application Discovery wizard: confirmation of what was added. -->
+<nav aria-label="{{#t}}common.breadcrumb{{/t}}"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/applications">{{#t}}nav.applications{{/t}}</a></li><li class="breadcrumb-item"><a href="/applications/ai-discover">{{#t}}ai.discover.title{{/t}}</a></li><li class="breadcrumb-item active">{{#t}}ai.discover.complete{{/t}}</li></ol></nav>
+<h1 class="h3 mb-3"><i class="fa-solid fa-check-circle me-1" aria-hidden="true"></i>{{#t}}ai.discover.complete{{/t}}</h1>
+
+{{#results.length}}
+<div class="card mb-3">
+  <div class="card-body p-0">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>{{#t}}ai.discover.resultApp{{/t}}</th>
+          <th>{{#t}}ai.discover.resultStatus{{/t}}</th>
+          <th>{{#t}}ai.discover.resultLogs{{/t}}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#results}}
+        <tr class="{{^success}}table-danger{{/success}}">
+          <td><strong>{{displayName}}</strong><div class="small text-secondary"><code>{{name}}</code></div></td>
+          <td>{{#success}}<span class="badge text-bg-success">{{#t}}common.success{{/t}}</span>{{/success}}{{^success}}<span class="badge text-bg-danger">{{#t}}common.error{{/t}}: {{error}}</span>{{/success}}</td>
+          <td>{{logCount}}</td>
+          <td class="text-end">{{#success}}<a class="btn btn-outline-primary btn-sm" href="/applications/{{id}}">{{#t}}application.detail.view{{/t}}</a>{{/success}}</td>
+        </tr>
+        {{/results}}
+      </tbody>
+    </table>
+  </div>
+</div>
+{{/results.length}}
+
+{{^results.length}}
+<div class="alert alert-info">{{#t}}ai.discover.nothingAdded{{/t}}</div>
+{{/results.length}}
+
+<div class="d-flex">
+  <a class="btn btn-primary" href="/applications"><i class="fa-solid fa-arrow-left me-1" aria-hidden="true"></i> {{#t}}nav.applications{{/t}}</a>
+  <form class="d-inline ms-2" method="get" action="/applications/ai-discover"><button class="btn btn-outline-primary" type="submit"><i class="fa-solid fa-brain me-1" aria-hidden="true"></i> {{#t}}ai.discover.runAgain{{/t}}</button></form>
+  <a class="btn btn-outline-secondary ms-2" href="/applications/new">{{#t}}applications.add{{/t}}</a>
+</div>

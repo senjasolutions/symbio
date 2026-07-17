@@ -1,5 +1,24 @@
 /** Starts the read-only collector, its loopback diagnostic API, and the single bridge API. */
 
+import { readFileSync } from "node:fs";
+
+// Detect host timezone from mounted /etc/timezone
+(function detectTimezone() {
+  try {
+    const tz = readFileSync("/etc/timezone", "utf8").trim();
+    if (tz) { process.env.TZ = tz; console.log("Timezone:", tz); }
+  } catch {}
+})();
+
+// Prevent silent crashes — log and exit cleanly
+process.on("unhandledRejection", (reason) => {
+  console.error("Agent unhandled rejection:", reason instanceof Error ? reason.message : reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("Agent uncaught exception:", err.message);
+  process.exit(1);
+});
+
 import { serve } from "@hono/node-server";
 import { config } from "./config.js";
 import { createAgentApp, createAgentBridgeApp } from "./app.js";
@@ -20,8 +39,14 @@ startWorker().catch((error) => { console.error("Symbio agent failed to start:", 
 /** Stops monitoring before closing Hono and SQLite. */
 const shutdown = () => {
   stopWorker();
-  server.close(async () => {
-    bridgeServer.close(async () => { await sequelize.close(); process.exit(0); });
+  const forceExit = setTimeout(() => process.exit(0), 5000);
+  forceExit.unref();
+  server.close(() => {
+    bridgeServer.close(async () => {
+      clearTimeout(forceExit);
+      await sequelize.close();
+      process.exit(0);
+    });
   });
 };
 process.on("SIGTERM", shutdown);

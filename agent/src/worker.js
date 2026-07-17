@@ -4,6 +4,7 @@
  */
 
 import crypto from "node:crypto";
+import { Op } from "sequelize";
 import { config } from "./config.js";
 import { enqueueReport, OutboxReport, readCachedConfig, readOutboxBatch, writeCachedConfig } from "./db.js";
 import { collectHost, collectProcesses } from "./collectors/host.js";
@@ -51,23 +52,34 @@ export const refreshConfiguration = async () => {
   }
 };
 
-/** Delivers the oldest report batch and removes rows only after acknowledgement. */
+/** Delivers the oldest report batch and removes rows only after acknowledgement.
+ *  Handles individual report failures — a single bad report doesn't block the batch. */
 export const flushOutbox = async () => {
   const rows = await readOutboxBatch();
   if (!rows.length) return;
-  try {
-    const reports = rows.map((row) => JSON.parse(row.payload));
-    const response = await mothershipFetch("/reports", {
-      method: "POST", body: JSON.stringify({ schemaVersion: 1, agentId: config.agentId, reports }),
-    });
-    if (!response.ok) throw new Error(`Report delivery returned HTTP ${response.status}`);
-    await OutboxReport.destroy({ where: { id: rows.map((row) => row.id) } });
-    workerState.lastDeliveryAt = new Date();
-    workerState.lastError = null;
-  } catch (error) {
-    workerState.lastError = error.message;
-    await OutboxReport.increment("attemptCount", { by: 1, where: { id: rows.map((row) => row.id) } });
+  // Split into batches — process individually so one bad report doesn't block others
+  for (const row of rows) {
+    try {
+      const report = JSON.parse(row.payload);
+      const response = await mothershipFetch("/reports", {
+        method: "POST", body: JSON.stringify({ schemaVersion: 1, agentId: config.agentId, reports: [report] }),
+      });
+      if (response.ok) {
+        await OutboxReport.destroy({ where: { id: row.id } });
+        workerState.lastDeliveryAt = new Date();
+        workerState.lastError = null;
+      } else {
+        // Non-200 response — count as retry
+        await OutboxReport.increment("attemptCount", { by: 1, where: { id: row.id } });
+        workerState.lastError = `Report ${row.id}: HTTP ${response.status}`;
+      }
+    } catch (error) {
+      workerState.lastError = `Report ${row.id}: ${error.message}`;
+      await OutboxReport.increment("attemptCount", { by: 1, where: { id: row.id } });
+    }
   }
+  // Remove reports that have exceeded max retries (10 retries = ~10 min worth)
+  await OutboxReport.destroy({ where: { attemptCount: { [Op]: { gt: 10 } } } });
 };
 
 /** Collects one report, using per-domain intervals from the latest valid config. */

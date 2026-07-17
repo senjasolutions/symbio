@@ -27,7 +27,6 @@ const ALLOWED_ROOTS = [
   "/home",
   "/mnt",
   "/opt",
-  "/root",
   "/srv",
   "/tmp",
   "/usr",

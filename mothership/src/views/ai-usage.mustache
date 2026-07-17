@@ -1,0 +1,126 @@
+<!-- Token Usage page — per-skill breakdown, daily bar chart, and recent LLM call log. -->
+<nav aria-label="{{#t}}common.breadcrumb{{/t}}"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/ai">{{#t}}ai.symbioIntelligence{{/t}}</a></li><li class="breadcrumb-item active">{{#t}}ai.tokenUsage{{/t}}</li></ol></nav>
+<h1 class="h3 mb-3"><i class="fa-solid fa-chart-simple me-1" aria-hidden="true"></i>{{#t}}ai.tokenUsage{{/t}}</h1>
+
+{{#usageReset}}<div class="alert alert-success"><i class="fa-solid fa-check me-1" aria-hidden="true"></i> {{#t}}settings.llmUsageReset{{/t}}</div>{{/usageReset}}
+
+<!-- Range selector -->
+<div class="btn-group mb-3" role="group">
+  <a class="btn btn-sm {{#range24h}}btn-primary{{/range24h}}{{^range24h}}btn-outline-secondary{{/range24h}}" href="/ai/usage?range=24h">{{#t}}ai.usage24h{{/t}}</a>
+  <a class="btn btn-sm {{#range7d}}btn-primary{{/range7d}}{{^range7d}}btn-outline-secondary{{/range7d}}" href="/ai/usage?range=7d">{{#t}}ai.usage7d{{/t}}</a>
+  <a class="btn btn-sm {{#rangeWeek}}btn-primary{{/rangeWeek}}{{^rangeWeek}}btn-outline-secondary{{/rangeWeek}}" href="/ai/usage?range=week">{{#t}}ai.usageWeek{{/t}}</a>
+  <a class="btn btn-sm {{#range30d}}btn-primary{{/range30d}}{{^range30d}}btn-outline-secondary{{/range30d}}" href="/ai/usage?range=30d">{{#t}}ai.usageMonth{{/t}}</a>
+</div>
+
+<!-- Summary cards -->
+<section class="card mb-3">
+  <div class="card-body">
+    <div class="row g-3 mb-3">
+      <div class="col-sm-3"><div class="border rounded p-2 text-center"><div class="h4 mb-0">{{usage.totalTokens}}</div><small class="text-secondary">{{#t}}settings.llmTotalTokens{{/t}}</small></div></div>
+      <div class="col-sm-3"><div class="border rounded p-2 text-center"><div class="h4 mb-0">{{usage.promptTokens}}</div><small class="text-secondary">{{#t}}settings.llmPromptTokens{{/t}}</small></div></div>
+      <div class="col-sm-3"><div class="border rounded p-2 text-center"><div class="h4 mb-0">{{usage.completionTokens}}</div><small class="text-secondary">{{#t}}settings.llmCompletionTokens{{/t}}</small></div></div>
+      <div class="col-sm-3"><div class="border rounded p-2 text-center"><div class="h4 mb-0">{{usage.requestCount}}</div><small class="text-secondary">{{#t}}settings.llmRequestCount{{/t}}</small></div></div>
+    </div>
+    <form class="d-inline" method="post" action="/settings/llm/reset-usage"><input type="hidden" name="_csrf" value="{{csrfToken}}"><button class="btn btn-outline-danger btn-sm" type="submit"><i class="fa-solid fa-rotate-left me-1" aria-hidden="true"></i> {{#t}}settings.llmResetUsage{{/t}}</button></form>
+  </div>
+</section>
+
+<!-- Daily bar chart (last 30 days) -->
+<section class="card mb-3">
+  <div class="card-header"><strong><i class="fa-solid fa-chart-bar me-1" aria-hidden="true"></i>{{#t}}ai.usageDailyChart{{/t}}</strong></div>
+  <div class="card-body">
+    {{#dailyBars.length}}
+    <div class="d-flex align-items-end" style="height:120px;gap:2px;">
+      {{#dailyBars}}
+      <div class="flex-fill d-flex flex-column align-items-center justify-content-end" style="height:100%;">
+        <small class="text-secondary" style="font-size:9px;line-height:1;">{{value}}</small>
+        <div style="width:100%;height:{{pct}}%;background:#0d6efd;min-height:1px;border-radius:2px 2px 0 0;" title="{{label}}: {{value}} tokens"></div>
+        {{#pct}}<small class="text-secondary" style="font-size:7px;line-height:1;margin-top:2px;">{{label}}</small>{{/pct}}
+      </div>
+      {{/dailyBars}}
+    </div>
+    {{/dailyBars.length}}
+    {{^dailyBars.length}}
+    <p class="text-secondary small mb-0">{{#t}}ai.noUsageData{{/t}}</p>
+    {{/dailyBars.length}}
+  </div>
+</section>
+
+<!-- Per-skill breakdown -->
+<section class="card mb-3">
+  <div class="card-header"><strong><i class="fa-solid fa-list me-1" aria-hidden="true"></i>{{#t}}ai.usageBySkill{{/t}}</strong></div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr>
+          <th>{{#t}}ai.skill{{/t}}</th>
+          <th class="text-end">{{#t}}settings.llmTotalTokens{{/t}}</th>
+          <th class="text-end">{{#t}}settings.llmPromptTokens{{/t}}</th>
+          <th class="text-end">{{#t}}settings.llmCompletionTokens{{/t}}</th>
+          <th class="text-end">{{#t}}settings.llmRequestCount{{/t}}</th>
+          <th class="text-end">{{#t}}ai.usageShare{{/t}}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#skillBreakdown}}
+        <tr>
+          <td><i class="{{icon}} me-1" aria-hidden="true"></i>{{name}}</td>
+          <td class="text-end">{{total}}</td>
+          <td class="text-end">{{prompt}}</td>
+          <td class="text-end">{{completion}}</td>
+          <td class="text-end">{{calls}}</td>
+          <td class="text-end">
+            <div class="d-flex align-items-center justify-content-end gap-1">
+              <div style="width:60px;height:8px;background:#e9ecef;border-radius:4px;">
+                <div style="width:{{pctOfTotal}}%;height:8px;background:#0d6efd;border-radius:4px;"></div>
+              </div>
+              <small class="text-secondary">{{pctOfTotal}}%</small>
+            </div>
+          </td>
+        </tr>
+        {{/skillBreakdown}}
+        {{^skillBreakdown}}
+        <tr><td colspan="6" class="text-muted">{{#t}}ai.noUsageData{{/t}}</td></tr>
+        {{/skillBreakdown}}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- Recent entries -->
+<section class="card mb-3">
+  <div class="card-header"><strong><i class="fa-solid fa-clock-rotate-left me-1" aria-hidden="true"></i>{{#t}}ai.usageRecent{{/t}}</strong></div>
+  <div class="table-responsive" style="max-height:400px;overflow-y:auto;">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr>
+          <th>{{#t}}common.date{{/t}}</th>
+          <th>{{#t}}ai.skill{{/t}}</th>
+          <th>{{#t}}settings.llmModel{{/t}}</th>
+          <th>{{#t}}ai.usageContext{{/t}}</th>
+          <th class="text-end">{{#t}}settings.llmPromptTokens{{/t}}</th>
+          <th class="text-end">{{#t}}settings.llmCompletionTokens{{/t}}</th>
+          <th class="text-end">{{#t}}settings.llmTotalTokens{{/t}}</th>
+          <th>{{#t}}ai.usageSource{{/t}}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#recent}}
+        <tr>
+          <td class="small">{{createdAt}}</td>
+          <td class="small">{{skillName}}</td>
+          <td class="small" style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{#modelLogo}}<img src="{{modelLogo}}" style="width:14px;height:14px;vertical-align:middle;margin-right:3px;">{{/modelLogo}}{{model}}</td>
+          <td class="small" style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{description}}">{{description}}</td>
+          <td class="text-end small">{{prompt}}</td>
+          <td class="text-end small">{{completion}}</td>
+          <td class="text-end small">{{total}}</td>
+          <td class="small">{{source}}</td>
+        </tr>
+        {{/recent}}
+        {{^recent}}
+        <tr><td colspan="8" class="text-muted">{{#t}}ai.noUsageData{{/t}}</td></tr>
+        {{/recent}}
+      </tbody>
+    </table>
+  </div>
+</section>

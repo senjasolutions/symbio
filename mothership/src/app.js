@@ -23,11 +23,14 @@ export const createPublicApp = () => {
   app.use("/vendor/fontawesome/*", serveStatic({ root: "./node_modules/@fortawesome/fontawesome-free", rewriteRequestPath: (path) => path.replace(/^\/vendor\/fontawesome\//, "/") }));
   app.get("/vendor/tagify.js", serveStatic({ path: "./node_modules/@yaireo/tagify/dist/tagify.js" }));
   app.get("/vendor/tagify.css", serveStatic({ path: "./node_modules/@yaireo/tagify/dist/tagify.css" }));
+  // Provider logos for AI model display
+  app.use("/img/providers/*", serveStatic({ root: "./public/img/providers", rewriteRequestPath: (path) => path.replace(/^\/img\/providers\//, "/") }));
+  app.use("/img/*", serveStatic({ root: "./public/img", rewriteRequestPath: (path) => path.replace(/^\/img\//, "/") }));
   app.route("/", webRoutes);
-  app.notFound((context) => context.text("Not found", 404));
+  app.notFound((context) => context.html(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Not Found — Symbio</title><link href="/vendor/bootstrap.min.css" rel="stylesheet"></head><body class="d-flex align-items-center justify-content-center vh-100"><div class="text-center"><h1 class="display-1 text-secondary">404</h1><p class="lead">Page not found.</p><a class="btn btn-outline-primary" href="/dashboard">Go to Dashboard</a></div></body></html>`, 404));
   app.onError((error, context) => {
-    console.error("Public request failed:", error.message);
-    return context.text("Internal server error", 500);
+    console.error("Public request failed:", error instanceof Error ? error.message : error);
+    return context.html(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Error — Symbio</title><link href="/vendor/bootstrap.min.css" rel="stylesheet"></head><body class="d-flex align-items-center justify-content-center vh-100"><div class="text-center"><h1 class="display-1 text-secondary">500</h1><p class="lead">Internal server error.</p><a class="btn btn-outline-primary" href="/dashboard">Go to Dashboard</a></div></body></html>`, 500);
   });
   return app;
 };

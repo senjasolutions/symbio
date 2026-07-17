@@ -1,0 +1,157 @@
+<!-- Command Center — main Symbio Intelligence dashboard showing skill cards and activity. -->
+<nav aria-label="{{#t}}common.breadcrumb{{/t}}"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/ai">{{#t}}ai.symbioIntelligence{{/t}}</a></li><li class="breadcrumb-item active">{{#t}}ai.commandCenter{{/t}}</li></ol></nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0"><i class="fa-solid fa-brain me-1" aria-hidden="true"></i>{{#t}}ai.commandCenter{{/t}}</h1>
+  <div>
+    <a class="btn btn-outline-secondary btn-sm me-1" href="/ai/history"><i class="fa-solid fa-clock-rotate-left me-1" aria-hidden="true"></i>{{#t}}ai.history{{/t}}</a>
+    <a class="btn btn-outline-secondary btn-sm" href="/ai/usage"><i class="fa-solid fa-chart-simple me-1" aria-hidden="true"></i>{{#t}}ai.tokenUsage{{/t}}</a>
+  </div>
+</div>
+
+{{#llmNotConfigured}}
+<div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation me-1" aria-hidden="true"></i>{{#t}}ai.llmNotConfigured{{/t}} <a href="/settings?tab=llm">{{#t}}settings.llm{{/t}}</a>.</div>
+{{/llmNotConfigured}}
+
+{{#runStarted}}<div class="alert alert-success"><i class="fa-solid fa-play me-1"></i>{{#t}}ai.runStarted{{/t}}</div>{{/runStarted}}
+{{#runFailed}}<div class="alert alert-danger"><i class="fa-solid fa-xmark me-1"></i>{{#t}}ai.runFailed{{/t}}: {{runError}}</div>{{/runFailed}}
+{{#stopped}}<div class="alert alert-info"><i class="fa-solid fa-stop me-1"></i>{{#t}}ai.runStopped{{/t}}</div>{{/stopped}}
+
+<div class="row g-3 mb-3">
+  {{#skills}}
+  <div class="col-md-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-1">
+          <strong>{{#skillIconImg}}<img src="{{icon}}" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;">{{/skillIconImg}}{{^skillIconImg}}<i class="{{icon}} me-1" aria-hidden="true"></i>{{/skillIconImg}}{{name}}</strong>
+          <span class="badge {{#isRunning}}text-bg-info{{/isRunning}}{{^isRunning}}{{#hasError}}text-bg-danger{{/hasError}}{{^hasError}}text-bg-success{{/hasError}}{{/isRunning}}">{{#isRunning}}{{#t}}ai.running{{/t}}{{/isRunning}}{{^isRunning}}{{#hasError}}{{#t}}ai.error{{/t}}{{/hasError}}{{^hasError}}{{#t}}ai.idle{{/t}}{{/hasError}}{{/isRunning}}</span>
+        </div>
+        <p class="text-secondary small mb-2">{{description}}</p>
+        <div class="small text-secondary">
+          {{#lastRunAt}}<div>{{#t}}ai.lastRun{{/t}}: {{lastRunAt}}</div>{{/lastRunAt}}
+          {{^lastRunAt}}<div>{{#t}}ai.neverRun{{/t}}</div>{{/lastRunAt}}
+        </div>
+      </div>
+      <div class="card-footer d-flex gap-1">
+        <form method="post" action="/ai/command-center/{{key}}/toggle">
+          <input type="hidden" name="_csrf" value="{{csrfToken}}">
+          <button class="btn {{#enabled}}btn-success{{/enabled}}{{^enabled}}btn-danger{{/enabled}} btn-sm" type="submit" title="{{#t}}settings.toggle{{/t}}">
+            {{#enabled}}{{#t}}ai.on{{/t}}{{/enabled}}{{^enabled}}{{#t}}ai.off{{/t}}{{/enabled}}
+          </button>
+        </form>
+        <form method="post" action="/ai/command-center/run/{{key}}">
+          <input type="hidden" name="_csrf" value="{{csrfToken}}">
+          <button class="btn btn-outline-primary btn-sm" type="submit"{{#isRunning}} disabled{{/isRunning}}>
+            <i class="fa-solid fa-play me-1" aria-hidden="true"></i>{{#t}}ai.runNow{{/t}}
+          </button>
+        </form>
+        <a class="btn btn-outline-secondary btn-sm" href="/ai/command-center/{{key}}/settings"><i class="fa-solid fa-gear" aria-hidden="true"></i></a>
+      </div>
+    </div>
+  </div>
+  {{/skills}}
+</div>
+
+{{#hasRunningTasks}}
+<section class="card mb-3 border-warning">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <strong><i class="fa-solid fa-spinner fa-spin me-1" aria-hidden="true"></i>{{#t}}ai.runningTasks{{/t}} ({{runningTasks.length}})</strong>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr>
+          <th>{{#t}}ai.skill{{/t}}</th>
+          <th>{{#t}}ai.phase{{/t}}</th>
+          <th>{{#t}}ai.detail{{/t}}</th>
+          <th>{{#t}}common.date{{/t}}</th>
+          <th>{{#t}}ai.duration{{/t}}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#runningTasks}}
+        <tr>
+          <td class="small"><strong>{{skillName}}</strong></td>
+          <td><span class="badge {{phaseBadge}}">{{phase}}</span></td>
+          <td class="small text-secondary">{{detail}}</td>
+          <td class="small">{{startedAt}}</td>
+          <td class="small">{{duration}}s</td>
+          <td class="text-end">
+            <form class="d-inline" method="post" action="/ai/command-center/stop/{{skillKey}}">
+              <input type="hidden" name="_csrf" value="{{csrfToken}}">
+              <button class="btn btn-outline-danger btn-sm" type="submit"><i class="fa-solid fa-stop me-1"></i>{{#t}}ai.forceStop{{/t}}</button>
+            </form>
+          </td>
+        </tr>
+        {{/runningTasks}}
+      </tbody>
+    </table>
+  </div>
+</section>
+{{/hasRunningTasks}}
+
+{{#pendingActions}}
+<section class="card mt-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <strong><i class="fa-solid fa-list-check me-1" aria-hidden="true"></i>{{#t}}ai.pendingActions{{/t}}</strong>
+    <span class="badge text-bg-warning">{{pendingActions.length}}</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr><th>{{#t}}ai.skill{{/t}}</th><th>{{#t}}ai.action{{/t}}</th><th>{{#t}}ai.riskLevel{{/t}}</th><th>{{#t}}common.date{{/t}}</th><th></th></tr>
+      </thead>
+      <tbody>
+        {{#pendingActions}}
+        <tr>
+          <td class="small">{{#skillIconImg}}<img src="{{skillIcon}}" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;">{{/skillIconImg}}{{^skillIconImg}}<i class="{{skillIcon}} me-1" aria-hidden="true"></i>{{/skillIconImg}}{{skillName}}</td>
+          <td class="small"><strong>{{title}}</strong></td>
+          <td><span class="badge {{riskBadgeClass}}">{{riskLabel}}</span></td>
+          <td class="small">{{createdAt}}</td>
+          <td class="text-end"><a class="btn btn-outline-primary btn-sm" href="/ai/actions">{{#t}}ai.view{{/t}}</a></td>
+        </tr>
+        {{/pendingActions}}
+      </tbody>
+    </table>
+  </div>
+  <div class="card-footer text-end">
+    <a class="btn btn-outline-primary btn-sm" href="/ai/actions">{{#t}}ai.viewAllActions{{/t}} &rarr;</a>
+  </div>
+</section>
+{{/pendingActions}}
+
+
+<section class="card mt-3">
+  <div class="card-header"><strong><i class="fa-solid fa-list me-1" aria-hidden="true"></i>{{#t}}ai.recentActivity{{/t}}</strong>
+    <a class="btn btn-outline-primary btn-sm float-end" href="/ai/history?tab=runs">{{#t}}ai.viewAllRuns{{/t}} &rarr;</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr>
+          <th>{{#t}}common.date{{/t}}</th>
+          <th>{{#t}}ai.skill{{/t}}</th>
+          <th>{{#t}}ai.summary{{/t}}</th>
+          <th>{{#t}}ai.status{{/t}}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#recentRuns}}
+        <tr>
+          <td class="small">{{startedAt}}</td>
+          <td class="small">{{skillName}}</td>
+          <td class="small" style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{#hasError}}{{errorMessage}}{{/hasError}}{{^hasError}}{{summary}}{{/hasError}}">{{summary}}</td>
+          <td><span class="badge {{statusBadge}}">{{#isRunning}}{{#t}}ai.running{{/t}}{{/isRunning}}{{#isCompleted}}{{#t}}ai.completed{{/t}}{{/isCompleted}}{{#isFailed}}{{#t}}ai.failed{{/t}}{{/isFailed}}{{^isRunning}}{{^isCompleted}}{{^isFailed}}{{status}}{{/isFailed}}{{/isCompleted}}{{/isRunning}}</span></td>
+          <td class="text-end"><a class="btn btn-outline-secondary btn-sm" href="/ai/skill-run/{{id}}" title="{{#t}}application.detail.view{{/t}}"><i class="fa-solid fa-eye"></i></a></td>
+        </tr>
+        {{/recentRuns}}
+        {{^recentRuns}}
+        <tr><td colspan="5" class="text-muted">{{#t}}ai.noRecentActivity{{/t}}</td></tr>
+        {{/recentRuns}}
+      </tbody>
+    </table>
+  </div>
+</section>
+

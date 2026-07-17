@@ -1,0 +1,89 @@
+<!-- Skill Run Detail — everything about a single run: metadata, error, LLM usage, findings, actions. -->
+<nav aria-label="{{#t}}common.breadcrumb{{/t}}"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/ai">{{#t}}ai.symbioIntelligence{{/t}}</a></li><li class="breadcrumb-item"><a href="/ai/history?tab=runs">{{#t}}ai.history{{/t}}</a></li><li class="breadcrumb-item active">#{{run.id}} {{run.skillName}}</li></ol></nav>
+
+<h1 class="h3 mb-3"><i class="fa-solid fa-microchip me-1" aria-hidden="true"></i>{{run.skillName}} <small class="text-secondary">#{{run.id}}</small></h1>
+
+{{#run.failed}}
+<div class="alert alert-danger">
+  <strong><i class="fa-solid fa-circle-exclamation me-1"></i>{{#t}}ai.runFailed{{/t}}</strong>
+  <pre class="mb-0 mt-1 small" style="white-space:pre-wrap;max-height:150px;overflow-y:auto;">{{run.errorMessage}}</pre>
+</div>
+{{/run.failed}}
+
+<section class="card mb-3">
+  <div class="card-header"><strong>{{#t}}ai.runMetadata{{/t}}</strong></div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-sm-3"><small class="text-secondary d-block">{{#t}}ai.skill{{/t}}</small><span>{{run.skillName}}</span></div>
+      <div class="col-sm-3"><small class="text-secondary d-block">{{#t}}ai.trigger{{/t}}</small><span>{{run.trigger}}</span></div>
+      <div class="col-sm-3"><small class="text-secondary d-block">{{#t}}ai.status{{/t}}</small><span class="badge {{run.statusBadge}}">{{run.statusLabel}}</span></div>
+      <div class="col-sm-3"><small class="text-secondary d-block">{{#t}}ai.startedAt{{/t}}</small><span>{{run.startedAt}}</span></div>
+      <div class="col-sm-3"><small class="text-secondary d-block">{{#t}}ai.finishedAt{{/t}}</small><span>{{run.finishedAt}}</span></div>
+      <div class="col-sm-3"><small class="text-secondary d-block">{{#t}}ai.duration{{/t}}</small><span>{{run.duration}}</span></div>
+      <div class="col-12"><small class="text-secondary d-block">{{#t}}ai.summary{{/t}}</small><span>{{run.summary}}</span></div>
+    </div>
+  </div>
+</section>
+
+{{#llmUsage}}
+<section class="card mb-3">
+  <div class="card-header"><strong><i class="fa-solid fa-brain me-1" aria-hidden="true"></i>{{#t}}ai.llmUsage{{/t}}</strong></div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-sm-3"><small class="text-secondary d-block">{{#t}}ai.model{{/t}}</small><span>{{#modelLogo}}<img src="{{modelLogo}}" style="width:14px;height:14px;vertical-align:middle;margin-right:3px;">{{/modelLogo}}{{model}}</span></div>
+      <div class="col-sm-3"><small class="text-secondary d-block">{{#t}}settings.llmTotalTokens{{/t}}</small><span>{{totalTokens}}</span></div>
+      <div class="col-sm-3"><small class="text-secondary d-block">{{#t}}settings.llmPromptTokens{{/t}}</small><span>{{promptTokens}}</span></div>
+      <div class="col-sm-3"><small class="text-secondary d-block">{{#t}}settings.llmCompletionTokens{{/t}}</small><span>{{completionTokens}}</span></div>
+    </div>
+  </div>
+</section>
+{{/llmUsage}}
+
+{{#findings.length}}
+<section class="card mb-3">
+  <div class="card-header"><strong><i class="fa-solid fa-list me-1" aria-hidden="true"></i>{{#t}}ai.findings{{/t}} ({{findings.length}})</strong></div>
+  <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead><tr><th>{{#t}}ai.severity{{/t}}</th><th>{{#t}}ai.source{{/t}}</th><th>{{#t}}ai.message{{/t}}</th><th>{{#t}}ai.suggestedFix{{/t}}</th><th>{{#t}}ai.status{{/t}}</th></tr></thead>
+        <tbody>
+          {{#findings}}
+          <tr>
+            <td><span class="badge {{severityBadge}}">{{severity}}</span></td>
+            <td class="small">{{source}}</td>
+            <td class="small">{{title}}<br><span class="text-secondary">{{description}}</span>{{#seenCountMore}}<br><small class="text-muted">{{#t}}ai.seenCount{{/t}}: {{seenCount}}x</small>{{/seenCountMore}}</td>
+            <td class="small">{{suggestedFix}}</td>
+            <td class="small"><span class="badge {{findingStatusBadge}}">{{findingStatus}}</span></td>
+          </tr>
+          {{/findings}}
+        </tbody>
+      </table>
+  </div>
+</section>
+{{/findings.length}}
+
+{{#actions.length}}
+<section class="card mb-3">
+  <div class="card-header"><strong><i class="fa-solid fa-list-check me-1" aria-hidden="true"></i>{{#t}}ai.actionsGenerated{{/t}} ({{actions.length}})</strong></div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead><tr><th>#</th><th>{{#t}}ai.action{{/t}}</th><th>{{#t}}ai.target{{/t}}</th><th>{{#t}}ai.status{{/t}}</th><th>{{#t}}ai.result{{/t}}</th></tr></thead>
+      <tbody>
+        {{#actions}}
+        <tr>
+          <td class="small">{{id}}</td>
+          <td><code>{{actionType}}</code></td>
+          <td class="small">{{target}}</td>
+          <td><span class="badge {{statusBadge}}">{{statusLabel}}</span></td>
+          <td class="small" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            {{#hasResult}}<details><summary>{{#t}}ai.viewResult{{/t}}</summary><pre class="small mt-1" style="max-height:200px;overflow-y:auto;">{{result}}</pre></details>{{/hasResult}}
+            {{^hasResult}}—{{/hasResult}}
+          </td>
+        </tr>
+        {{/actions}}
+      </tbody>
+    </table>
+  </div>
+</section>
+{{/actions.length}}
+
+<a class="btn btn-outline-secondary btn-sm" href="/ai/history?tab=runs">&larr; {{#t}}ai.backToHistory{{/t}}</a>

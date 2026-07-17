@@ -1,4 +1,5 @@
 # Phase 1 deploys exactly one public mothership and one host-aware read-only agent.
+name: symbio
 services:
   mothership:
     build:
@@ -18,6 +19,10 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - mothership-data:/data
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
     secrets:
       - agent_token
     read_only: true
@@ -63,6 +68,10 @@ services:
       SYMBIO_SERVER_IP: "${SYMBIO_SERVER_IP:-}"
     volumes:
       - agent-data:/data
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
       - type: bind
         source: /etc/os-release
         target: /host/etc/os-release

@@ -3,11 +3,38 @@
 <ul class="nav nav-tabs mb-3">
   <li class="nav-item"><a class="nav-link{{#tabGeneral}} active{{/tabGeneral}}" href="?tab=general"><i class="fa-solid fa-sliders me-1" aria-hidden="true"></i> {{#t}}settings.general{{/t}}</a></li>
   <li class="nav-item"><a class="nav-link{{#tabUsers}} active{{/tabUsers}}" href="?tab=users"><i class="fa-solid fa-users me-1" aria-hidden="true"></i> {{#t}}settings.users{{/t}}</a></li>
-  <li class="nav-item"><a class="nav-link{{#tabLlm}} active{{/tabLlm}}" href="?tab=llm"><i class="fa-solid fa-brain me-1" aria-hidden="true"></i> {{#t}}settings.llm{{/t}}</a></li>
+  {{#isSuperadmin}}<li class="nav-item"><a class="nav-link{{#tabLlm}} active{{/tabLlm}}" href="?tab=llm"><i class="fa-solid fa-brain me-1" aria-hidden="true"></i> {{#t}}settings.llm{{/t}}</a></li>{{/isSuperadmin}}
+  {{#isSuperadmin}}<li class="nav-item"><a class="nav-link{{#tabMessaging}} active{{/tabMessaging}}" href="?tab=messaging"><i class="fa-solid fa-paper-plane me-1" aria-hidden="true"></i> {{#t}}settings.messaging{{/t}}</a></li>{{/isSuperadmin}}
 </ul>
 
 {{#tabGeneral}}
-<section class="card"><div class="card-header"><strong>{{#t}}settings.general{{/t}}</strong></div><div class="card-body"><label class="form-label">{{#t}}settings.serverTimezone{{/t}}</label><input class="form-control" value="{{serverTimezone}}" disabled><p class="form-text mb-0">{{#t}}settings.serverTimezoneHelp{{/t}}</p></div></section>
+<section class="card mb-3">
+  <div class="card-header"><strong>{{#t}}settings.general{{/t}}</strong></div>
+  <div class="card-body">
+    <label class="form-label">{{#t}}settings.serverTimezone{{/t}}</label>
+    <input class="form-control" value="{{serverTimezone}}" disabled>
+    <p class="form-text mb-0">{{#t}}settings.serverTimezoneHelp{{/t}}</p>
+  </div>
+</section>
+{{#themeSaved}}<div class="alert alert-success"><i class="fa-solid fa-check me-1" aria-hidden="true"></i> {{#t}}settings.themeSaved{{/t}}</div>{{/themeSaved}}
+<section class="card mb-3">
+  <div class="card-header"><strong>{{#t}}settings.theme{{/t}}</strong></div>
+  <div class="card-body">
+    <p class="mb-2">{{#t}}settings.themeHelp{{/t}}</p>
+    <form method="post" action="/settings/theme">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <select class="form-select" name="theme" style="max-width:180px;">
+          {{#themeChoices}}
+          <option value="{{code}}"{{#selected}} selected{{/selected}}>{{label}}</option>
+          {{/themeChoices}}
+        </select>
+        <button class="btn btn-primary btn-sm" type="submit"><i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i> {{#t}}settings.llmSave{{/t}}</button>
+      </div>
+    </form>
+  </div>
+</section>
+{{#isSuperadmin}}<section class="card"><div class="card-footer"><form class="mb-0" method="post" action="/setup-wizard/reset"><input type="hidden" name="_csrf" value="{{csrfToken}}"><button class="btn btn-outline-secondary btn-sm" type="submit"><i class="fa-solid fa-wand-magic-sparkles me-1" aria-hidden="true"></i> {{#t}}setupWizard.settingsButton{{/t}}</button></form></div></section>{{/isSuperadmin}}
 {{/tabGeneral}}
 
 {{#tabUsers}}
@@ -20,7 +47,138 @@
 {{/tabUsers}}
 
 {{#tabLlm}}
+{{#isSuperadmin}}
 {{#llmSaved}}<div class="alert alert-success"><i class="fa-solid fa-check me-1" aria-hidden="true"></i> {{#t}}settings.llmSaved{{/t}}</div>{{/llmSaved}}
 {{#llmError}}<div class="alert alert-danger">{{llmError}}</div>{{/llmError}}
-<form class="card" method="post" action="/settings/llm/save"><input type="hidden" name="_csrf" value="{{csrfToken}}"><div class="card-header"><strong><i class="fa-solid fa-brain me-1" aria-hidden="true"></i> {{#t}}settings.llm{{/t}}</strong></div><div class="card-body"><div class="mb-3"><label class="form-label" for="provider">{{#t}}settings.llmProvider{{/t}}</label><select class="form-select" id="provider" name="provider"><option value="openai"{{#llmConfig.providerIsOpenai}} selected{{/llmConfig.providerIsOpenai}}>OpenAI</option><option value="anthropic"{{#llmConfig.providerIsAnthropic}} selected{{/llmConfig.providerIsAnthropic}}>Anthropic</option><option value="deepseek"{{#llmConfig.providerIsDeepseek}} selected{{/llmConfig.providerIsDeepseek}}>DeepSeek</option></select></div><div class="mb-3"><label class="form-label" for="secretKey">{{#t}}settings.llmSecretKey{{/t}}</label><input class="form-control" id="secretKey" name="secretKey" type="password" value="{{llmConfig.secretKey}}" placeholder="{{#t}}settings.llmSecretKeyPlaceholder{{/t}}" autocomplete="off"><div class="form-text">{{#t}}settings.llmSecretKeyHelp{{/t}}</div></div><div class="mb-3"><label class="form-label" for="endpoint">{{#t}}settings.llmEndpoint{{/t}} <small class="text-secondary">{{#t}}settings.llmEndpointOptional{{/t}}</small></label><input class="form-control" id="endpoint" name="endpoint" type="url" value="{{llmConfig.endpoint}}" placeholder="{{#t}}settings.llmEndpointPlaceholder{{/t}}"><div class="form-text">{{#t}}settings.llmEndpointHelp{{/t}} {{#t}}settings.llmDefaults{{/t}}: <code>https://api.openai.com/v1</code> (OpenAI), <code>https://api.anthropic.com/v1</code> (Anthropic), <code>https://api.deepseek.com/v1</code> (DeepSeek).</div></div></div><div class="card-footer"><button class="btn btn-primary" type="submit"><i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i> {{#t}}settings.llmSave{{/t}}</button></div></form>
+{{#usageReset}}<div class="alert alert-success"><i class="fa-solid fa-check me-1" aria-hidden="true"></i> {{#t}}settings.llmUsageReset{{/t}}</div>{{/usageReset}}
+{{#balanceResult}}<div class="alert alert-info"><i class="fa-solid fa-wallet me-1" aria-hidden="true"></i> {{#t}}settings.llmBalanceLabel{{/t}}: {{balanceResult}}</div>{{/balanceResult}}
+
+<form class="card mb-3" method="post" action="/settings/llm/save"><input type="hidden" name="_csrf" value="{{csrfToken}}">
+<div class="card-header"><strong><i class="fa-solid fa-brain me-1" aria-hidden="true"></i> {{#t}}settings.llm{{/t}}</strong></div>
+<div class="card-body">
+  <div class="mb-3"><label class="form-label" for="provider">{{#t}}settings.llmProvider{{/t}}</label>
+    <select class="form-select" id="provider" name="provider" data-llm-provider>
+      <option value="openai"{{#llmConfig.providerIsOpenai}} selected{{/llmConfig.providerIsOpenai}}>OpenAI</option>
+      <option value="anthropic"{{#llmConfig.providerIsAnthropic}} selected{{/llmConfig.providerIsAnthropic}}>Anthropic</option>
+      <option value="deepseek"{{#llmConfig.providerIsDeepseek}} selected{{/llmConfig.providerIsDeepseek}}>DeepSeek</option>
+    </select></div>
+  <div class="mb-3"><label class="form-label" for="model">{{#t}}settings.llmModel{{/t}}</label>
+    <select class="form-select" id="model" name="model" data-llm-model>
+      <option value="">{{#t}}settings.llmModelDefault{{/t}}</option>
+      {{#modelOptions}}
+        {{#optgroupLabel}}<optgroup label="{{optgroupLabel}}">{{/optgroupLabel}}
+        {{#isModel}}<option value="{{value}}"{{#selected}} selected{{/selected}} data-provider="{{provider}}">{{label}}</option>{{/isModel}}
+      {{/modelOptions}}
+      <option value="__other__"{{#modelOptions}}{{#isCustom}} selected{{/isCustom}}{{/modelOptions}}>{{#t}}settings.llmModelOther{{/t}}</option>
+    </select>
+    <div id="customModelGroup" style="margin-top:0.5rem;{{^hasCustomModel}}display:none{{/hasCustomModel}}">
+      <input class="form-control" id="customModel" name="customModel" value="{{#modelOptions}}{{#isCustom}}{{customModel}}{{/isCustom}}{{/modelOptions}}" placeholder="{{#t}}settings.llmCustomModelPlaceholder{{/t}}">
+    </div>
+    <div class="form-text">{{#t}}settings.llmModelHelp{{/t}}</div></div>
+  <div class="mb-3"><label class="form-label" for="secretKey">{{#t}}settings.llmSecretKey{{/t}}</label>
+    <input class="form-control" id="secretKey" name="secretKey" type="password" value="{{llmConfig.secretKey}}" placeholder="{{#t}}settings.llmSecretKeyPlaceholder{{/t}}" autocomplete="off">
+    <div class="form-text">{{#t}}settings.llmSecretKeyHelp{{/t}}</div></div>
+  <div class="mb-3"><label class="form-label" for="endpoint">{{#t}}settings.llmEndpoint{{/t}} <small class="text-secondary">{{#t}}settings.llmEndpointOptional{{/t}}</small></label>
+    <input class="form-control" id="endpoint" name="endpoint" type="url" value="{{llmConfig.endpoint}}" placeholder="{{#t}}settings.llmEndpointPlaceholder{{/t}}">
+    <div class="form-text">{{#t}}settings.llmEndpointHelp{{/t}} {{#t}}settings.llmDefaults{{/t}}: <code>https://api.openai.com/v1</code> (OpenAI), <code>https://api.anthropic.com/v1</code> (Anthropic), <code>https://api.deepseek.com</code> (DeepSeek).</div></div>
+  <div class="mb-3"><label class="form-label" for="llmLanguage">{{#t}}settings.llmLanguage{{/t}}</label>
+    <select class="form-select" id="llmLanguage" name="llmLanguage" style="max-width:200px;">
+      <option value="en"{{#llmConfig.languageEn}} selected{{/llmConfig.languageEn}}>English</option>
+      <option value="de"{{#llmConfig.languageDe}} selected{{/llmConfig.languageDe}}>Deutsch</option>
+      <option value="id"{{#llmConfig.languageId}} selected{{/llmConfig.languageId}}>Bahasa Indonesia</option>
+      <option value="su"{{#llmConfig.languageSu}} selected{{/llmConfig.languageSu}}>Basa Sunda</option>
+    </select>
+    <div class="form-text">{{#t}}settings.llmLanguageHelp{{/t}}</div></div>
+  <div class="mb-3"><label class="form-label" for="personality">{{#t}}settings.llmPersonality{{/t}}</label>
+    <select class="form-select" id="personality" name="personality" style="max-width:200px;">
+      <option value="default"{{#llmConfig.personalityDefault}} selected{{/llmConfig.personalityDefault}}>{{#t}}settings.llmPersonalityDefault{{/t}}</option>
+      <option value="professional"{{#llmConfig.personalityProfessional}} selected{{/llmConfig.personalityProfessional}}>{{#t}}settings.llmPersonalityProfessional{{/t}}</option>
+      <option value="friendly"{{#llmConfig.personalityFriendly}} selected{{/llmConfig.personalityFriendly}}>{{#t}}settings.llmPersonalityFriendly{{/t}}</option>
+      <option value="concise"{{#llmConfig.personalityConcise}} selected{{/llmConfig.personalityConcise}}>{{#t}}settings.llmPersonalityConcise{{/t}}</option>
+      <option value="technical"{{#llmConfig.personalityTechnical}} selected{{/llmConfig.personalityTechnical}}>{{#t}}settings.llmPersonalityTechnical{{/t}}</option>
+      <option value="educational"{{#llmConfig.personalityEducational}} selected{{/llmConfig.personalityEducational}}>{{#t}}settings.llmPersonalityEducational{{/t}}</option>
+      <option value="satirical"{{#llmConfig.personalitySatirical}} selected{{/llmConfig.personalitySatirical}}>{{#t}}settings.llmPersonalitySatirical{{/t}}</option>
+    </select>
+    <div class="form-text">{{#t}}settings.llmPersonalityHelp{{/t}}</div></div>
+  <div class="mb-3"><label class="form-label" for="customInstruction">{{#t}}settings.llmCustomInstruction{{/t}}</label>
+    <textarea class="form-control" id="customInstruction" name="customInstruction" rows="3" placeholder="{{#t}}settings.llmCustomInstructionPlaceholder{{/t}}">{{llmConfig.customInstruction}}</textarea>
+    <div class="form-text">{{#t}}settings.llmCustomInstructionHelp{{/t}}</div></div>
+  <fieldset class="mb-3">
+    <legend class="form-label mb-1">{{#t}}settings.llmThinking{{/t}}</legend>
+    <div class="form-check form-switch"><input class="form-check-input" id="thinkingEnabled" name="thinkingEnabled" type="checkbox" value="1"{{#llmConfig.thinkingEnabled}} checked{{/llmConfig.thinkingEnabled}}><label class="form-check-label" for="thinkingEnabled">{{#t}}settings.llmThinkingToggle{{/t}}</label></div>
+    <div id="reasoningEffortGroup" class="mt-2"{{^llmConfig.thinkingEnabled}} style="display:none"{{/llmConfig.thinkingEnabled}}>
+      <label class="form-label" for="reasoningEffort">{{#t}}settings.llmReasoningEffort{{/t}}</label>
+      <select class="form-select form-select-sm" id="reasoningEffort" name="reasoningEffort" style="width:auto">
+        <option value="high"{{^llmConfig.reasoningEffortIsMax}} selected{{/llmConfig.reasoningEffortIsMax}}>High</option>
+        <option value="max"{{#llmConfig.reasoningEffortIsMax}} selected{{/llmConfig.reasoningEffortIsMax}}>Max</option>
+      </select>
+    </div>
+  </fieldset>
+</div>
+<div class="card-footer"><button class="btn btn-primary" type="submit"><i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i> {{#t}}settings.llmSave{{/t}}</button></div>
+</form>
+
+<script>
+(function(){var e=document.getElementById("model");if(!e||!window.fetch)return;var t=document.getElementById("customModelGroup"),n=document.getElementById("customModel"),o=document.getElementById("thinkingEnabled"),l=document.getElementById("reasoningEffortGroup");function c(){var n=e.value==="__other__";t.style.display=n?"block":"none",n&&n.focus()}e.addEventListener("change",c),c(),o&&o.addEventListener("change",function(){l.style.display=o.checked?"block":"none"})})();
+</script>
+{{/isSuperadmin}}
+{{^isSuperadmin}}
+<section class="card"><div class="card-body text-secondary"><i class="fa-solid fa-lock me-1" aria-hidden="true"></i> {{#t}}settings.restrictedMessage{{/t}}</div></section>
+{{/isSuperadmin}}
 {{/tabLlm}}
+
+{{#tabMessaging}}
+{{#isSuperadmin}}
+{{#messagingSaved}}<div class="alert alert-success"><i class="fa-solid fa-check me-1" aria-hidden="true"></i> {{#t}}settings.messagingSaved{{/t}}</div>{{/messagingSaved}}
+{{#messagingError}}<div class="alert alert-danger">{{messagingError}}</div>{{/messagingError}}
+
+<section class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <strong><i class="fa-solid fa-paper-plane me-1" aria-hidden="true"></i> {{#t}}settings.messagingChannels{{/t}}</strong>
+    <a class="btn btn-primary btn-sm" href="/settings/messaging/channel/create"><i class="fa-solid fa-plus me-1" aria-hidden="true"></i> {{#t}}settings.messagingAddChannel{{/t}}</a>
+  </div>
+  <div class="card-body">
+    {{#channels.length}}
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead><tr><th>{{#t}}settings.messagingName{{/t}}</th><th>{{#t}}settings.messagingType{{/t}}</th><th>{{#t}}settings.messagingWebhookUrl{{/t}}</th><th>{{#t}}settings.status{{/t}}</th><th></th></tr></thead>
+        <tbody>
+          {{#channels}}
+          <tr>
+            <td><strong>{{name}}</strong></td>
+            <td>
+              {{#isSlack}}<span class="badge text-bg-success"><i class="fa-brands fa-slack me-1" aria-hidden="true"></i> Slack</span>{{/isSlack}}
+              {{^isSlack}}<span class="badge text-bg-secondary">{{type}}</span>{{/isSlack}}
+            </td>
+            <td><code class="small">{{configParsed.webhook_url}}</code></td>
+            <td>
+              {{#enabled}}<span class="badge text-bg-success">{{#t}}alerts.enabled{{/t}}</span>{{/enabled}}
+              {{^enabled}}<span class="badge text-bg-secondary">{{#t}}alerts.disabled{{/t}}</span>{{/enabled}}
+            </td>
+            <td class="text-end">
+              <form class="d-inline me-1" method="post" action="/settings/messaging/channel/{{id}}/test">
+                <input type="hidden" name="_csrf" value="{{csrfToken}}">
+                <button class="btn btn-outline-primary btn-sm" type="submit">{{#t}}settings.messagingTest{{/t}}</button>
+              </form>
+              <a class="btn btn-outline-primary btn-sm me-1" href="/settings/messaging/channel/{{id}}/edit"><i class="fa-solid fa-pen me-1" aria-hidden="true"></i> {{#t}}alerts.edit{{/t}}</a>
+              <form class="d-inline" method="post" action="/settings/messaging/channel/{{id}}/delete" onsubmit="return confirm('{{#t}}alerts.deleteConfirm{{/t}}')">
+                <input type="hidden" name="_csrf" value="{{csrfToken}}">
+                <button class="btn btn-outline-danger btn-sm" type="submit"><i class="fa-solid fa-trash me-1" aria-hidden="true"></i> {{#t}}alerts.delete{{/t}}</button>
+              </form>
+            </td>
+          </tr>
+          {{/channels}}
+        </tbody>
+      </table>
+    </div>
+    {{/channels.length}}
+    {{^channels.length}}
+    <p class="text-secondary mb-0">{{#t}}settings.messagingNoChannels{{/t}}</p>
+    {{/channels.length}}
+  </div>
+</section>
+{{/isSuperadmin}}
+{{^isSuperadmin}}
+<section class="card"><div class="card-body text-secondary"><i class="fa-solid fa-lock me-1" aria-hidden="true"></i> {{#t}}settings.restrictedMessage{{/t}}</div></section>
+{{/isSuperadmin}}
+{{/tabMessaging}}

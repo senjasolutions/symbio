@@ -1,0 +1,244 @@
+<!-- Create / Edit alert threshold rule. -->
+<p class="text-secondary small text-uppercase mb-1"><a class="text-secondary text-decoration-none" href="/alerts">{{#t}}alerts.title{{/t}}</a></p>
+<h1 class="h3 mb-3">{{#isEdit}}{{#t}}alerts.editRule{{/t}}{{/isEdit}}{{^isEdit}}{{#t}}alerts.createRule{{/t}}{{/isEdit}}</h1>
+
+{{#error}}<div class="alert alert-danger">{{error}}</div>{{/error}}
+
+<form method="post" action="{{formAction}}">
+<input type="hidden" name="_csrf" value="{{csrfToken}}">
+
+<div class="card mb-3">
+  <div class="card-header"><strong>{{#t}}alerts.ruleDefinition{{/t}}</strong></div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label" for="name">{{#t}}alerts.ruleName{{/t}}</label>
+        <input class="form-control" id="name" name="name" value="{{rule.name}}" required maxlength="128" placeholder="{{#t}}alerts.ruleNamePlaceholder{{/t}}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="severity">{{#t}}alerts.severity{{/t}}</label>
+        <select class="form-select" id="severity" name="severity">
+          <option value="warning"{{#severityWarning}} selected{{/severityWarning}}>{{#t}}alerts.severityWarning{{/t}}</option>
+          <option value="critical"{{#severityCritical}} selected{{/severityCritical}}>{{#t}}alerts.severityCritical{{/t}}</option>
+          <option value="info"{{#severityInfo}} selected{{/severityInfo}}>{{#t}}alerts.severityInfo{{/t}}</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="enabled">{{#t}}alerts.status{{/t}}</label>
+        <select class="form-select" id="enabled" name="enabled">
+          <option value="1"{{#enabledYes}} selected{{/enabledYes}}>{{#t}}alerts.enabled{{/t}}</option>
+          <option value="0"{{#enabledNo}} selected{{/enabledNo}}>{{#t}}alerts.disabled{{/t}}</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header"><strong>{{#t}}alerts.threshold{{/t}}</strong></div>
+  <div class="card-body">
+    <div class="mb-3">
+      <label class="form-label" for="resource">{{#t}}alerts.resource{{/t}}</label>
+      <select class="form-select" id="resource" name="resource" data-alert-resource style="max-width:240px;">
+        <option value="cpu"{{#resourceCpu}} selected{{/resourceCpu}}>{{#t}}alerts.resourceCpu{{/t}}</option>
+        <option value="memory"{{#resourceMemory}} selected{{/resourceMemory}}>{{#t}}alerts.resourceMemory{{/t}}</option>
+        <option value="swap"{{#resourceSwap}} selected{{/resourceSwap}}>{{#t}}alerts.resourceSwap{{/t}}</option>
+        <option value="disk"{{#resourceDisk}} selected{{/resourceDisk}}>{{#t}}alerts.resourceDisk{{/t}}</option>
+        <option value="load"{{#resourceLoad}} selected{{/resourceLoad}}>{{#t}}alerts.resourceLoad{{/t}}</option>
+        <option value="network"{{#resourceNetwork}} selected{{/resourceNetwork}}>{{#t}}alerts.resourceNetwork{{/t}}</option>
+        <option value="application"{{#resourceApplication}} selected{{/resourceApplication}}>{{#t}}alerts.resourceApplication{{/t}}</option>
+        <option value="service"{{#resourceService}} selected{{/resourceService}}>{{#t}}alerts.resourceService{{/t}}</option>
+      </select>
+    </div>
+    <!-- Numeric threshold (CPU, memory, swap, disk, load) -->
+    <div class="row g-3" id="numericThreshold"{{^rule.isNumeric}} style="display:none"{{/rule.isNumeric}}>
+      <div class="col-md-4">
+        <label class="form-label" for="metricField">{{#t}}alerts.metric{{/t}}</label>
+        <select class="form-select" id="metricField" name="metricField" data-alert-metric>
+          {{#metricsCpu}}<option value="{{value}}"{{#selected}} selected{{/selected}} data-resource="cpu">{{label}}</option>{{/metricsCpu}}
+          {{#metricsMemory}}<option value="{{value}}"{{#selected}} selected{{/selected}} data-resource="memory">{{label}}</option>{{/metricsMemory}}
+          {{#metricsSwap}}<option value="{{value}}"{{#selected}} selected{{/selected}} data-resource="swap">{{label}}</option>{{/metricsSwap}}
+          {{#metricsDisk}}<option value="{{value}}"{{#selected}} selected{{/selected}} data-resource="disk">{{label}}</option>{{/metricsDisk}}
+          {{#metricsLoad}}<option value="{{value}}"{{#selected}} selected{{/selected}} data-resource="load">{{label}}</option>{{/metricsLoad}}
+          {{#metricsNetwork}}<option value="{{value}}"{{#selected}} selected{{/selected}} data-resource="network">{{label}}</option>{{/metricsNetwork}}
+          {{#metricsApplication}}<option value="{{value}}"{{#selected}} selected{{/selected}} data-resource="application">{{label}}</option>{{/metricsApplication}}
+          {{#metricsService}}<option value="{{value}}"{{#selected}} selected{{/selected}} data-resource="service">{{label}}</option>{{/metricsService}}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label" for="operator">{{#t}}alerts.operator{{/t}}</label>
+        <select class="form-select" id="operator" name="operator">
+          <option value="gt"{{#operatorGt}} selected{{/operatorGt}}>{{#t}}alerts.operatorGt{{/t}}</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label" for="thresholdValue">{{#t}}alerts.thresholdValue{{/t}}</label>
+        <input class="form-control" id="thresholdValue" name="thresholdValue" type="number" step="0.1" value="{{rule.thresholdValue}}" required>
+        <div class="form-text" id="thresholdHelpDefault">{{#t}}alerts.thresholdValueHelp{{/t}}</div>
+        <div class="form-text" id="thresholdHelpNetwork" style="display:none">{{#t}}alerts.thresholdValueHelpNetwork{{/t}}</div>
+      </div>
+    </div>
+
+    <!-- Application target -->
+    <div id="appThreshold"{{^rule.resourceApplication}} style="display:none"{{/rule.resourceApplication}}>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label" for="targetId">{{#t}}alerts.targetApplication{{/t}}</label>
+          <select class="form-select" id="targetId" name="targetId">
+            {{#applications}}
+            <option value="{{id}}"{{#selected}} selected{{/selected}}>{{displayName}} <small class="text-secondary">({{name}})</small></option>
+            {{/applications}}
+            {{^applications.length}}
+            <option value="">{{#t}}alerts.noApplications{{/t}}</option>
+            {{/applications.length}}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">{{#t}}alerts.whenStatus{{/t}}</label>
+          <div class="mt-1">
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" id="status_slow" name="status_slow" type="checkbox" value="1"{{#rule.statusCheckedSlow}} checked{{/rule.statusCheckedSlow}}>
+              <label class="form-check-label" for="status_slow"><span class="badge text-bg-warning">Slow</span></label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" id="status_down" name="status_down" type="checkbox" value="1"{{#rule.statusCheckedDown}} checked{{/rule.statusCheckedDown}}>
+              <label class="form-check-label" for="status_down"><span class="badge text-bg-danger">Down</span></label>
+            </div>
+          </div>
+          <div class="form-text">{{#t}}alerts.statusCheckHelp{{/t}}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Service target -->
+    <div id="svcThreshold"{{^rule.resourceService}} style="display:none"{{/rule.resourceService}}>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label" for="targetIdSvc">{{#t}}alerts.targetService{{/t}}</label>
+          <select class="form-select" id="targetIdSvc" name="targetId">
+            {{#services}}
+            <option value="{{id}}"{{#selected}} selected{{/selected}}>{{displayName}} <small class="text-secondary">({{type}})</small></option>
+            {{/services}}
+            {{^services.length}}
+            <option value="">{{#t}}alerts.noServices{{/t}}</option>
+            {{/services.length}}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">{{#t}}alerts.whenStatus{{/t}}</label>
+          <div class="mt-1">
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" id="status_degraded" name="status_degraded" type="checkbox" value="1"{{#rule.statusCheckedDegraded}} checked{{/rule.statusCheckedDegraded}}>
+              <label class="form-check-label" for="status_degraded"><span class="badge text-bg-warning">Degraded</span></label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" id="status_unavailable" name="status_unavailable" type="checkbox" value="1"{{#rule.statusCheckedUnavailable}} checked{{/rule.statusCheckedUnavailable}}>
+              <label class="form-check-label" for="status_unavailable"><span class="badge text-bg-danger">Unavailable</span></label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" id="status_not_detected" name="status_not_detected" type="checkbox" value="1"{{#rule.statusCheckedNotDetected}} checked{{/rule.statusCheckedNotDetected}}>
+              <label class="form-check-label" for="status_not_detected"><span class="badge text-bg-secondary">Not Detected</span></label>
+            </div>
+          </div>
+          <div class="form-text">{{#t}}alerts.statusCheckHelp{{/t}}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header"><strong>{{#t}}alerts.timing{{/t}}</strong></div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label" for="durationSeconds">{{#t}}alerts.durationSeconds{{/t}}</label>
+        <input class="form-control" id="durationSeconds" name="durationSeconds" type="number" min="30" step="30" value="{{rule.durationSeconds}}" required>
+        <div class="form-text">{{#t}}alerts.durationSecondsHelp{{/t}}</div>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="cooldownSeconds">{{#t}}alerts.cooldownSeconds{{/t}}</label>
+        <input class="form-control" id="cooldownSeconds" name="cooldownSeconds" type="number" min="60" step="60" value="{{rule.cooldownSeconds}}" required>
+        <div class="form-text">{{#t}}alerts.cooldownSecondsHelp{{/t}}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header"><strong>{{#t}}alerts.notifications{{/t}}</strong></div>
+  <div class="card-body">
+    <div class="form-check">
+      <input class="form-check-input" id="diagnosticEnabled" name="diagnosticEnabled" type="checkbox" value="1"{{#rule.diagnosticEnabled}} checked{{/rule.diagnosticEnabled}}>
+      <label class="form-check-label" for="diagnosticEnabled">{{#t}}alerts.diagnosticEnabled{{/t}}</label>
+      <div class="form-text">{{#t}}alerts.diagnosticEnabledHelp{{/t}}</div>
+    </div>
+    {{#channels.length}}
+    <hr>
+    <label class="form-label">{{#t}}alerts.notifyChannels{{/t}}</label>
+    {{#channels}}
+    <div class="form-check">
+      <input class="form-check-input" id="channel_{{id}}" name="channel_{{id}}" type="checkbox" value="1"{{#checked}} checked{{/checked}}>
+      <label class="form-check-label" for="channel_{{id}}">{{name}} <small class="text-secondary">({{type}})</small></label>
+    </div>
+    {{/channels}}
+    {{/channels.length}}
+    {{^channels.length}}
+    <hr>
+    <p class="text-secondary mb-0">{{#t}}alerts.noChannels{{/t}} <a href="/settings?tab=messaging">{{#t}}alerts.configureChannels{{/t}}</a></p>
+    {{/channels.length}}
+  </div>
+</div>
+
+<div class="d-flex gap-2">
+  <button class="btn btn-primary" type="submit">{{#isEdit}}{{#t}}alerts.saveRule{{/t}}{{/isEdit}}{{^isEdit}}{{#t}}alerts.createRule{{/t}}{{/isEdit}}</button>
+  <a class="btn btn-outline-secondary" href="/alerts">{{#t}}alerts.cancel{{/t}}</a>
+</div>
+</form>
+
+<script>
+(function() {
+  var resource = document.querySelector("[data-alert-resource]");
+  var metric = document.querySelector("[data-alert-metric]");
+  if (!resource) return;
+  var numeric = document.getElementById("numericThreshold");
+  var appSection = document.getElementById("appThreshold");
+  var svcSection = document.getElementById("svcThreshold");
+  var diagnosticCheck = document.getElementById("diagnosticEnabled");
+  var helpDefault = document.getElementById("thresholdHelpDefault");
+  var helpNetwork = document.getElementById("thresholdHelpNetwork");
+
+  function filterMetrics(val) {
+    if (!metric) return;
+    var opts = metric.querySelectorAll("option");
+    var firstMatch = null;
+    for (var i = 0; i < opts.length; i++) {
+      var r = opts[i].getAttribute("data-resource");
+      if (r === val) { opts[i].style.display = ""; if (!firstMatch) firstMatch = opts[i]; }
+      else opts[i].style.display = "none";
+    }
+    if (firstMatch && (!metric.value || opts[metric.selectedIndex].style.display === "none")) {
+      metric.value = firstMatch.value;
+    }
+  }
+
+  function switchSection() {
+    var val = resource.value;
+    var isNumeric = val !== "application" && val !== "service";
+    if (numeric) numeric.style.display = isNumeric ? "" : "none";
+    if (appSection) appSection.style.display = val === "application" ? "" : "none";
+    if (svcSection) svcSection.style.display = val === "service" ? "" : "none";
+    if (helpDefault) helpDefault.style.display = (isNumeric && val !== "network") ? "" : "none";
+    if (helpNetwork) helpNetwork.style.display = val === "network" ? "" : "none";
+    if (diagnosticCheck) {
+      var disableDiag = !isNumeric || val === "network";
+      diagnosticCheck.disabled = disableDiag;
+      if (disableDiag) diagnosticCheck.checked = false;
+      diagnosticCheck.parentElement.style.opacity = disableDiag ? "0.5" : "1";
+    }
+    filterMetrics(val);
+  }
+  resource.addEventListener("change", switchSection);
+  switchSection();
+})();
+</script>

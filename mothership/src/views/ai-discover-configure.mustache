@@ -1,0 +1,70 @@
+<!-- Page 3 of the AI Application Discovery wizard: user confirms logs and directories per app. -->
+<nav aria-label="{{#t}}common.breadcrumb{{/t}}"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/applications">{{#t}}nav.applications{{/t}}</a></li><li class="breadcrumb-item"><a href="/applications/ai-discover">{{#t}}ai.discover.title{{/t}}</a></li><li class="breadcrumb-item active">{{#t}}ai.discover.configureLogs{{/t}}</li></ol></nav>
+<h1 class="h3 mb-3"><i class="fa-solid fa-gear me-1" aria-hidden="true"></i>{{#t}}ai.discover.configureLogs{{/t}}</h1>
+<p class="text-secondary mb-3">{{#t}}ai.discover.configureHelp{{/t}}</p>
+
+{{#error}}
+<div class="alert alert-danger"><i class="fa-solid fa-circle-exclamation me-1" aria-hidden="true"></i>{{error}}</div>
+{{/error}}
+
+<form method="post" action="/applications/ai-bulk-add">
+  <input type="hidden" name="_csrf" value="{{csrfToken}}">
+  <input type="hidden" name="appCount" value="{{appCount}}">
+
+  {{#apps}}
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <strong><i class="fa-solid fa-window-maximize me-1" aria-hidden="true"></i>{{displayName}}</strong>
+      <span class="badge text-bg-info">{{type}}</span>
+    </div>
+    <div class="card-body">
+      <input type="hidden" name="app_{{index}}_name" value="{{name}}">
+      <input type="hidden" name="app_{{index}}_displayName" value="{{displayName}}">
+      <input type="hidden" name="app_{{index}}_healthCheckUrl" value="{{healthCheckUrl}}">
+
+      <div class="mb-3">
+        <label class="form-label mb-1"><strong>{{#t}}ai.discover.directory{{/t}}</strong></label>
+        {{#directory}}
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="app_{{index}}_useDirectory" value="{{directory}}" id="dir_{{index}}"{{#useDirectory}} checked{{/useDirectory}}>
+          <label class="form-check-label" for="dir_{{index}}"><code>{{directory}}</code> <small class="text-secondary">({{#t}}ai.discover.aiSuggested{{/t}})</small></label>
+        </div>
+        {{/directory}}
+        {{^directory}}
+        <p class="text-secondary small mb-0">{{#t}}ai.discover.noDirSuggestion{{/t}}</p>
+        <input class="form-control form-control-sm mt-1" name="app_{{index}}_customDir" placeholder="/var/www/{{name}}" style="max-width:400px">
+        {{/directory}}
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label mb-1"><strong>{{#t}}ai.discover.logFiles{{/t}}</strong></label>
+        {{#aiLogs.length}}
+        {{#aiLogs}}
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="app_{{index}}_log[]" value="{{.}}" id="log_{{index}}_{{logIndex}}"{{#selected}} checked{{/selected}}>
+          <label class="form-check-label" for="log_{{index}}_{{logIndex}}"><code>{{.}}</code> <small class="text-secondary">({{#t}}ai.discover.aiSuggested{{/t}})</small></label>
+        </div>
+        {{/aiLogs}}
+        {{/aiLogs.length}}
+        {{^aiLogs.length}}
+        <p class="text-secondary small mb-0">{{#t}}ai.discover.noLogSuggestion{{/t}}</p>
+        {{/aiLogs.length}}
+        <div class="mt-2">
+          <label class="form-label small">{{#t}}ai.discover.customLogPath{{/t}}</label>
+          <input class="form-control form-control-sm" name="app_{{index}}_customLog_0" placeholder="/var/log/{{name}}/app.log" style="max-width:400px">
+          <input class="form-control form-control-sm mt-1" name="app_{{index}}_customLog_1" placeholder="" style="max-width:400px">
+        </div>
+      </div>
+
+      {{#appErrors}}
+      <div class="alert alert-warning small mb-0"><i class="fa-solid fa-triangle-exclamation me-1" aria-hidden="true"></i>{{appErrors}}</div>
+      {{/appErrors}}
+    </div>
+  </div>
+  {{/apps}}
+
+  <div class="d-flex">
+    <button class="btn btn-primary" type="submit"><i class="fa-solid fa-check me-1" aria-hidden="true"></i> {{#t}}ai.discover.applySelected{{/t}}</button>
+    <a class="btn btn-outline-secondary ms-2" href="/applications">{{#t}}common.cancel{{/t}}</a>
+  </div>
+</form>

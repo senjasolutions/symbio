@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Symbio — Your Server Admin Buddy</title>
+<link rel="stylesheet" href="index.css">
+</head>
+<body>
+
+<!-- ============ HEADER ============ -->
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="site-brand" href="#">SYMBIO</a>
+    <a class="github-link" href="https://github.com/senjasolutions/symbio" target="_blank" rel="noopener">
+      <i class="fa-brands fa-github"></i> Fork on GitHub
+    </a>
+  </div>
+</header>
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="container hero-inner">
+    <div class="hero-text">
+      <h1 class="hero-title">Your Server Admin Buddy</h1>
+      <p class="hero-sub">With Symbio, delegate most of easy and basic Server Administration task while you focus on building the complex one.</p>
+      <p class="hero-cta">Launch Symbio on your Server now with this simple command</p>
+      <div class="code-box" id="installCode">
+        <code>curl -fSSl https://symbio.senja.co.uk/install.sh | bash</code>
+        <button class="copy-btn" id="copyBtn" title="Copy to clipboard">
+          <i class="fa-regular fa-clipboard"></i>
+        </button>
+      </div>
+      <p class="hero-disc">System Requirement: Ubuntu 22.04+ and Docker (preferably latest version)</p>
+    </div>
+    <div class="hero-visual">
+      <img class="hero-screenshot" src="symbio_screenshot.png" alt="Symbio Dashboard Screenshot">
+    </div>
+  </div>
+</section>
+
+<!-- ============ WHAT IS SYMBIO ============ -->
+<section class="section-what">
+  <div class="container">
+    <h2 class="section-title">What is Symbio?</h2>
+    <p class="section-desc">It is an all-in-one Monitoring, Alerting and Server Management with Powerful AI Integration.</p>
+    <div class="feature-grid">
+      <div class="card">
+        <div class="card-hdr">
+          <i class="fa-solid fa-brain"></i> Symbio Intelligence
+        </div>
+        <div class="card-body">
+          Integrate Server Management with AI LLM. Connect OpenAI, Anthropic or DeepSeek API and Symbio will use it to run Agent like Storage Maid, SUS Finder, Optimizer automatically and can be adjusted according to your need.
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr">
+          <i class="fa-solid fa-desktop"></i> Server Monitoring
+        </div>
+        <div class="card-body">
+          View the whole server resource usage, information, logs, anything that you need to know about it with easy to use Dashboard that is full of information. You can also Ask Symbio Intelligence for more information.
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr">
+          <i class="fa-solid fa-bell"></i> Alert System
+        </div>
+        <div class="card-body">
+          Get alerted through the web interface or messaging service (like Slack) when a resource threshold (like CPU Usage) is hit. So you know earlier before something happened. You can also integrate it with Symbio Intelligence to do something.
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr">
+          <i class="fa-solid fa-window-maximize"></i> Application Monitoring
+        </div>
+        <div class="card-body">
+          Monitor the HTTP Request of the running application on your server. While also looking at the Logs for possible issue.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SKILLS ============ -->
+<section class="section-skills">
+  <div class="container">
+    <h2 class="section-title">Symbio Intelligence Skills</h2>
+    <div class="skills-grid">
+      <div class="skill-card">
+        <div class="skill-icon"><i class="fa-solid fa-box"></i></div>
+        <div class="skill-name">Package Updater</div>
+        <div class="skill-desc">Check for available package updates, prioritize security patches, and apply them safely.</div>
+      </div>
+      <div class="skill-card">
+        <div class="skill-icon"><i class="fa-solid fa-hard-drive"></i></div>
+        <div class="skill-name">Storage Maid</div>
+        <div class="skill-desc">Monitor disk usage, identify space hogs, and perform safe cleanup automatically.</div>
+      </div>
+      <div class="skill-card">
+        <div class="skill-icon"><i class="fa-solid fa-heart-pulse"></i></div>
+        <div class="skill-name">Uptime Police</div>
+        <div class="skill-desc">Monitor service health and restart frozen services automatically.</div>
+      </div>
+      <div class="skill-card">
+        <div class="skill-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
+        <div class="skill-name">Error Finder</div>
+        <div class="skill-desc">Scan system and application logs for errors and report findings.</div>
+      </div>
+      <div class="skill-card">
+        <div class="skill-icon"><i class="fa-solid fa-shield-halved"></i></div>
+        <div class="skill-name">SUS Finder</div>
+        <div class="skill-desc">Detect suspicious processes, brute-force attempts, and unusual open ports.</div>
+      </div>
+      <div class="skill-card">
+        <div class="skill-icon"><i class="fa-solid fa-gauge-high"></i></div>
+        <div class="skill-name">Optimizer</div>
+        <div class="skill-desc">Analyses server settings, package bloat, and cron jobs for performance gains.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PRE-FOOTER CTA ============ -->
+<section class="section-cta">
+  <div class="container" style="text-align:center;">
+    <h2 class="cta-title">Summon your Server buddy now</h2>
+    <div class="code-box">
+      <code>curl -fSSl https://symbio.senja.co.uk/install.sh | bash</code>
+      <button class="copy-btn" id="copyBtn2" title="Copy to clipboard">
+        <i class="fa-regular fa-clipboard"></i>
+      </button>
+    </div>
+    <p class="hero-disc">System Requirement: Ubuntu 22.04+ and Docker (preferably latest version)</p>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer class="site-footer">
+  <div class="container" style="text-align:center;">
+    <p>&copy; 2026 Symbio. All rights reserved.</p>
+  </div>
+</footer>
+
+<script src="index.js"></script>
+</body>
+</html>

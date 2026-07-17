@@ -1,0 +1,39 @@
+<!-- Lists every registered application log source for this server in a single table with application links. -->
+<nav aria-label="{{#t}}common.breadcrumb{{/t}}"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/servers">{{#t}}nav.servers{{/t}}</a></li><li class="breadcrumb-item"><a href="/servers/{{server.id}}">{{server.displayName}}</a></li><li class="breadcrumb-item active">{{#t}}server.logs.title{{/t}}</li></ol></nav>
+<h1 class="h3 mb-1">{{#t}}server.logs.title{{/t}}</h1>
+<p class="text-secondary small mb-3">{{#t}}server.logs.description{{/t}}</p>
+<section class="card">
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>{{#t}}server.logs.application{{/t}}</th>
+          <th>{{#t}}server.logs.logName{{/t}}</th>
+          <th class="d-none d-md-table-cell">{{#t}}server.logs.filePath{{/t}}</th>
+          <th>{{#t}}server.logs.tailLines{{/t}}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#logs}}
+        <tr>
+          <td>
+            <a href="/applications/{{applicationId}}">{{applicationDisplayName}}</a>
+            {{#applicationDeleted}}<span class="badge text-bg-secondary ms-1">{{#t}}common.deleted{{/t}}</span>{{/applicationDeleted}}
+          </td>
+          <td><a href="/applications/{{applicationId}}/logs/{{id}}">{{displayName}}</a></td>
+          <td class="d-none d-md-table-cell"><code class="small">{{filePath}}</code></td>
+          <td><span class="badge text-bg-secondary">{{tailLines}} {{#t}}server.logs.lines{{/t}}</span></td>
+          <td class="text-end">
+            <a class="btn btn-outline-primary btn-sm" href="/applications/{{applicationId}}/logs/{{id}}">{{#t}}application.detail.view{{/t}}</a>
+            <a class="btn btn-outline-secondary btn-sm" href="/applications/{{applicationId}}">{{#t}}server.logs.viewApplication{{/t}}</a>
+          </td>
+        </tr>
+        {{/logs}}
+        {{^logs}}
+        <tr><td colspan="5" class="text-muted">{{#t}}server.logs.noLogs{{/t}}</td></tr>
+        {{/logs}}
+      </tbody>
+    </table>
+  </div>
+</section>

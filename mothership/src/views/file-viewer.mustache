@@ -6,4 +6,5 @@
 <section class="card"><div class="card-body p-0"><div class="file-viewer"><div class="file-lines">{{#lines}}<span class="file-ln">{{n}}</span>
 {{/lines}}</div><pre class="file-text">{{#lines}}{{text}}
 {{/lines}}</pre></div></div></section>
+{{#truncated}}<div class="alert alert-warning small mt-2">{{#t}}fileViewer.truncated{{/t}}{{#totalBytes}}: {{totalBytes}} bytes{{/totalBytes}}</div>{{/truncated}}
 {{/error}}

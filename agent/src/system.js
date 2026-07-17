@@ -421,6 +421,41 @@ export const getLoggedInUsers = async () => {
 // 7. Installed Packages (dpkg status)
 // ============================================================================
 
+// ============================================================================
+// 7. Top Processes — CPU and memory for alert diagnostics
+// ============================================================================
+
+/** Returns top 5 processes by CPU time usage and top 5 by RSS memory.
+ *  Used by alert engine to report what caused a resource threshold breach. */
+export const getTopProcesses = async () => {
+  let procDirs;
+  try { procDirs = await fs.readdir(PROC_PATH); } catch { return { topCpu: [], topMem: [] }; }
+  const processes = [];
+  for (const name of procDirs) {
+    const pid = parseInt(name, 10);
+    if (isNaN(pid)) continue;
+    try {
+      const [statRaw, cmdlineRaw] = await Promise.all([
+        readText(path.join(PROC_PATH, name, "stat")),
+        readText(path.join(PROC_PATH, name, "cmdline")),
+      ]);
+      const parsed = parseProcStat(statRaw);
+      if (!parsed) continue;
+      const cmdline = cmdlineRaw.replace(/\0/g, " ").trim() || `[${parsed.comm}]`;
+      processes.push({
+        pid: parsed.pid,
+        name: parsed.comm.slice(0, 63),
+        command: cmdline.length > 120 ? cmdline.slice(0, 117) + "..." : cmdline,
+        cpuTime: parsed.utime + parsed.stime,
+        rss: parsed.rss,
+      });
+    } catch { /* skip inaccessible */ }
+  }
+  const topCpu = [...processes].sort((a, b) => b.cpuTime - a.cpuTime).slice(0, 5);
+  const topMem = [...processes].sort((a, b) => b.rss - a.rss).slice(0, 5);
+  return { topCpu, topMem };
+};
+
 export const getInstalledPackages = async () => {
   let raw;
   try {

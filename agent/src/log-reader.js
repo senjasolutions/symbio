@@ -8,34 +8,34 @@ import { constants as fsConstants } from "node:fs";
 import path from "node:path";
 
 export const TAIL_LIMITS = new Set([50, 100, 200, 500, 1000]);
-const MAX_RESPONSE_BYTES = 512 * 1024;
-const MAX_LINE_BYTES = 8 * 1024;
-const MAX_TAIL_SCAN_BYTES = 4 * 1024 * 1024;
-const MAX_SEARCH_SCAN_BYTES = 8 * 1024 * 1024;
-const SEARCH_MATCH_LIMIT = 5;
-const SEARCH_CONTEXT_LINES = 10;
+export const MAX_TAIL_SCAN_BYTES = 4 * 1024 * 1024;
+export const MAX_RESPONSE_BYTES = 512 * 1024;
+export const MAX_LINE_BYTES = 8 * 1024;
+export const MAX_SEARCH_SCAN_BYTES = 8 * 1024 * 1024;
+export const SEARCH_MATCH_LIMIT = 5;
+export const SEARCH_CONTEXT_LINES = 10;
 
-/** Rejects values that could reinterpret a registered host path during mapping. */
-const validateHostPath = (filePath) => {
+/** Validates log path — when `relaxed` is false (default), blocks Docker/PM2 paths. */
+const validateHostPath = (filePath, relaxed = false) => {
   if (typeof filePath !== "string" || !path.posix.isAbsolute(filePath) || filePath.includes("\0")) throw new Error("Registered log path is invalid.");
   if (filePath.split("/").includes("..")) throw new Error("Registered log path contains traversal.");
-  // Runtime-managed Docker and PM2 files stay outside this application-log
-  // feature even if a malformed database row reaches the agent configuration.
-  if (filePath.startsWith("/var/lib/docker/") || filePath.split("/").includes(".pm2")) throw new Error("Docker and PM2 logs are not supported.");
+  if (!relaxed) {
+    if (filePath.startsWith("/var/lib/docker/") || filePath.split("/").includes(".pm2")) throw new Error("Docker and PM2 logs are not supported.");
+  }
   return filePath;
 };
 
 /** Maps an approved absolute host path under the fixed read-only host-root bind. */
-const mountedPath = (hostRootPath, filePath) => {
+const mountedPath = (hostRootPath, filePath, relaxed = false) => {
   const root = path.resolve(hostRootPath);
-  const target = path.resolve(root, `.${validateHostPath(filePath)}`);
+  const target = path.resolve(root, `.${validateHostPath(filePath, relaxed)}`);
   if (target !== root && !target.startsWith(`${root}${path.sep}`)) throw new Error("Registered log path escapes host root.");
   return { root, target };
 };
 
 /** Opens one regular non-symlink file with a Linux no-follow descriptor where available. */
-const openRegisteredFile = async (hostRootPath, filePath) => {
-  const { root, target } = mountedPath(hostRootPath, filePath);
+const openRegisteredFile = async (hostRootPath, filePath, relaxed = false) => {
+  const { root, target } = mountedPath(hostRootPath, filePath, relaxed);
   const entry = await fs.lstat(target);
   if (entry.isSymbolicLink() || !entry.isFile()) throw new Error("Registered log is not a regular file.");
   const [realRoot, realTarget] = await Promise.all([fs.realpath(root), fs.realpath(target)]);
@@ -47,13 +47,13 @@ const openRegisteredFile = async (hostRootPath, filePath) => {
 };
 
 /** Limits one untrusted log line while clearly retaining the fact that it was shortened. */
-const boundedLine = (line) => {
+export const boundedLine = (line) => {
   const source = Buffer.from(line);
   return source.length <= MAX_LINE_BYTES ? line : `${source.subarray(0, MAX_LINE_BYTES).toString("utf8")} [line truncated]`;
 };
 
 /** Limits a rendered response by bytes so line-count controls cannot exhaust browser memory. */
-const boundedOutput = (lines, truncated) => {
+export const boundedOutput = (lines, truncated) => {
   const output = [];
   let bytes = 0;
   for (const line of lines) {
@@ -104,6 +104,39 @@ export const searchRegisteredLog = async (configuration, hostRootPath, logId, qu
   if (typeof query !== "string" || !query || query.length > 500) throw new Error("Search query must contain 1–500 characters.");
   const source = resolveSource(configuration, logId);
   const { handle, stats } = await openRegisteredFile(hostRootPath, source.filePath);
+  try {
+    const suffix = await readSuffix(handle, stats.size, MAX_SEARCH_SCAN_BYTES);
+    const lines = suffix.text.replace(/\r/g, "").split("\n");
+    const matches = [];
+    lines.forEach((line, index) => { if (line.includes(query)) matches.push(index); });
+    const selected = matches.slice(-SEARCH_MATCH_LIMIT);
+    const blocks = selected.map((matchIndex, occurrence) => {
+      const start = Math.max(0, matchIndex - SEARCH_CONTEXT_LINES);
+      const end = Math.min(lines.length, matchIndex + SEARCH_CONTEXT_LINES + 1);
+      const context = lines.slice(start, end).map((line, index) => `${start + index === matchIndex ? ">" : " "} ${boundedLine(line)}`);
+      return [`Occurrence ${occurrence + 1}/${selected.length}`, `Query: ${query}`, "----------------------------------------", ...context].join("\n");
+    });
+    return boundedOutput(blocks, suffix.truncated);
+  } finally { await handle.close(); }
+};
+
+/** Reads trailing lines from a direct file path (for server/service/symbio logs, not application logs). */
+export const readSystemLog = async (hostRootPath, filePath, requestedLimit) => {
+  const limit = Number(requestedLimit) || 100;
+  if (!TAIL_LIMITS.has(limit)) throw new Error("Requested tail limit is invalid.");
+  const { handle, stats } = await openRegisteredFile(hostRootPath, filePath, true);
+  try {
+    const suffix = await readSuffix(handle, stats.size, MAX_TAIL_SCAN_BYTES);
+    const lines = suffix.text.replace(/\r/g, "").split("\n");
+    if (lines.at(-1) === "") lines.pop();
+    return boundedOutput(lines.slice(-limit).map(boundedLine), suffix.truncated);
+  } finally { await handle.close(); }
+};
+
+/** Searches a direct file path (for server/service/symbio logs, not application logs). */
+export const searchSystemLog = async (hostRootPath, filePath, query) => {
+  if (typeof query !== "string" || !query || query.length > 500) throw new Error("Search query must contain 1–500 characters.");
+  const { handle, stats } = await openRegisteredFile(hostRootPath, filePath, true);
   try {
     const suffix = await readSuffix(handle, stats.size, MAX_SEARCH_SCAN_BYTES);
     const lines = suffix.text.replace(/\r/g, "").split("\n");

@@ -1,0 +1,212 @@
+<!-- Skill settings page — per-skill configuration, memory, enable/disable. -->
+<nav aria-label="{{#t}}common.breadcrumb{{/t}}"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/ai">{{#t}}ai.symbioIntelligence{{/t}}</a></li><li class="breadcrumb-item"><a href="/ai/command-center">{{#t}}ai.commandCenter{{/t}}</a></li><li class="breadcrumb-item active">{{#t}}settings.title{{/t}}: {{skillName}}</li></ol></nav>
+
+<h1 class="h3 mb-3"><i class="{{icon}} me-1" aria-hidden="true"></i>{{skillName}} {{#t}}settings.title{{/t}}</h1>
+
+{{#saved}}<div class="alert alert-success">{{#t}}settings.saved{{/t}}</div>{{/saved}}
+
+<form method="post" action="/ai/command-center/{{skillKey}}/settings">
+<input type="hidden" name="_csrf" value="{{csrfToken}}">
+
+<section class="card mb-3">
+  <div class="card-header"><strong>{{#t}}settings.general{{/t}}</strong></div>
+  <div class="card-body">
+    <div class="mb-3">
+      <div class="form-check form-switch">
+        <input class="form-check-input" id="enabled" name="enabled" type="checkbox" value="1"{{#enabled}} checked{{/enabled}}>
+        <label class="form-check-label" for="enabled">{{#t}}settings.enabled{{/t}}</label>
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">{{#t}}ai.description{{/t}}</label>
+      <p class="text-secondary small mb-0">{{description}}</p>
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="intervalValue">{{#t}}settings.skill.checkInterval{{/t}}</label>
+      <div class="input-group">
+        <input class="form-control" id="intervalValue" name="intervalValue" type="number" value="{{config.intervalValue}}" min="1" max="1440">
+        <select class="form-select" id="intervalUnit" name="intervalUnit" style="max-width:100px;">
+          <option value="sec"{{#config.intervalUnitSec}} selected{{/config.intervalUnitSec}}>{{#t}}common.seconds{{/t}}</option>
+          <option value="min"{{#config.intervalUnitMin}} selected{{/config.intervalUnitMin}}>{{#t}}common.minutes{{/t}}</option>
+          <option value="hour"{{#config.intervalUnitHour}} selected{{/config.intervalUnitHour}}>{{#t}}common.hours{{/t}}</option>
+        </select>
+      </div>
+      <div class="form-text">{{#t}}settings.skill.checkIntervalHelp{{/t}}</div>
+    </div>
+  </div>
+</section>
+
+{{#showStorageMaid}}
+<section class="card mb-3">
+  <div class="card-header"><strong>{{#t}}settings.skill.storageMaid{{/t}}</strong></div>
+  <div class="card-body">
+    <div class="mb-3">
+      <label class="form-label" for="cleanDepth">{{#t}}settings.skill.cleanDepth{{/t}}</label>
+      <select class="form-select" id="cleanDepth" name="cleanDepth">
+        <option value="light"{{#config.cleanDepthLight}} selected{{/config.cleanDepthLight}}>{{#t}}settings.skill.cleanDepthLight{{/t}}</option>
+        <option value="standard"{{#config.cleanDepthStandard}} selected{{/config.cleanDepthStandard}}>{{#t}}settings.skill.cleanDepthStandard{{/t}}</option>
+        <option value="deep"{{#config.cleanDepthDeep}} selected{{/config.cleanDepthDeep}}>{{#t}}settings.skill.cleanDepthDeep{{/t}}</option>
+      </select>
+      <div class="form-text">{{#t}}settings.skill.cleanDepthHelp{{/t}}</div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="intensity">{{#t}}settings.skill.intensity{{/t}}</label>
+      <select class="form-select" id="intensity" name="intensity">
+        <option value="safe"{{#config.intensitySafe}} selected{{/config.intensitySafe}}>{{#t}}settings.skill.intensitySafe{{/t}}</option>
+        <option value="moderate"{{#config.intensityModerate}} selected{{/config.intensityModerate}}>{{#t}}settings.skill.intensityModerate{{/t}}</option>
+      </select>
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="excludeDirs">{{#t}}settings.skill.excludeDirs{{/t}}</label>
+      <textarea class="form-control" id="excludeDirs" name="excludeDirs" rows="3">{{#config.excludeDirs}}{{.}}
+{{/config.excludeDirs}}</textarea>
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="diskThresholdPercent">{{#t}}settings.skill.diskThreshold{{/t}}</label>
+      <input class="form-control" id="diskThresholdPercent" name="diskThresholdPercent" type="number" value="{{config.diskThresholdPercent}}" min="50" max="99">
+    </div>
+  </div>
+</section>
+{{/showStorageMaid}}
+
+{{#showUptimePolice}}
+<section class="card mb-3">
+  <div class="card-header"><strong>{{#t}}settings.skill.uptimePolice{{/t}}</strong></div>
+  <div class="card-body">
+    <div class="mb-3">
+      <label class="form-label" for="monitoredServices">{{#t}}settings.skill.monitoredServices{{/t}}</label>
+      <textarea class="form-control" id="monitoredServices" name="monitoredServices" rows="4">{{#config.monitoredServices}}{{.}}
+{{/config.monitoredServices}}</textarea>
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="anomalyThreshold">{{#t}}settings.skill.anomalyThreshold{{/t}}</label>
+      <input class="form-control" id="anomalyThreshold" name="anomalyThreshold" type="number" value="{{config.anomalyThreshold}}" min="1" max="20">
+    </div>
+    <div class="form-check form-switch">
+      <input class="form-check-input" id="autoRestart" name="autoRestart" type="checkbox" value="1"{{#config.autoRestart}} checked{{/config.autoRestart}}>
+      <label class="form-check-label" for="autoRestart">{{#t}}settings.skill.autoRestart{{/t}}</label>
+    </div>
+  </div>
+</section>
+{{/showUptimePolice}}
+
+{{#showErrorFinder}}
+<section class="card mb-3">
+  <div class="card-header"><strong>{{#t}}settings.skill.errorFinder{{/t}}</strong></div>
+  <div class="card-body">
+    <div class="mb-3">
+      <label class="form-label" for="logSources">{{#t}}settings.skill.logSources{{/t}}</label>
+      <textarea class="form-control" id="logSources" name="logSources" rows="3">{{#config.logSources}}{{.}}
+{{/config.logSources}}</textarea>
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="ignorePatterns">{{#t}}settings.skill.ignorePatterns{{/t}}</label>
+      <textarea class="form-control" id="ignorePatterns" name="ignorePatterns" rows="3">{{#config.ignorePatterns}}{{.}}
+{{/config.ignorePatterns}}</textarea>
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="maxLogLines">{{#t}}settings.skill.maxLogLines{{/t}}</label>
+      <input class="form-control" id="maxLogLines" name="maxLogLines" type="number" value="{{config.maxLogLines}}" min="50" max="1000">
+    </div>
+  </div>
+</section>
+{{/showErrorFinder}}
+
+{{#showPackageUpdater}}
+<section class="card mb-3">
+  <div class="card-header"><strong>{{#t}}settings.skill.packageUpdater{{/t}}</strong></div>
+  <div class="card-body">
+    <div class="mb-3">
+      <label class="form-label" for="ignoredPackages">{{#t}}settings.skill.ignoredPackages{{/t}}</label>
+      <textarea class="form-control" id="ignoredPackages" name="ignoredPackages" rows="3">{{#config.ignoredPackages}}{{.}}
+{{/config.ignoredPackages}}</textarea>
+    </div>
+    <div class="form-check form-switch mb-2">
+      <input class="form-check-input" id="dryRunOnly" name="dryRunOnly" type="checkbox" value="1"{{#config.dryRunOnly}} checked{{/config.dryRunOnly}}>
+      <label class="form-check-label" for="dryRunOnly">{{#t}}settings.skill.dryRunOnly{{/t}}</label>
+    </div>
+  </div>
+</section>
+{{/showPackageUpdater}}
+
+{{#showOptimizer}}
+<section class="card mb-3">
+  <div class="card-header"><strong>{{#t}}settings.skill.optimizer{{/t}}</strong></div>
+  <div class="card-body">
+    <div class="mb-3">
+      <label class="form-label mb-2">{{#t}}settings.skill.categories{{/t}}</label>
+      {{#categoryOptions}}
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="cat_{{value}}" name="categories" value="{{value}}"{{#selected}} checked{{/selected}}>
+        <label class="form-check-label" for="cat_{{value}}">{{label}}</label>
+      </div>
+      {{/categoryOptions}}
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="minRiskLevel">{{#t}}settings.skill.minRiskLevel{{/t}}</label>
+      <select class="form-select" id="minRiskLevel" name="minRiskLevel">
+        <option value="low"{{#config.minRiskLevelLow}} selected{{/config.minRiskLevelLow}}>{{#t}}settings.skill.riskLow{{/t}}</option>
+        <option value="medium"{{#config.minRiskLevelMedium}} selected{{/config.minRiskLevelMedium}}>{{#t}}settings.skill.riskMedium{{/t}}</option>
+      </select>
+    </div>
+  </div>
+</section>
+{{/showOptimizer}}
+
+{{#showSusFinder}}
+<section class="card mb-3">
+  <div class="card-header"><strong>{{#t}}settings.skill.susFinder{{/t}}</strong></div>
+  <div class="card-body">
+    <div class="mb-3">
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="checkAuthLog" name="checkAuthLog" value="1"{{#config.checkAuthLog}} checked{{/config.checkAuthLog}}>
+        <label class="form-check-label" for="checkAuthLog">{{#t}}settings.skill.checkAuthLog{{/t}}</label>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="checkProcesses" name="checkProcesses" value="1"{{#config.checkProcesses}} checked{{/config.checkProcesses}}>
+        <label class="form-check-label" for="checkProcesses">{{#t}}settings.skill.checkProcesses{{/t}}</label>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="checkPorts" name="checkPorts" value="1"{{#config.checkPorts}} checked{{/config.checkPorts}}>
+        <label class="form-check-label" for="checkPorts">{{#t}}settings.skill.checkPorts{{/t}}</label>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="checkCrontabs" name="checkCrontabs" value="1"{{#config.checkCrontabs}} checked{{/config.checkCrontabs}}>
+        <label class="form-check-label" for="checkCrontabs">{{#t}}settings.skill.checkCrontabs{{/t}}</label>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="checkFailedLogins" name="checkFailedLogins" value="1"{{#config.checkFailedLogins}} checked{{/config.checkFailedLogins}}>
+        <label class="form-check-label" for="checkFailedLogins">{{#t}}settings.skill.checkFailedLogins{{/t}}</label>
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="ignorePatterns">{{#t}}settings.skill.ignorePatterns{{/t}}</label>
+      <textarea class="form-control" id="ignorePatterns" name="ignorePatterns" rows="3">{{#config.ignorePatterns}}{{.}}
+{{/config.ignorePatterns}}</textarea>
+      <div class="form-text">{{#t}}settings.skill.ignorePatternsHelp{{/t}}</div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="maxAuthLogLines">{{#t}}settings.skill.maxAuthLogLines{{/t}}</label>
+      <input class="form-control" id="maxAuthLogLines" name="maxAuthLogLines" type="number" value="{{config.maxAuthLogLines}}" min="50" max="1000">
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="maxFailedLogins">{{#t}}settings.skill.maxFailedLogins{{/t}}</label>
+      <input class="form-control" id="maxFailedLogins" name="maxFailedLogins" type="number" value="{{config.maxFailedLogins}}" min="10" max="200">
+    </div>
+  </div>
+</section>
+{{/showSusFinder}}
+
+<section class="card mb-3">
+  <div class="card-header"><strong><i class="fa-solid fa-brain me-1" aria-hidden="true"></i>{{#t}}settings.skill.memory{{/t}}</strong></div>
+  <div class="card-body">
+    <p class="text-secondary small">{{#t}}settings.skill.memoryHelp{{/t}}</p>
+    <textarea class="form-control font-monospace small" id="memory" name="memory" rows="5">{{memory}}</textarea>
+  </div>
+</section>
+
+<div class="d-flex gap-2">
+  <a class="btn btn-outline-secondary" href="/ai/command-center">&larr; {{#t}}ai.commandCenter{{/t}}</a>
+  <button class="btn btn-primary" type="submit"><i class="fa-solid fa-floppy-disk me-1"></i> {{#t}}settings.llmSave{{/t}}</button>
+</div>
+</form>

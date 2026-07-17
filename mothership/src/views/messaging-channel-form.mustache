@@ -1,0 +1,70 @@
+<!-- Create / Edit notification channel form. -->
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/settings?tab=messaging">{{#t}}settings.messaging{{/t}}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{#editing}}{{#t}}settings.messagingEdit{{/t}}{{/editing}}{{^editing}}{{#t}}settings.messagingAddChannel{{/t}}{{/editing}}</li>
+  </ol>
+</nav>
+
+{{#error}}<div class="alert alert-danger">{{error}}</div>{{/error}}
+
+<section class="card">
+  <div class="card-header">
+    <strong><i class="fa-solid fa-paper-plane me-1" aria-hidden="true"></i> {{#editing}}{{#t}}settings.messagingEdit{{/t}}{{/editing}}{{^editing}}{{#t}}settings.messagingAddChannel{{/t}}{{/editing}}</strong>
+  </div>
+  <div class="card-body">
+    <form method="post" action="/settings/messaging/channel/save">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}">
+      {{#channel.id}}<input type="hidden" name="id" value="{{channel.id}}">{{/channel.id}}
+
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label" for="channelName">{{#t}}settings.messagingName{{/t}} <span class="text-danger">*</span></label>
+          <input class="form-control" id="channelName" name="name" value="{{channel.name}}" placeholder="{{#t}}settings.messagingNamePlaceholder{{/t}}" required maxlength="128">
+          <div class="form-text">{{#t}}settings.messagingNameHelp{{/t}}</div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="channelType">{{#t}}settings.messagingType{{/t}}</label>
+          <select class="form-select" id="channelType" name="type">
+            <option value="slack"{{#channel.isSlack}} selected{{/channel.isSlack}}>{{#t}}settings.messagingSlack{{/t}}</option>
+          </select>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label" for="webhookUrl">{{#t}}settings.messagingWebhookUrl{{/t}} <span class="text-danger">*</span></label>
+          <input class="form-control" id="webhookUrl" name="webhookUrl" type="url" value="{{channel.config.webhook_url}}" placeholder="https://hooks.slack.com/services/..." required>
+          <div class="form-text">{{#t}}settings.messagingWebhookHelp{{/t}}</div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="slackChannel">{{#t}}settings.messagingSlackChannel{{/t}}</label>
+          <input class="form-control" id="slackChannel" name="slackChannel" value="{{channel.config.slack_channel}}" placeholder="#general">
+          <div class="form-text">{{#t}}settings.messagingSlackChannelHelp{{/t}}</div>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label" for="slackUsername">{{#t}}settings.messagingSlackUsername{{/t}}</label>
+          <input class="form-control" id="slackUsername" name="slackUsername" value="{{channel.config.slack_username}}" placeholder="Symbio Bot">
+          <div class="form-text">{{#t}}settings.messagingSlackUsernameHelp{{/t}}</div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="slackIconEmoji">{{#t}}settings.messagingSlackIconEmoji{{/t}}</label>
+          <input class="form-control" id="slackIconEmoji" name="slackIconEmoji" value="{{channel.config.slack_icon_emoji}}" placeholder=":robot_face:">
+          <div class="form-text">{{#t}}settings.messagingSlackIconEmojiHelp{{/t}}</div>
+        </div>
+
+        <div class="col-12">
+          <div class="form-check">
+            <input class="form-check-input" id="channelEnabled" name="enabled" type="checkbox" value="1"{{#channel.enabled}} checked{{/channel.enabled}}>
+            <label class="form-check-label" for="channelEnabled">{{#t}}settings.messagingEnabled{{/t}}</label>
+          </div>
+        </div>
+
+        <div class="col-12">
+          <hr>
+          <a class="btn btn-outline-secondary" href="/settings?tab=messaging"><i class="fa-solid fa-arrow-left me-1" aria-hidden="true"></i> {{#t}}alerts.cancel{{/t}}</a>
+          <button class="btn btn-primary" type="submit"><i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i> {{#t}}settings.messagingSave{{/t}}</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</section>

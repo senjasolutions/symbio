@@ -1,0 +1,143 @@
+<!-- Alert Dashboard: overview stats + firing events + rules + recent history. -->
+<p class="text-secondary small text-uppercase mb-1">{{#t}}nav.monitoring{{/t}}</p>
+<h1 class="h3 mb-3"><i class="fa-solid fa-bell me-1" aria-hidden="true"></i> {{#t}}alerts.title{{/t}}</h1>
+
+{{#saved}}<div class="alert alert-success"><i class="fa-solid fa-check me-1" aria-hidden="true"></i> {{#t}}alerts.saved{{/t}}</div>{{/saved}}
+{{#error}}<div class="alert alert-danger">{{error}}</div>{{/error}}
+
+<!-- Alert Stats Overview -->
+<div class="row g-2 mb-4">
+  <div class="col-3"><div class="card h-100"><div class="card-body py-2 px-3 text-center">
+    <div class="text-secondary small">{{#t}}alerts.statsRules{{/t}}</div>
+    <div class="h5 mb-0">{{statsTotalRules}}</div>
+    <div class="small text-secondary">{{statsEnabledRules}} {{#t}}alerts.enabled{{/t}}</div>
+  </div></div></div>
+  <div class="col-3"><div class="card h-100 border-danger"><div class="card-body py-2 px-3 text-center">
+    <div class="text-danger small"><i class="fa-solid fa-exclamation-triangle" aria-hidden="true"></i> {{#t}}alerts.statsFiring{{/t}}</div>
+    <div class="h5 mb-0 text-danger">{{statsFiringCount}}</div>
+  </div></div></div>
+  <div class="col-3"><div class="card h-100"><div class="card-body py-2 px-3 text-center">
+    <div class="text-secondary small"><i class="fa-solid fa-check" aria-hidden="true"></i> {{#t}}alerts.statsResolved24h{{/t}}</div>
+    <div class="h5 mb-0 text-success">{{statsResolved24h}}</div>
+  </div></div></div>
+  <div class="col-3"><div class="card h-100"><div class="card-body py-2 px-3 text-center">
+    <div class="text-secondary small"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i> {{#t}}alerts.statsChannels{{/t}}</div>
+    <div class="h5 mb-0">{{statsChannelCount}}</div>
+    <div class="small text-secondary">{{statsChannelEnabled}} {{#t}}alerts.enabled{{/t}}</div>
+  </div></div></div>
+</div>
+
+<!-- Firing Alerts -->
+{{#firingEvents.length}}
+<section class="card border-danger mb-4">
+  <div class="card-header bg-danger text-white"><strong><i class="fa-solid fa-exclamation-triangle me-1" aria-hidden="true"></i> {{#t}}alerts.firingNow{{/t}} ({{firingEvents.length}})</strong></div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead><tr><th>{{#t}}alerts.rule{{/t}}</th><th>{{#t}}alerts.resource{{/t}}</th><th>{{#t}}alerts.currentValue{{/t}}</th><th>{{#t}}alerts.threshold{{/t}}</th><th>{{#t}}alerts.triggered{{/t}}</th><th>{{#t}}alerts.diagnostic{{/t}}</th><th></th></tr></thead>
+      <tbody>
+        {{#firingEvents}}
+        <tr>
+          <td><strong>{{ruleName}}</strong></td>
+          <td><span class="badge text-bg-{{severityClass}}">{{resourceLabel}}</span></td>
+          <td><code>{{metricDisplay}}</code></td>
+          <td><code>{{operatorLabel}} {{thresholdDisplay}}</code></td>
+          <td class="text-secondary small">{{triggeredAt}}</td>
+          <td>
+            {{#hasDiagnostic}}
+            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="this.nextElementSibling.classList.toggle('d-none')">{{#t}}alerts.viewDetail{{/t}}</button>
+            <div class="d-none mt-2 p-2 bg-light rounded small" style="max-width:400px;">
+              {{#diagTopCpu}}<strong>{{#t}}alerts.topCpuProcesses{{/t}}:</strong><br>
+              {{#diagTopCpu}}<code>{{name}}</code> (PID {{pid}}) — {{command}}<br>{{/diagTopCpu}}
+              {{/diagTopCpu}}
+              {{#diagTopMem}}<strong>{{#t}}alerts.topMemProcesses{{/t}}:</strong><br>
+              {{#diagTopMem}}<code>{{name}}</code> (PID {{pid}}) — {{rssMb}} MB<br>{{/diagTopMem}}
+              {{/diagTopMem}}
+            </div>
+            {{/hasDiagnostic}}
+            {{^hasDiagnostic}}<small class="text-secondary">—</small>{{/hasDiagnostic}}
+          </td>
+          <td>
+            <form class="d-inline" method="post" action="/alerts/events/{{id}}/acknowledge">
+              <input type="hidden" name="_csrf" value="{{csrfToken}}">
+              <button class="btn btn-outline-secondary btn-sm" type="submit">{{#t}}alerts.acknowledge{{/t}}</button>
+            </form>
+          </td>
+        </tr>
+        {{/firingEvents}}
+      </tbody>
+    </table>
+  </div>
+</section>
+{{/firingEvents.length}}
+
+<!-- Alert Rules -->
+<section class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <strong><i class="fa-solid fa-sliders me-1" aria-hidden="true"></i> {{#t}}alerts.rules{{/t}}</strong>
+    <a class="btn btn-primary btn-sm" href="/alerts/rules/create"><i class="fa-solid fa-plus me-1" aria-hidden="true"></i> {{#t}}alerts.createRule{{/t}}</a>
+  </div>
+  {{#rules.length}}
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead><tr><th>{{#t}}alerts.name{{/t}}</th><th>{{#t}}alerts.resource{{/t}}</th><th>{{#t}}alerts.condition{{/t}}</th><th>{{#t}}alerts.duration{{/t}}</th><th>{{#t}}alerts.severity{{/t}}</th><th>{{#t}}alerts.status{{/t}}</th><th></th></tr></thead>
+      <tbody>
+        {{#rules}}
+        <tr>
+          <td><strong>{{name}}</strong></td>
+          <td><span class="badge text-bg-secondary">{{resourceLabel}}</span></td>
+          <td><code>{{operatorLabel}} {{thresholdDisplay}}</code></td>
+          <td>{{durationDisplay}}</td>
+          <td><span class="badge text-bg-{{severityClass}}">{{severityLabel}}</span></td>
+          <td>
+            {{#enabled}}<span class="badge text-bg-success">{{#t}}alerts.enabled{{/t}}</span>{{/enabled}}
+            {{^enabled}}<span class="badge text-bg-secondary">{{#t}}alerts.disabled{{/t}}</span>{{/enabled}}
+          </td>
+          <td class="text-end">
+            <form class="d-inline me-1" method="post" action="/alerts/rules/{{id}}/toggle">
+              <input type="hidden" name="_csrf" value="{{csrfToken}}">
+              <button class="btn btn-outline-secondary btn-sm" type="submit" title="{{#t}}alerts.toggle{{/t}}">{{#enabled}}{{#t}}alerts.disable{{/t}}{{/enabled}}{{^enabled}}{{#t}}alerts.enable{{/t}}{{/enabled}}</button>
+            </form>
+            <a class="btn btn-outline-primary btn-sm me-1" href="/alerts/rules/{{id}}/edit">{{#t}}alerts.edit{{/t}}</a>
+            <form class="d-inline" method="post" action="/alerts/rules/{{id}}/delete" onsubmit="return confirm('{{#t}}alerts.deleteConfirm{{/t}}')">
+              <input type="hidden" name="_csrf" value="{{csrfToken}}">
+              <button class="btn btn-outline-danger btn-sm" type="submit">{{#t}}alerts.delete{{/t}}</button>
+            </form>
+          </td>
+        </tr>
+        {{/rules}}
+      </tbody>
+    </table>
+  </div>
+  {{/rules.length}}
+  {{^rules.length}}
+  <div class="card-body text-secondary">{{#t}}alerts.noRules{{/t}}</div>
+  {{/rules.length}}
+</section>
+
+<!-- Recent Events History -->
+{{#recentEvents.length}}
+<section class="card">
+  <div class="card-header"><strong><i class="fa-solid fa-clock-rotate-left me-1" aria-hidden="true"></i> {{#t}}alerts.recentEvents{{/t}}</strong></div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead><tr><th>{{#t}}alerts.rule{{/t}}</th><th>{{#t}}alerts.value{{/t}}</th><th>{{#t}}alerts.threshold{{/t}}</th><th>{{#t}}alerts.triggered{{/t}}</th><th>{{#t}}alerts.resolved{{/t}}</th><th>{{#t}}alerts.status{{/t}}</th></tr></thead>
+      <tbody>
+        {{#recentEvents}}
+        <tr>
+          <td>{{ruleName}}</td>
+          <td><code>{{metricDisplay}}</code></td>
+          <td><code>{{operatorLabel}} {{thresholdDisplay}}</code></td>
+          <td class="text-secondary small">{{triggeredAt}}</td>
+          <td class="text-secondary small">{{resolvedAt}}</td>
+          <td>
+            {{#isFiring}}<span class="badge text-bg-danger">{{#t}}alerts.firing{{/t}}</span>{{/isFiring}}
+            {{#isResolved}}<span class="badge text-bg-success">{{#t}}alerts.resolved{{/t}}</span>{{/isResolved}}
+            {{#isAcknowledged}}<span class="badge text-bg-info">{{#t}}alerts.acknowledged{{/t}}</span>{{/isAcknowledged}}
+          </td>
+        </tr>
+        {{/recentEvents}}
+      </tbody>
+    </table>
+  </div>
+</section>
+{{/recentEvents.length}}

@@ -6,6 +6,7 @@
   "description": "Server-rendered Symbio monitoring dashboard and source of truth.",
   "scripts": {
     "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
     "postinstall": "cd node_modules/sqlite3 && ../.bin/node-gyp rebuild",
     "migrate": "node scripts/migrate.js",
     "seed:superadmin": "node scripts/seed-superadmin.js",
@@ -19,6 +20,7 @@
     "argon2": "^0.44.0",
     "bootstrap": "^5.3.8",
     "hono": "^4.10.6",
+    "marked": "^18.0.6",
     "mustache": "^4.2.0",
     "sequelize": "^6.37.7",
     "sqlite3": "^6.0.1"

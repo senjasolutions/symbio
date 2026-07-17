@@ -1,0 +1,42 @@
+<!-- Mark Handled — optional user explanation attached to the action before marking as done. -->
+<nav aria-label="{{#t}}common.breadcrumb{{/t}}"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/ai">{{#t}}ai.symbioIntelligence{{/t}}</a></li><li class="breadcrumb-item"><a href="/ai/actions">{{#t}}ai.pendingActions{{/t}}</a></li><li class="breadcrumb-item active">{{#t}}ai.markHandled{{/t}}</li></ol></nav>
+
+<h1 class="h3 mb-3"><i class="fa-solid fa-check-double me-1" aria-hidden="true"></i>{{#t}}ai.markHandled{{/t}}</h1>
+
+<section class="card mb-3">
+  <div class="card-header"><strong>{{#t}}ai.clarifyOriginal{{/t}}</strong></div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-sm-3"><small class="text-secondary d-block">{{#t}}ai.skill{{/t}}</small><span>{{#skillIconImg}}<img src="{{skillIcon}}" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;">{{/skillIconImg}}{{^skillIconImg}}<i class="{{skillIcon}} me-1"></i>{{/skillIconImg}}{{skillName}}</span></div>
+      <div class="col-sm-3"><small class="text-secondary d-block">{{#t}}ai.severity{{/t}}</small><span class="badge {{severityBadge}}">{{severity}}</span></div>
+      <div class="col-sm-3"><small class="text-secondary d-block">{{#t}}ai.source{{/t}}</small><span>{{source}}</span></div>
+      {{#pattern}}<div class="col-sm-3"><small class="text-secondary d-block">{{#t}}ai.pattern{{/t}}</small><code>{{pattern}}</code></div>{{/pattern}}
+      {{#findingTitle}}<div class="col-12"><small class="text-secondary d-block">{{#t}}ai.message{{/t}}</small><p class="mb-0">{{findingTitle}}</p></div>{{/findingTitle}}
+      {{#findingDescription}}<div class="col-12"><small class="text-secondary d-block">{{#t}}ai.detail{{/t}}</small><p class="mb-0 text-secondary">{{findingDescription}}</p></div>{{/findingDescription}}
+    </div>
+  </div>
+</section>
+
+<form method="post" action="/ai/actions/{{actionId}}/handle">
+<input type="hidden" name="_csrf" value="{{csrfToken}}">
+
+<section class="card mb-3">
+  <div class="card-header"><strong><i class="fa-solid fa-pen me-1"></i>{{#t}}ai.handleNote{{/t}}</strong></div>
+  <div class="card-body">
+    <div class="mb-3">
+      <label class="form-label" for="note">{{#t}}ai.handleNoteLabel{{/t}}</label>
+      <textarea class="form-control" id="note" name="note" rows="4" placeholder="{{#t}}ai.handleNotePlaceholder{{/t}}"></textarea>
+      <div class="form-text">{{#t}}ai.handleNoteHelp{{/t}}</div>
+    </div>
+    <div class="form-check mb-3">
+      <input class="form-check-input" type="checkbox" id="suppress" name="suppress" value="1" checked>
+      <label class="form-check-label" for="suppress">{{#t}}ai.handleSuppress{{/t}}</label>
+    </div>
+  </div>
+</section>
+
+<div class="d-flex gap-2">
+  <a class="btn btn-outline-secondary" href="/ai/actions">{{#t}}ai.handleBack{{/t}}</a>
+  <button class="btn btn-success" type="submit"><i class="fa-solid fa-check me-1"></i>{{#t}}ai.handleProceed{{/t}}</button>
+</div>
+</form>

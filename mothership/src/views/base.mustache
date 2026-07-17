@@ -1,10 +1,11 @@
 <!-- i18n-safe layout shell: visible text uses {{#t}}key{{/t}} lambdas; brand name SYMBIO stays untranslated. -->
 <!doctype html>
-<html lang="{{locale}}">
+<html lang="{{locale}}" class="theme-{{theme}}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{title}}</title>
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/vendor/bootstrap.min.css">
   <link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css">
   <link rel="stylesheet" href="/vendor/tagify.css">
@@ -12,17 +13,26 @@
 </head>
 <body>
   {{#insecureHttp}}<div class="warning-banner">{{#t}}nav.betaWarning{{/t}}</div>{{/insecureHttp}}
-  {{#authenticated}}
+  {{#standalone}}<main class="standalone-content">{{{body}}}</main>{{/standalone}}
+  {{^standalone}}{{#authenticated}}
   <div class="app-shell">
     <aside class="sidebar" id="primary-navigation">
       <div class="sidebar-header">
         <a class="sidebar-brand" href="/dashboard"><span>SYMBIO</span></a>
+        <button class="sidebar-toggle" type="button" data-menu-toggle aria-controls="primary-navigation" aria-expanded="true"><i class="fa-solid fa-bars" aria-hidden="true"></i> {{#t}}nav.menu{{/t}}</button>
       </div>
-      <button class="sidebar-toggle" type="button" data-menu-toggle aria-controls="primary-navigation" aria-expanded="true"><i class="fa-solid fa-bars" aria-hidden="true"></i> {{#t}}nav.menu{{/t}}</button>
       <nav class="sidebar-nav" aria-label="{{#t}}nav.menu{{/t}}">
         <div class="nav-group">
           <p class="nav-group-title">{{#t}}nav.monitoring{{/t}}</p>
           <a class="nav-link {{#dashboardActive}}is-active{{/dashboardActive}}" href="/dashboard"><i class="fa-solid fa-gauge" aria-hidden="true"></i> {{#t}}nav.dashboard{{/t}}</a>
+          <a class="nav-link {{#alertsActive}}is-active{{/alertsActive}}" href="/alerts"><i class="fa-solid fa-bell" aria-hidden="true"></i> {{#t}}nav.alerts{{/t}}</a>
+          <div class="nav-group">
+            <p class="nav-group-title"><i class="fa-solid fa-brain me-1" aria-hidden="true"></i>{{#t}}nav.symbioIntelligence{{/t}}</p>
+            <a class="nav-link {{#commandCenterActive}}is-active{{/commandCenterActive}}" href="/ai/command-center"><i class="fa-solid fa-gauge" aria-hidden="true"></i> {{#t}}ai.commandCenter{{/t}}</a>
+            <a class="nav-link nav-submenu {{#aiHistoryActive}}is-active{{/aiHistoryActive}}" href="/ai/history"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> {{#t}}ai.history{{/t}}</a>
+            <a class="nav-link nav-submenu {{#aiUsageActive}}is-active{{/aiUsageActive}}" href="/ai/usage"><i class="fa-solid fa-chart-simple" aria-hidden="true"></i> {{#t}}ai.tokenUsage{{/t}}</a>
+            <a class="nav-link nav-submenu {{#actionsActive}}is-active{{/actionsActive}}" href="/ai/actions"><i class="fa-solid fa-list-check" aria-hidden="true"></i> {{#t}}ai.pendingActions{{/t}}{{#pendingActionCount}} <span class="badge text-bg-danger">{{pendingActionCount}}</span>{{/pendingActionCount}}</a>
+          </div>
           <a class="nav-link {{#serversActive}}is-active{{/serversActive}}" href="/servers/1"><i class="fa-solid fa-server" aria-hidden="true"></i> {{#t}}nav.servers{{/t}}</a>
           <a class="nav-link {{#applicationsActive}}is-active{{/applicationsActive}}" href="/applications"><i class="fa-solid fa-window-maximize" aria-hidden="true"></i> {{#t}}nav.applications{{/t}}</a>
           <a class="nav-link nav-submenu {{#tagsActive}}is-active{{/tagsActive}}" href="/application-tags"><i class="fa-solid fa-tags" aria-hidden="true"></i> {{#t}}nav.tags{{/t}}</a>
@@ -36,7 +46,17 @@
     </aside>
     <div class="main-column">
       <header class="topbar">
-        <div class="topbar-context"><i class="fa-solid fa-server" aria-hidden="true"></i><span><strong>{{#t}}dashboard.mainServer{{/t}}</strong></span></div>
+        <form class="ai-bar" method="post" action="/ai/bar" onsubmit="return handleAiBarSubmit(this)">
+          <input type="hidden" name="_csrf" value="{{csrfToken}}">
+          <input type="hidden" name="sourcePage" value="{{currentPath}}">
+          <div class="ai-bar-input-group">
+            <i class="fa-solid fa-wand-magic-sparkles ai-bar-icon" aria-hidden="true"></i>
+            <input class="ai-bar-input" type="text" name="question" placeholder="{{#t}}ai.askAnything{{/t}}" autocomplete="off" required maxlength="1000" aria-label="{{#t}}ai.barLabel{{/t}}">
+            <button class="ai-bar-submit" type="submit" aria-label="{{#t}}ai.ask{{/t}}"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+          </div>
+          <div class="ai-bar-loading"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i><span>{{#t}}ai.processing{{/t}}</span></div>
+        </form>
+        <script>function handleAiBarSubmit(f){var g=f.querySelector('.ai-bar-input-group'),l=f.querySelector('.ai-bar-loading');g&&(g.style.display='none');l&&(l.style.display='flex');return!0}</script>
         <form class="user-controls" method="post" action="/logout">
           <input type="hidden" name="_csrf" value="{{csrfToken}}">
           <a class="user-name" href="/profile"><i class="fa-solid fa-user" aria-hidden="true"></i> {{userDisplayName}}</a>
@@ -46,8 +66,7 @@
       <main class="content admin-content">{{{body}}}</main>
     </div>
   </div>
-  {{/authenticated}}
-  {{^authenticated}}<main>{{{body}}}</main>{{/authenticated}}
+  {{/authenticated}}{{^authenticated}}<main>{{{body}}}</main>{{/authenticated}}{{/standalone}}
   <script src="/vendor/tagify.js" defer></script>
   <script src="/assets/app.js" defer></script>
 </body>

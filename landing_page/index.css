@@ -1,0 +1,397 @@
+/* =====================================================================
+   Symbio Landing Page — Soft Neumorphism identity matching the app
+   ===================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+@import url('https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css');
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css');
+
+:root {
+  --symbio-primary: #5b8cb8;
+  --symbio-primary-dark: #4576a0;
+  --symbio-primary-light: #dee9f2;
+  --symbio-heading: #1a2332;
+  --symbio-muted: #7b8a9e;
+  --symbio-border: #c8cdd3;
+  --symbio-radius: 14px;
+  --symbio-radius-sm: 10px;
+  --symbio-shadow: 0 2px 6px rgba(0,0,0,.10), 0 1px 3px rgba(0,0,0,.06);
+  --symbio-shadow-lg: 0 6px 18px rgba(0,0,0,.12);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #3d4a5c;
+  font-size: .925rem;
+  line-height: 1.6;
+  background: #fff;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+a { color: var(--symbio-primary); text-decoration: none; }
+a:hover { color: var(--symbio-primary-dark); }
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* =====================================================================
+   HEADER
+   ===================================================================== */
+.site-header {
+  background: #1a2332;
+  border-bottom: 3px solid var(--symbio-primary);
+  padding: 0;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 58px;
+}
+
+.site-brand {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: .06em;
+  text-decoration: none;
+}
+
+.site-brand:hover { color: var(--symbio-primary); }
+
+.github-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255,255,255,.8);
+  font-size: .85rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  border: 2px solid rgba(255,255,255,.25);
+  border-radius: var(--symbio-radius-sm);
+  transition: all .15s;
+}
+
+.github-link:hover {
+  color: #fff;
+  border-color: var(--symbio-primary);
+  background: var(--symbio-primary);
+}
+
+/* =====================================================================
+   HERO
+   ===================================================================== */
+.hero {
+  padding: 60px 0 50px;
+  background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+  border-bottom: 2px solid var(--symbio-border);
+}
+
+.hero-inner {
+  display: flex;
+  align-items: center;
+  gap: 48px;
+}
+
+.hero-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.hero-visual {
+  flex: 0 0 48%;
+  min-width: 0;
+}
+
+.hero-screenshot {
+  width: 100%;
+  height: auto;
+  border-radius: var(--symbio-radius);
+  border: 2px solid var(--symbio-border);
+  box-shadow: var(--symbio-shadow-lg);
+  display: block;
+}
+
+.hero-title {
+  font-size: 2.8rem;
+  font-weight: 800;
+  color: var(--symbio-heading);
+  margin-bottom: 12px;
+  letter-spacing: -.02em;
+  line-height: 1.15;
+}
+
+.hero-sub {
+  font-size: 1.05rem;
+  color: var(--symbio-muted);
+  max-width: 520px;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.hero-cta {
+  font-size: .92rem;
+  font-weight: 700;
+  color: var(--symbio-heading);
+  margin-bottom: 12px;
+}
+
+.hero-disc {
+  font-size: .8rem;
+  color: var(--symbio-muted);
+  margin-top: 16px;
+}
+
+/* =====================================================================
+   CODE BOX (curl command)
+   ===================================================================== */
+.code-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #1a2332;
+  border: 2px solid var(--symbio-primary);
+  border-radius: var(--symbio-radius);
+  padding: 10px 14px;
+  max-width: 100%;
+  overflow: hidden;
+  box-shadow: var(--symbio-shadow-lg);
+}
+
+.code-box code {
+  color: #a3d3ff;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+  font-size: .9rem;
+  white-space: nowrap;
+  overflow-x: auto;
+  padding: 2px 0;
+}
+
+.copy-btn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.2);
+  background: rgba(255,255,255,.1);
+  color: rgba(255,255,255,.7);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .9rem;
+  transition: all .15s;
+}
+
+.copy-btn:hover {
+  background: var(--symbio-primary);
+  border-color: var(--symbio-primary);
+  color: #fff;
+}
+
+.copy-btn.copied {
+  background: #1a6b48;
+  border-color: #1a6b48;
+  color: #fff;
+}
+
+/* =====================================================================
+   SECTION COMMON
+   ===================================================================== */
+.section-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--symbio-heading);
+  text-align: center;
+  margin-bottom: 8px;
+  letter-spacing: -.02em;
+}
+
+.section-desc {
+  font-size: 1rem;
+  color: var(--symbio-muted);
+  text-align: center;
+  max-width: 650px;
+  margin: 0 auto 36px;
+  line-height: 1.6;
+}
+
+/* =====================================================================
+   WHAT IS SYMBIO — Feature cards
+   ===================================================================== */
+.section-what {
+  padding: 70px 0 60px;
+  background: #fff;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.card {
+  background: #fff;
+  border: 2px solid var(--symbio-border);
+  border-radius: var(--symbio-radius);
+  box-shadow: var(--symbio-shadow);
+  overflow: hidden;
+  transition: box-shadow .15s, transform .15s;
+}
+
+.card:hover {
+  box-shadow: var(--symbio-shadow-lg);
+  transform: translateY(-2px);
+}
+
+.card-hdr {
+  background: linear-gradient(180deg, var(--symbio-primary-light), #fff);
+  border-bottom: 2px solid var(--symbio-border);
+  padding: 14px 18px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--symbio-heading);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-hdr i { color: var(--symbio-primary); font-size: 1.15rem; }
+
+.card-body {
+  padding: 16px 18px;
+  font-size: .88rem;
+  line-height: 1.6;
+  color: #4a5568;
+}
+
+/* =====================================================================
+   SKILLS SECTION
+   ===================================================================== */
+.section-skills {
+  padding: 70px 0 60px;
+  background: #f8fafc;
+  border-top: 2px solid var(--symbio-border);
+  border-bottom: 2px solid var(--symbio-border);
+}
+
+.skills-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-top: 32px;
+}
+
+.skill-card {
+  background: #fff;
+  border: 2px solid var(--symbio-border);
+  border-radius: var(--symbio-radius);
+  padding: 20px 18px;
+  text-align: center;
+  box-shadow: var(--symbio-shadow);
+  transition: box-shadow .15s, transform .15s;
+}
+
+.skill-card:hover {
+  box-shadow: var(--symbio-shadow-lg);
+  transform: translateY(-2px);
+}
+
+.skill-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--symbio-primary), var(--symbio-primary-dark));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 10px;
+  font-size: 1.3rem;
+  color: #fff;
+  box-shadow: var(--symbio-shadow);
+}
+
+.skill-name {
+  font-size: .92rem;
+  font-weight: 700;
+  color: var(--symbio-heading);
+  margin-bottom: 6px;
+}
+
+.skill-desc {
+  font-size: .8rem;
+  color: var(--symbio-muted);
+  line-height: 1.5;
+}
+
+/* =====================================================================
+   CTA SECTION (pre-footer)
+   ===================================================================== */
+.section-cta {
+  padding: 70px 0 60px;
+  background: #f0f4f8;
+  border-bottom: 2px solid var(--symbio-border);
+}
+
+.cta-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--symbio-heading);
+  margin-bottom: 20px;
+  letter-spacing: -.02em;
+}
+
+/* =====================================================================
+   FOOTER
+   ===================================================================== */
+.site-footer {
+  background: #1a2332;
+  padding: 20px 0;
+  margin-top: auto;
+}
+
+.site-footer p {
+  color: rgba(255,255,255,.6);
+  font-size: .82rem;
+  margin: 0;
+}
+
+/* =====================================================================
+   RESPONSIVE
+   ===================================================================== */
+@media (max-width: 900px) {
+  .hero-inner { flex-direction: column; gap: 28px; }
+  .hero-visual { flex: 0 0 auto; width: 100%; }
+  .hero-title { font-size: 2.2rem; text-align: center; }
+  .hero-sub { text-align: center; margin-left: auto; margin-right: auto; }
+  .hero-cta { text-align: center; }
+  .hero-disc { text-align: center; }
+}
+
+@media (max-width: 768px) {
+  .hero-title { font-size: 2rem; }
+  .hero-sub { font-size: .95rem; }
+  .feature-grid { grid-template-columns: 1fr; }
+  .skills-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 480px) {
+  .skills-grid { grid-template-columns: 1fr; }
+  .section-title { font-size: 1.5rem; }
+  .cta-title { font-size: 1.5rem; }
+  .hero { padding: 40px 0 30px; }
+  .section-what, .section-skills, .section-cta { padding: 40px 0 30px; }
+  .code-box { flex-direction: column; padding: 12px; }
+  .code-box code { font-size: .78rem; white-space: normal; word-break: break-all; }
+  .copy-btn { width: 100%; border-radius: 8px; }
+}

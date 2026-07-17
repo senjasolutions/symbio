@@ -29,4 +29,4 @@ RUN usermod -aG docker node 2>/dev/null; exit 0
 USER node
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.SYMBIO_AGENT_HEALTH_PORT||18767)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-CMD ["node", "src/index.js"]
+CMD ["sh", "-c", "mkdir -p /data/logs && node src/index.js 2>&1 | tee /data/logs/agent.log"]

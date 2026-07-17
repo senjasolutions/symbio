@@ -84,6 +84,29 @@ export const requireCsrf = async (context, next) => {
   await next();
 };
 
+/** Destroys all sessions belonging to a user (used when password changes). */
+export const destroyAllUserSessions = async (userId) => {
+  await models.Session.destroy({ where: { userId } });
+};
+
+/** Creates a pre-session CSRF token for the login page. Stored in a short-lived cookie. */
+export const createLoginCsrf = (context) => {
+  const token = crypto.randomBytes(24).toString("base64url");
+  setCookie(context, "login_csrf", token, {
+    httpOnly: true, sameSite: "Lax", path: "/", maxAge: 600,
+  });
+  return token;
+};
+
+/** Validates the login CSRF token from cookie against the form submission. */
+export const validateLoginCsrf = (context) => {
+  const cookie = getCookie(context, "login_csrf");
+  if (!cookie) return false;
+  const body = context.get("form");
+  if (body) return body._csrf === cookie;
+  return false;
+};
+
 /** Deletes expired sessions in a bounded maintenance pass. */
 export const deleteExpiredSessions = async () => {
   const { Op } = await import("sequelize");

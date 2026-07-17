@@ -10,6 +10,14 @@ import Mustache from "mustache";
 import { config } from "../config.js";
 import { createI18n } from "./i18n.js";
 import { LANGUAGE_CHOICES } from "./i18n.js";
+import { models } from "../db/index.js";
+
+/** Available theme color schemes for the UI. Stored as a server-wide setting. */
+export const THEME_CHOICES = [
+  { code: "blue", label: "Blue" },
+  { code: "red", label: "Red" },
+  { code: "green", label: "Green" },
+];
 
 const cache = new Map();
 
@@ -40,6 +48,13 @@ export const renderPage = async (context, name, data = {}, options = {}) => {
   const locale = auth?.user?.language || "en";
   const { t, tLambda } = await createI18n(locale);
 
+  // Read server-wide theme from settings (default 'blue')
+  let theme = "blue";
+  try {
+    const themeRow = await models.Setting.findByPk("theme");
+    if (themeRow) theme = themeRow.value || "blue";
+  } catch (e) { console.error("Failed to load theme setting:", e.message); }
+
   // Derive the page title from the most specific source available
   let title;
   if (options.titleKey) {
@@ -53,29 +68,46 @@ export const renderPage = async (context, name, data = {}, options = {}) => {
 
   // Page forms need the synchronizer token during the first render; the base
   // layout is rendered afterward and cannot interpolate inside rendered HTML.
-  const pageData = { ...data, csrfToken: auth?.session?.csrfToken, t: tLambda, locale };
-  const body = Mustache.render(pageTemplate, pageData);
+  let pendingActionCount = 0;
+  if (auth) {
+    try {     pendingActionCount = await models.SkillAction.count({ where: { status: "pending" } });
+  } catch (e) { console.error("Failed to count pending actions:", e.message); }
+  }
   const pathName = context.req.path;
+  const pageData = { ...data, csrfToken: auth?.session?.csrfToken, t: tLambda, locale, pendingActionCount, currentPath: pathName };
+  const body = Mustache.render(pageTemplate, pageData);
   // Navigation state is derived from the request path so every SSR response
   // remains correct without client-side routing or a separate page registry.
   const navigation = {
     dashboardActive: pathName === "/dashboard",
+    alertsActive: pathName.startsWith("/alerts"),
+    commandCenterActive: pathName.startsWith("/ai/command-center"),
+    actionsActive: pathName.startsWith("/ai/actions"),
+    aiHistoryActive: pathName === "/ai" || pathName.startsWith("/ai/history"),
+    aiUsageActive: pathName.startsWith("/ai/usage"),
     serversActive: pathName.startsWith("/servers"),
     applicationsActive: pathName.startsWith("/applications"),
     tagsActive: pathName.startsWith("/application-tags"),
     installationActive: pathName === "/installation-status",
     settingsActive: pathName === "/settings",
+    setupWizardActive: pathName === "/setup-wizard",
   };
+  // Standalone mode renders without sidebar/topbar (used by setup wizard)
+  const isStandalone = options.standalone === true;
   const html = Mustache.render(baseTemplate, {
     title,
     body,
-    authenticated: Boolean(auth),
+    authenticated: !isStandalone && Boolean(auth),
+    standalone: isStandalone,
     userDisplayName: auth?.user?.displayName,
     csrfToken: auth?.session?.csrfToken,
     insecureHttp: !config.cookieSecure,
     t: tLambda,
     locale,
     languageChoices: LANGUAGE_CHOICES,
+    pendingActionCount,
+    theme,
+    currentPath: pathName,
     ...navigation,
   });
   return context.html(html);

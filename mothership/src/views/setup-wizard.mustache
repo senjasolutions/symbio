@@ -1,0 +1,161 @@
+<!-- Setup wizard: step 1 (language + theme) + step 2 (LLM config) + step 3 (AI prefs). Standalone centered layout. -->
+{{#showStep1}}
+<div class="wizard-shell">
+  <section class="card wizard-card" aria-labelledby="wizard-title">
+    <div class="card-body p-4">
+      <p class="text-uppercase text-secondary small mb-1">{{#t}}setupWizard.subtitle{{/t}}</p>
+      <h1 class="h3 mb-2" id="wizard-title">{{#t}}setupWizard.welcome{{/t}}</h1>
+      <p class="text-secondary mb-3">{{#t}}setupWizard.intro{{/t}}</p>
+      <div class="wizard-steps mb-3"><span class="wizard-step active">1</span><span class="wizard-step-divider"></span><span class="wizard-step">2</span><span class="wizard-step-divider"></span><span class="wizard-step">3</span></div>
+      <p class="fw-semibold mb-2">{{#t}}setupWizard.step1Title{{/t}}</p>
+      <form method="post" action="/setup-wizard">
+        <input type="hidden" name="_csrf" value="{{csrfToken}}">
+        <input type="hidden" name="step" value="1">
+        <div class="mb-3">
+          <label class="form-label" for="language">{{#t}}setupWizard.language{{/t}}</label>
+          <select class="form-select" id="language" name="language">
+            {{#languageChoices}}
+            <option value="{{code}}"{{#selected}} selected{{/selected}}>{{label}}</option>
+            {{/languageChoices}}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="theme">{{#t}}settings.theme{{/t}}</label>
+          <select class="form-select" id="theme" name="theme">
+            {{#themeChoices}}
+            <option value="{{code}}"{{#selected}} selected{{/selected}}>{{label}}</option>
+            {{/themeChoices}}
+          </select>
+          <div class="form-text">{{#t}}settings.themeHelp{{/t}}</div>
+        </div>
+        <button class="btn btn-primary w-100" type="submit">{{#t}}setupWizard.continue{{/t}}</button>
+      </form>
+    </div>
+  </section>
+</div>
+{{/showStep1}}
+
+{{#showStep2}}
+<div class="wizard-shell">
+  <section class="card wizard-card" aria-labelledby="wizard-title">
+    <div class="card-body p-4">
+      <p class="text-uppercase text-secondary small mb-1">{{#t}}setupWizard.subtitle{{/t}}</p>
+      <h1 class="h3 mb-2" id="wizard-title">{{#t}}setupWizard.configureAI{{/t}}</h1>
+      <p class="text-secondary mb-3">{{#t}}setupWizard.aiIntro{{/t}}</p>
+      <div class="wizard-steps mb-3"><span class="wizard-step completed">✓</span><span class="wizard-step-divider"></span><span class="wizard-step active">2</span><span class="wizard-step-divider"></span><span class="wizard-step">3</span></div>
+      <p class="fw-semibold mb-2">{{#t}}setupWizard.step2Title{{/t}}</p>
+      <form method="post" action="/setup-wizard">
+        <input type="hidden" name="_csrf" value="{{csrfToken}}">
+        <input type="hidden" name="step" value="2">
+        <div class="mb-3">
+          <label class="form-label" for="provider">{{#t}}setupWizard.provider{{/t}}</label>
+          <select class="form-select" id="provider" name="provider" data-llm-provider>
+            <option value="openai"{{#providerIsOpenai}} selected{{/providerIsOpenai}}>OpenAI</option>
+            <option value="anthropic"{{#providerIsAnthropic}} selected{{/providerIsAnthropic}}>Anthropic</option>
+            <option value="deepseek"{{#providerIsDeepseek}} selected{{/providerIsDeepseek}}>DeepSeek</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="secretKey">{{#t}}setupWizard.apiKey{{/t}}</label>
+          <input class="form-control" id="secretKey" name="secretKey" type="password" value="{{secretKey}}" placeholder="{{#t}}setupWizard.apiKeyPlaceholder{{/t}}" autocomplete="off">
+          <div class="form-text">{{#t}}setupWizard.apiKeyHelp{{/t}}</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="model">{{#t}}setupWizard.model{{/t}}</label>
+          <select class="form-select" id="model" name="model" data-llm-model>
+            <option value="">{{#t}}setupWizard.modelDefault{{/t}}</option>
+            {{#modelOptions}}
+              {{#optgroupLabel}}<optgroup label="{{optgroupLabel}}">{{/optgroupLabel}}
+              {{#isModel}}<option value="{{value}}"{{#selected}} selected{{/selected}} data-provider="{{provider}}">{{label}}</option>{{/isModel}}
+            {{/modelOptions}}
+            <option value="__other__"{{#modelOptions}}{{#isCustom}} selected{{/isCustom}}{{/modelOptions}}>{{#t}}setupWizard.modelOther{{/t}}</option>
+          </select>
+          <noscript><div class="alert alert-info small mb-2">{{#t}}setupWizard.enableJsForCustomModel{{/t}}</div></noscript>
+          <div id="customModelGroup" class="mb-3">
+            <input class="form-control" id="customModel" name="customModel" value="{{#modelOptions}}{{#isCustom}}{{customModel}}{{/isCustom}}{{/modelOptions}}" placeholder="{{#t}}setupWizard.modelCustomPlaceholder{{/t}}">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="endpoint">{{#t}}setupWizard.endpoint{{/t}} <small class="text-secondary">{{#t}}setupWizard.endpointOptional{{/t}}</small></label>
+          <input class="form-control" id="endpoint" name="endpoint" type="url" value="{{endpoint}}" placeholder="{{#t}}setupWizard.endpointPlaceholder{{/t}}">
+          <div class="form-text">{{#t}}setupWizard.endpointHelp{{/t}}</div>
+        </div>
+        <fieldset class="mb-3">
+          <legend class="form-label mb-1">{{#t}}setupWizard.thinking{{/t}}</legend>
+          <div class="form-check form-switch">
+            <input class="form-check-input" id="thinkingEnabled" name="thinkingEnabled" type="checkbox" value="1"{{#thinkingEnabled}} checked{{/thinkingEnabled}}>
+            <label class="form-check-label" for="thinkingEnabled">{{#t}}setupWizard.thinkingToggle{{/t}}</label>
+          </div>
+          <div id="reasoningEffortGroup" class="mt-2"{{^thinkingEnabled}} style="display:none"{{/thinkingEnabled}}>
+            <label class="form-label" for="reasoningEffort">{{#t}}setupWizard.reasoningEffort{{/t}}</label>
+            <select class="form-select form-select-sm" id="reasoningEffort" name="reasoningEffort" style="width:auto">
+              <option value="high"{{^reasoningEffortIsMax}} selected{{/reasoningEffortIsMax}}>High</option>
+              <option value="max"{{#reasoningEffortIsMax}} selected{{/reasoningEffortIsMax}}>Max</option>
+            </select>
+          </div>
+        </fieldset>
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-secondary flex-fill" href="/setup-wizard?step=1">&larr; {{#t}}setupWizard.back{{/t}}</a>
+          <button class="btn btn-primary flex-fill" type="submit">{{#t}}setupWizard.complete{{/t}}</button>
+        </div>
+      </form>
+    </div>
+  </section>
+</div>
+{{/showStep2}}
+
+{{#showStep3}}
+<div class="wizard-shell">
+  <section class="card wizard-card" aria-labelledby="wizard-title">
+    <div class="card-body p-4">
+      <p class="text-uppercase text-secondary small mb-1">{{#t}}setupWizard.subtitle{{/t}}</p>
+      <h1 class="h3 mb-2" id="wizard-title">{{#t}}setupWizard.configureAI{{/t}}</h1>
+      <p class="text-secondary mb-3">{{#t}}setupWizard.aiPrefIntro{{/t}}</p>
+      <div class="wizard-steps mb-3"><span class="wizard-step completed">✓</span><span class="wizard-step-divider"></span><span class="wizard-step completed">✓</span><span class="wizard-step-divider"></span><span class="wizard-step active">3</span></div>
+      <p class="fw-semibold mb-2">{{#t}}setupWizard.step3Title{{/t}}</p>
+      <form method="post" action="/setup-wizard">
+        <input type="hidden" name="_csrf" value="{{csrfToken}}">
+        <input type="hidden" name="step" value="3">
+        <div class="mb-3">
+          <label class="form-label" for="llmLanguage">{{#t}}settings.llmLanguage{{/t}}</label>
+          <select class="form-select" id="llmLanguage" name="llmLanguage" style="max-width:200px;">
+            <option value="en"{{#languageEn}} selected{{/languageEn}}>English</option>
+            <option value="de"{{#languageDe}} selected{{/languageDe}}>Deutsch</option>
+            <option value="id"{{#languageId}} selected{{/languageId}}>Bahasa Indonesia</option>
+            <option value="su"{{#languageSu}} selected{{/languageSu}}>Basa Sunda</option>
+          </select>
+          <div class="form-text">{{#t}}settings.llmLanguageHelp{{/t}}</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="personality">{{#t}}settings.llmPersonality{{/t}}</label>
+          <select class="form-select" id="personality" name="personality" style="max-width:200px;">
+            <option value="default"{{#personalityDefault}} selected{{/personalityDefault}}>{{#t}}settings.llmPersonalityDefault{{/t}}</option>
+            <option value="professional"{{#personalityProfessional}} selected{{/personalityProfessional}}>{{#t}}settings.llmPersonalityProfessional{{/t}}</option>
+            <option value="friendly"{{#personalityFriendly}} selected{{/personalityFriendly}}>{{#t}}settings.llmPersonalityFriendly{{/t}}</option>
+            <option value="concise"{{#personalityConcise}} selected{{/personalityConcise}}>{{#t}}settings.llmPersonalityConcise{{/t}}</option>
+            <option value="technical"{{#personalityTechnical}} selected{{/personalityTechnical}}>{{#t}}settings.llmPersonalityTechnical{{/t}}</option>
+            <option value="educational"{{#personalityEducational}} selected{{/personalityEducational}}>{{#t}}settings.llmPersonalityEducational{{/t}}</option>
+            <option value="satirical"{{#personalitySatirical}} selected{{/personalitySatirical}}>{{#t}}settings.llmPersonalitySatirical{{/t}}</option>
+          </select>
+          <div class="form-text">{{#t}}settings.llmPersonalityHelp{{/t}}</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="customInstruction">{{#t}}settings.llmCustomInstruction{{/t}}</label>
+          <textarea class="form-control" id="customInstruction" name="customInstruction" rows="3" placeholder="{{#t}}settings.llmCustomInstructionPlaceholder{{/t}}">{{customInstruction}}</textarea>
+          <div class="form-text">{{#t}}settings.llmCustomInstructionHelp{{/t}}</div>
+        </div>
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-secondary flex-fill" href="/setup-wizard?step=2">&larr; {{#t}}setupWizard.back{{/t}}</a>
+          <button class="btn btn-primary flex-fill" type="submit">{{#t}}setupWizard.complete{{/t}}</button>
+          <a class="btn btn-outline-secondary flex-fill" href="/setup-wizard?step=skip3">{{#t}}setupWizard.skip{{/t}}</a>
+        </div>
+      </form>
+    </div>
+  </section>
+</div>
+{{/showStep3}}
+
+<script>
+(function(){var e=document.getElementById("model");if(!e||!window.fetch)return;var t=document.getElementById("customModelGroup"),n=document.getElementById("customModel");t&&t.classList.add("d-none");function c(){var r=e.value==="__other__";t&&t.classList.toggle("d-none",!r),n&&r&&n.focus()}e.addEventListener("change",c),c()})();
+(function(){var e=document.getElementById("thinkingEnabled"),t=document.getElementById("reasoningEffortGroup");e&&e.addEventListener("change",function(){t.style.display=e.checked?"block":"none"})})();
+</script>

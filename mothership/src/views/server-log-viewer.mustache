@@ -1,0 +1,35 @@
+<!-- Unified viewer for server, service, and symbio logs with SSR + optional JS refresh. -->
+<nav aria-label="{{#t}}common.breadcrumb{{/t}}"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/servers">{{#t}}nav.servers{{/t}}</a></li><li class="breadcrumb-item"><a href="/servers/{{server.id}}">{{server.displayName}}</a></li><li class="breadcrumb-item"><a href="/servers/{{server.id}}/monitoring/logs/{{category}}">{{listTitle}}</a></li><li class="breadcrumb-item active">{{log.displayName}}</li></ol></nav>
+<div class="d-flex justify-content-between align-items-start mb-3"><div><h1 class="h3 mb-1"><i class="fa-solid fa-file-lines me-1" aria-hidden="true"></i>{{log.displayName}}</h1>{{#log.path}}<p class="text-secondary mb-0"><code>{{log.path}}</code></p>{{/log.path}}</div></div>
+{{#error}}<div class="alert alert-danger" role="alert">{{error}}</div>{{/error}}
+<section class="card mb-3" data-log-viewer data-content-url="{{contentUrl}}"><div class="card-body"><form class="d-flex flex-wrap align-items-end gap-2" method="get" action="/servers/{{server.id}}/monitoring/logs/{{category}}/view?source={{log.slug}}"><div><label class="form-label mb-1" for="tailLimit">{{#t}}application.log.viewer.tailLabel{{/t}}</label><select class="form-select form-select-sm" id="tailLimit" name="limit" data-tail-limit>{{#tailChoices}}<option value="{{value}}" {{#selected}}selected{{/selected}}>{{#t}}application.log.form.linesOption{{/t}}</option>{{/tailChoices}}</select></div><button class="btn btn-primary btn-sm" type="submit"><i class="fa-solid fa-rotate" aria-hidden="true"></i> {{#t}}application.log.viewer.refresh{{/t}}</button><div class="form-check form-switch mb-1"><input class="form-check-input" id="logAutoRefresh" type="checkbox"><label class="form-check-label" for="logAutoRefresh">{{#t}}application.log.viewer.autoRefresh{{/t}}</label></div></form></div></section>
+<pre class="log-output" tabindex="0" id="logOutput" data-refresh-url="{{contentUrl}}&amp;limit={{tailLimit}}">{{logContent}}</pre>
+<p class="text-secondary small mb-0">{{#t}}application.log.viewer.status{{/t}}</p>
+<script src="/assets/app.js"></script>
+<form class="card mt-3" method="post" action="{{searchUrl}}"><div class="card-body"><input type="hidden" name="_csrf" value="{{csrfToken}}"><label class="form-label" for="query">{{#t}}application.log.viewer.searchLabel{{/t}}</label><div class="input-group"><input class="form-control" id="query" name="query" maxlength="500" required placeholder="{{#t}}application.log.viewer.searchPlaceholder{{/t}}"><button class="btn btn-outline-primary" type="submit"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> {{#t}}application.log.viewer.search{{/t}}</button></div><div class="form-text">{{#t}}application.log.viewer.searchHelp{{/t}}</div></div></form>
+{{^aiNotConfigured}}
+<section class="card mt-3" id="ask-ai">
+  <div class="card-body">
+    <h2 class="card-title h5"><i class="fa-solid fa-brain me-1" aria-hidden="true"></i>{{#t}}ai.askTitle{{/t}}</h2>
+    <form method="post" action="/ai/ask" id="askAiForm">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}">
+      <input type="hidden" name="sourceUrl" value="/servers/{{server.id}}/monitoring/logs/{{category}}/view?source={{log.slug}}&limit={{tailLimit}}">
+      <input type="hidden" name="logName" value="{{log.displayName}}">
+      <input type="hidden" name="logType" value="{{listTitle}}: {{log.displayName}}">
+      <textarea name="logContent" class="d-none" readonly>{{logContent}}</textarea>
+      <div class="mb-2">
+        <input class="form-control" name="question" placeholder="{{#t}}ai.questionPlaceholder{{/t}}" required maxlength="1000">
+      </div>
+      <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" name="includeContext" value="1" id="includeContext" checked>
+        <label class="form-check-label" for="includeContext">{{#t}}ai.includeContext{{/t}}</label>
+      </div>
+      <div class="d-flex align-items-center">
+        <button class="btn btn-primary" type="submit" data-ai-submit>{{#t}}ai.askButton{{/t}}</button>
+        <small class="text-secondary ms-2" data-ai-loading style="display:none"><i class="fa-solid fa-spinner fa-spin me-1" aria-hidden="true"></i>{{#t}}ai.waiting{{/t}}</small>
+      </div>
+    </form>
+    <script>(()=>{const e=document.getElementById("askAiForm");if(!e)return;const t=e.querySelector("[data-ai-submit]"),n=e.querySelector("[data-ai-loading]");e.addEventListener("submit",()=>{t.disabled=!0,n.style.display="inline"})})();</script>
+  </div>
+</section>
+{{/aiNotConfigured}}

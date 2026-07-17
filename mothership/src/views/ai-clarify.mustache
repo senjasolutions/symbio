@@ -1,0 +1,53 @@
+<!-- Clarify Finding — standalone SSR page: AI explains a specific finding in plain language with steps. -->
+<nav aria-label="{{#t}}common.breadcrumb{{/t}}"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/ai">{{#t}}ai.symbioIntelligence{{/t}}</a></li><li class="breadcrumb-item"><a href="/ai/actions">{{#t}}ai.pendingActions{{/t}}</a></li><li class="breadcrumb-item active">{{#t}}ai.clarify{{/t}}</li></ol></nav>
+
+<h1 class="h3 mb-3"><i class="fa-solid fa-magnifying-glass me-1" aria-hidden="true"></i>{{#t}}ai.clarify{{/t}}</h1>
+
+{{^loading}}
+{{^error}}
+<section class="card mb-3">
+  <div class="card-header"><strong>{{#t}}ai.clarifyOriginal{{/t}}</strong></div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-sm-3"><small class="text-secondary d-block">{{#t}}ai.skill{{/t}}</small><span>{{#skillIconImg}}<img src="{{skillIcon}}" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;">{{/skillIconImg}}{{^skillIconImg}}<i class="{{skillIcon}} me-1"></i>{{/skillIconImg}}{{skillName}}</span></div>
+      <div class="col-sm-3"><small class="text-secondary d-block">{{#t}}ai.severity{{/t}}</small><span class="badge {{severityBadge}}">{{severity}}</span></div>
+      <div class="col-sm-3"><small class="text-secondary d-block">{{#t}}ai.source{{/t}}</small><span>{{source}}</span></div>
+      {{#pattern}}<div class="col-sm-3"><small class="text-secondary d-block">{{#t}}ai.pattern{{/t}}</small><code>{{pattern}}</code></div>{{/pattern}}
+      {{#findingTitle}}<div class="col-12"><small class="text-secondary d-block">{{#t}}ai.message{{/t}}</small><p class="mb-0">{{findingTitle}}</p></div>{{/findingTitle}}
+      {{#findingDescription}}<div class="col-12"><small class="text-secondary d-block">{{#t}}ai.detail{{/t}}</small><p class="mb-0 text-secondary">{{findingDescription}}</p></div>{{/findingDescription}}
+    </div>
+  </div>
+</section>
+
+<section class="card mb-3">
+  <div class="card-header"><strong><i class="fa-solid fa-brain me-1"></i>{{#t}}ai.clarifyResponse{{/t}}</strong></div>
+  <div class="card-body">
+    {{#responseHtml}}
+    <div class="border rounded p-3 bg-light" style="font-size:0.9rem;line-height:1.6;">{{{responseHtml}}}</div>
+    {{/responseHtml}}
+    {{#error}}
+    <div class="alert alert-danger mb-0">{{error}}</div>
+    {{/error}}
+  </div>
+</section>
+{{/error}}
+{{#error}}
+<section class="card mb-3">
+  <div class="card-body">
+    <div class="alert alert-danger mb-0">{{error}}</div>
+  </div>
+</section>
+{{/error}}
+{{/loading}}
+
+{{#loading}}
+<div class="d-flex justify-content-center align-items-center" style="min-height:200px;">
+  <div class="text-center">
+    <i class="fa-solid fa-spinner fa-spin fa-3x mb-2"></i>
+    <p class="text-secondary">{{#t}}ai.clarifying{{/t}}</p>
+  </div>
+</div>
+{{/loading}}
+
+<a class="btn btn-outline-secondary btn-sm" href="/ai/actions">{{#t}}ai.backToActions{{/t}}</a>
+{{/loading}}

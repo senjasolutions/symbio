@@ -1,0 +1,78 @@
+<!-- Page 2 of the AI Application Discovery wizard: user selects which apps to add. -->
+<nav aria-label="{{#t}}common.breadcrumb{{/t}}"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/applications">{{#t}}nav.applications{{/t}}</a></li><li class="breadcrumb-item"><a href="/applications/ai-discover">{{#t}}ai.discover.title{{/t}}</a></li><li class="breadcrumb-item active">{{#t}}ai.discover.selectApps{{/t}}</li></ol></nav>
+<h1 class="h3 mb-3"><i class="fa-solid fa-list-check me-1" aria-hidden="true"></i>{{#t}}ai.discover.selectApps{{/t}}</h1>
+
+{{#error}}
+<div class="alert alert-danger"><i class="fa-solid fa-circle-exclamation me-1" aria-hidden="true"></i>{{error}}</div>
+<div class="mb-3">
+  <form class="d-inline" method="post" action="/applications/ai-discover"><input type="hidden" name="_csrf" value="{{csrfToken}}"><button class="btn btn-primary" type="submit"><i class="fa-solid fa-rotate me-1" aria-hidden="true"></i> {{#t}}ai.discover.retryScan{{/t}}</button></form>
+  <a class="btn btn-outline-secondary ms-2" href="/applications">{{#t}}common.cancel{{/t}}</a>
+</div>
+{{/error}}
+
+{{^error}}
+{{#parseError}}
+<div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation me-1" aria-hidden="true"></i>{{#t}}ai.discover.parseError{{/t}} <details class="mt-1"><summary>{{#t}}common.showRaw{{/t}}</summary><pre class="small mb-0 mt-1" style="max-height:200px;overflow:auto">{{rawResponse}}</pre></details></div>
+{{/parseError}}
+
+{{^apps.length}}
+<div class="alert alert-info">{{#t}}ai.discover.noApps{{/t}}</div>
+<a class="btn btn-outline-primary" href="/applications/new">{{#t}}applications.add{{/t}}</a>
+<a class="btn btn-outline-secondary ms-2" href="/applications/ai-discover">{{#t}}ai.discover.retryScan{{/t}}</a>
+{{/apps.length}}
+
+{{#apps.length}}
+<form method="post" action="/applications/ai-discover/configure" id="appSelectionForm">
+  <input type="hidden" name="_csrf" value="{{csrfToken}}">
+  <input type="hidden" name="appCount" value="{{appCount}}">
+
+  <div class="card mb-3">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table mb-0">
+          <thead>
+            <tr>
+              <th style="width:40px"><input type="checkbox" id="selectAll" onclick="document.querySelectorAll('.app-select').forEach(function(e){e.checked=this.checked})" checked></th>
+              <th>{{#t}}applications.tableName{{/t}}</th>
+              <th>{{#t}}application.form.name{{/t}}</th>
+              <th>{{#t}}application.form.url{{/t}}</th>
+              <th>{{#t}}ai.discover.type{{/t}}</th>
+              <th>{{#t}}ai.discover.logsCount{{/t}}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#apps}}
+            <tr>
+              <td><input class="form-check-input app-select" type="checkbox" name="app_{{index}}_selected" value="1"{{#selected}} checked{{/selected}}></td>
+              <td><strong>{{displayName}}</strong></td>
+              <td><code>{{name}}</code></td>
+              <td><code class="small">{{healthCheckUrl}}</code></td>
+              <td><span class="badge text-bg-info">{{type}}</span></td>
+              <td>{{logCount}}</td>
+            </tr>
+            {{/apps}}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {{#apps}}
+  <input type="hidden" name="app_{{index}}_name" value="{{name}}">
+  <input type="hidden" name="app_{{index}}_displayName" value="{{displayName}}">
+  <input type="hidden" name="app_{{index}}_healthCheckUrl" value="{{healthCheckUrl}}">
+  <input type="hidden" name="app_{{index}}_directory" value="{{directory}}">
+  <input type="hidden" name="app_{{index}}_type" value="{{type}}">
+  <input type="hidden" name="app_{{index}}_logCount" value="{{aiLogs.length}}">
+  {{#aiLogs}}
+  <input type="hidden" name="app_{{index}}_log_{{logIndex}}" value="{{.}}">
+  {{/aiLogs}}
+  {{/apps}}
+
+  <div class="d-flex">
+    <button class="btn btn-primary" type="submit"><i class="fa-solid fa-arrow-right me-1" aria-hidden="true"></i> {{#t}}ai.discover.nextConfigure{{/t}}</button>
+    <a class="btn btn-outline-secondary ms-2" href="/applications">{{#t}}common.cancel{{/t}}</a>
+  </div>
+</form>
+{{/apps.length}}
+{{/error}}

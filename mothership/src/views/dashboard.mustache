@@ -5,10 +5,62 @@
 </div>
 <div class="row g-3 mb-4">
   <div class="col-sm-6 col-xl-3"><div class="card h-100"><div class="card-body"><div class="text-secondary small">{{#t}}dashboard.mainServer{{/t}}</div><div class="metric-value text-{{stateClass}}" data-summary-key="serverState">{{#serverOnline}}<i class="fa-solid fa-square-check" aria-hidden="true"></i>{{/serverOnline}}{{#serverOffline}}<i class="fa-solid fa-square-xmark" aria-hidden="true"></i>{{/serverOffline}} {{state}}</div><div class="small text-secondary mt-2">{{#t}}dashboard.lastReport{{/t}}</div> <a href="/servers/1"><button class="w-100 btn btn-primary center">{{#t}}dashboard.moreInfo{{/t}}</button></a></div></div></div>
-  <div class="col-sm-6 col-xl-3"><div class="card h-100"><div class="card-body metric-card"><div><div class="text-secondary small"><i class="fa-solid fa-microchip"></i> {{#t}}dashboard.cpu{{/t}}</div><div class="metric-value" data-summary-key="cpuPercent">{{cpuPercent}}</div><small class="metric-detail">{{#t}}dashboard.cpuAverage{{/t}}</small></div>{{{cpuRing}}}</div></div></div>
-  <div class="col-sm-6 col-xl-3"><div class="card h-100"><div class="card-body metric-card"><div><div class="text-secondary small"><i class="fa-solid fa-memory"></i> {{#t}}dashboard.memory{{/t}}</div><div class="metric-value" data-summary-key="memoryPercent">{{memoryPercent}}</div><small class="metric-capacity">{{memoryAmount}}</small><small class="metric-detail">{{#t}}dashboard.memoryAverage{{/t}}</small></div>{{{memoryRing}}}</div></div></div>
+  <div class="col-sm-6 col-xl-3"><div class="card h-100"><div class="card-body metric-card"><div><div class="text-secondary small"><i class="fa-solid fa-microchip"></i> {{#t}}dashboard.cpu{{/t}}</div><div class="metric-value" data-summary-key="cpuPercent">{{cpuPercent}}</div><small class="metric-detail">5m {{cpuAverages.average5m}} · 30m {{cpuAverages.average30m}} · 6h {{cpuAverages.average6h}}</small></div>{{{cpuRing}}}</div></div></div>
+  <div class="col-sm-6 col-xl-3"><div class="card h-100"><div class="card-body metric-card"><div><div class="text-secondary small"><i class="fa-solid fa-memory"></i> {{#t}}dashboard.memory{{/t}}</div><div class="metric-value" data-summary-key="memoryPercent">{{memoryPercent}}</div><small class="metric-capacity">{{memoryAmount}}</small><small class="metric-detail">5m {{memoryAverages.average5m}} · 30m {{memoryAverages.average30m}} · 6h {{memoryAverages.average6h}}</small></div>{{{memoryRing}}}</div></div></div>
   <div class="col-sm-6 col-xl-3"><div class="card h-100"><div class="card-body metric-card"><div><div class="text-secondary small"><i class="fa-solid fa-hard-drive"></i> {{#t}}dashboard.rootDisk{{/t}}</div><div class="metric-value" data-summary-key="diskPercent">{{diskPercent}}</div><small class="metric-capacity">{{diskAmount}}</small></div>{{{diskRing}}}</div></div></div>
 </div>
+
+{{#firingAlerts.length}}
+<section class="card border-danger mb-3">
+  <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+    <strong><i class="fa-solid fa-bell me-1" aria-hidden="true"></i> {{#t}}alerts.firingNow{{/t}} ({{firingAlerts.length}})</strong>
+    <a class="btn btn-outline-light btn-sm" href="/alerts">{{#t}}alerts.viewAll{{/t}} &rarr;</a>
+  </div>
+  <div class="card-body p-2">
+    {{#firingAlerts}}
+    <div class="d-flex align-items-center gap-2 py-1 {{^last}}border-bottom{{/last}}">
+      <span class="badge text-bg-{{severityClass}} flex-shrink-0">{{severityLabel}}</span>
+      <span class="small flex-grow-1"><strong>{{ruleName}}</strong> — {{resourceLabel}}: {{metricDisplay}} {{operatorLabel}} {{thresholdDisplay}}</span>
+      <small class="text-secondary flex-shrink-0">{{triggeredAt}}</small>
+    </div>
+    {{/firingAlerts}}
+  </div>
+</section>
+{{/firingAlerts.length}}
+
+{{#summarizerContent}}
+<section class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <strong><i class="fa-solid fa-robot me-1" aria-hidden="true"></i>{{#t}}dashboard.summaryTitle{{/t}}</strong>
+    {{#pendingActionCount}}<a class="badge text-bg-danger text-decoration-none" href="/ai/actions">{{pendingActionCount}} {{#t}}dashboard.pendingActionLabel{{/t}} &rarr;</a>{{/pendingActionCount}}
+  </div>
+  <div class="card-body" style="font-size:0.9rem;line-height:1.6;">{{{summarizerContent}}}</div>
+</section>
+{{/summarizerContent}}
+
+<!-- Command Center wrap-up: compact status cards for skills, AI model, tokens, balance -->
+<div class="row g-2 mb-4">
+  <div class="col-3"><div class="card h-100"><div class="card-body py-2 px-3">
+    <div class="d-flex align-items-center gap-1 text-secondary small"><i class="fa-solid fa-microchip" aria-hidden="true"></i> <strong>{{#t}}dashboard.wrapSkills{{/t}}</strong></div>
+    <div class="small">{{#wrapSkillsRunning}}<span class="text-success">{{#t}}dashboard.wrapRunning{{/t}} ({{wrapSkillsRunning}})</span>{{/wrapSkillsRunning}} {{#wrapSkillsIdle}}<span class="text-secondary">{{#t}}dashboard.wrapIdle{{/t}} ({{wrapSkillsIdle}})</span>{{/wrapSkillsIdle}}</div>
+  </div></div></div>
+  <div class="col-3"><div class="card h-100"><div class="card-body py-2 px-3">
+    <div class="d-flex align-items-center gap-1 text-secondary small">
+      {{#wrapModelLogo}}<img src="{{wrapModelLogo}}" style="width:14px;height:14px;">{{/wrapModelLogo}}
+      <strong>{{#t}}dashboard.wrapModel{{/t}}</strong>
+    </div>
+    <div class="small">{{wrapModelName}}</div>
+  </div></div></div>
+  <div class="col-3"><div class="card h-100"><div class="card-body py-2 px-3">
+    <div class="d-flex align-items-center gap-1 text-secondary small"><i class="fa-solid fa-coins" aria-hidden="true"></i> <strong>{{#t}}dashboard.wrapTokens{{/t}}</strong></div>
+    <div class="small">{{wrapTokensTotal}} {{#t}}dashboard.wrapTotal{{/t}} · {{wrapTokenCalls}} {{#t}}dashboard.wrapCalls{{/t}}</div>
+  </div></div></div>
+  <div class="col-3"><div class="card h-100"><div class="card-body py-2 px-3">
+    <div class="d-flex align-items-center gap-1 text-secondary small"><i class="fa-solid fa-scale-balanced" aria-hidden="true"></i> <strong>{{#t}}dashboard.wrapBalance{{/t}}</strong></div>
+    <div class="small text-secondary">{{#t}}dashboard.wrapBalanceNone{{/t}}</div>
+  </div></div></div>
+</div>
+
 <!-- Server-rendered SVG charts: 6-hour trend grouped by server average -->
 <div class="row g-3 mb-4">
   <div class="col-12">{{{cpuChart}}}</div>

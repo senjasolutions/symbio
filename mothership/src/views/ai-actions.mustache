@@ -1,0 +1,124 @@
+<!-- Pending Actions page — browse, approve, ignore, or mark done all skill actions. -->
+<nav aria-label="{{#t}}common.breadcrumb{{/t}}"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/ai">{{#t}}ai.symbioIntelligence{{/t}}</a></li><li class="breadcrumb-item active">{{#t}}ai.pendingActions{{/t}}</li></ol></nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0"><i class="fa-solid fa-list-check me-1" aria-hidden="true"></i>{{#t}}ai.pendingActions{{/t}}</h1>
+  <span class="badge text-bg-warning">{{pendingCount}} {{#t}}ai.pending{{/t}}</span>
+</div>
+
+{{#approved}}<div class="alert alert-success">{{#t}}ai.actionApproved{{/t}}</div>{{/approved}}
+{{#rejected}}<div class="alert alert-secondary">{{#t}}ai.actionRejected{{/t}}</div>{{/rejected}}
+{{#markedDone}}<div class="alert alert-info">{{#t}}ai.actionDone{{/t}}</div>{{/markedDone}}
+{{#acknowledged}}<div class="alert alert-info">{{#t}}ai.actionAcknowledged{{/t}}</div>{{/acknowledged}}
+{{#handled}}<div class="alert alert-info">{{#t}}ai.actionHandled{{/t}}</div>{{/handled}}
+
+{{#dismissAll}}
+<div class="mb-3">
+  <form method="post" action="/ai/actions/dismiss-all">
+    <input type="hidden" name="_csrf" value="{{csrfToken}}">
+    <button class="btn btn-outline-danger btn-sm btn-loading" type="submit" onclick="return confirm('{{#t}}ai.dismissAllConfirm{{/t}}')"><i class="fa-solid fa-ban me-1"></i>{{#t}}ai.dismissAll{{/t}} ({{pendingCount}})</button>
+  </form>
+</div>
+{{/dismissAll}}
+
+<section class="card">
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr>
+          <th>{{#t}}ai.skill{{/t}}</th>
+          <th>{{#t}}ai.action{{/t}}</th>
+          <th>{{#t}}ai.riskLevel{{/t}}</th>
+          <th>{{#t}}common.date{{/t}}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#pendingActions}}
+        <tr>
+          <td class="small">{{#skillIconImg}}<img src="{{skillIcon}}" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;">{{/skillIconImg}}{{^skillIconImg}}<i class="{{skillIcon}} me-1" aria-hidden="true"></i>{{/skillIconImg}}{{skillName}}</td>
+          <td>
+            <strong>{{title}}</strong>
+            {{#description}}<br><span class="small text-secondary">{{description}}</span>{{/description}}
+            {{#seenCountMore}}<br><small class="text-muted">{{#t}}ai.seenCount{{/t}}: {{seenCount}}x</small>{{/seenCountMore}}
+          </td>
+          <td><span class="badge {{riskBadgeClass}}">{{riskLabel}}</span></td>
+          <td class="small">{{createdAt}}</td>
+          <td class="text-end" style="white-space:nowrap;">
+            {{#isExecutable}}
+            <form class="d-inline" method="post" action="/ai/actions/{{id}}/approve">
+              <input type="hidden" name="_csrf" value="{{csrfToken}}">
+              <button class="btn btn-success btn-sm btn-loading" type="submit"><i class="fa-solid fa-check me-1"></i>{{#t}}ai.apply{{/t}}</button>
+            </form>
+            {{/isExecutable}}
+            {{^isExecutable}}
+            <a class="btn btn-success btn-sm btn-loading" href="/ai/actions/{{id}}/guide"><i class="fa-solid fa-check me-1"></i>{{#t}}ai.apply{{/t}}</a>
+            {{/isExecutable}}
+            <form class="d-inline" method="post" action="/ai/actions/{{id}}/acknowledge">
+              <input type="hidden" name="_csrf" value="{{csrfToken}}">
+              <button class="btn btn-outline-danger btn-sm" type="submit"><i class="fa-solid fa-ban me-1"></i>{{#t}}ai.dismiss{{/t}}</button>
+            </form>
+            <br>
+            <a class="btn btn-info btn-sm text-white btn-loading mt-1" href="/ai/actions/{{id}}/clarify"><i class="fa-solid fa-magnifying-glass me-1"></i>{{#t}}ai.clarify{{/t}}</a>
+            <a class="btn btn-outline-secondary btn-sm mt-1" href="/ai/actions/{{id}}/handle"><i class="fa-solid fa-check-double me-1"></i>{{#t}}ai.markHandled{{/t}}</a>
+          </td>
+        </tr>
+        {{/pendingActions}}
+        {{^pendingActions}}
+        <tr><td colspan="5" class="text-muted">{{#t}}ai.noPendingActions{{/t}}</td></tr>
+        {{/pendingActions}}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{{#history.length}}
+<div class="mt-4">
+  <h5 class="mb-2">{{#t}}ai.recentActions{{/t}}</h5>
+  <section class="card">
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead>
+          <tr><th>{{#t}}ai.action{{/t}}</th><th>{{#t}}ai.status{{/t}}</th><th>{{#t}}common.date{{/t}}</th><th>{{#t}}ai.result{{/t}}</th></tr>
+        </thead>
+        <tbody>
+          {{#history}}
+          <tr>
+            <td class="small">{{title}}</td>
+            <td><span class="badge {{statusBadge}}">{{status}}</span></td>
+            <td class="small">{{createdAt}}</td>
+            <td class="small">
+              {{#hasProof}}
+              <details class="action-proof">
+                <summary class="text-primary small">{{#t}}ai.viewProof{{/t}}</summary>
+                <div class="action-proof-body">
+                  <div class="mb-1"><strong>{{#t}}ai.before{{/t}}:</strong></div>
+                  <pre class="action-proof-pre">{{beforeSummary}}</pre>
+                  <div class="mb-1"><strong>{{#t}}ai.after{{/t}}:</strong></div>
+                  <pre class="action-proof-pre">{{afterSummary}}</pre>
+                  {{#diff}}<div class="fw-semibold small">{{#t}}ai.diff{{/t}}: {{diff}}</div>{{/diff}}
+                </div>
+              </details>
+              {{/hasProof}}
+              {{^hasProof}}<span class="text-secondary">{{status}}</span>{{/hasProof}}
+            </td>
+          </tr>
+          {{/history}}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{{/history.length}}
+
+<script>
+(function(){
+  var btns = document.querySelectorAll('.btn-loading');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].addEventListener('click', function(){
+      var icon = this.querySelector('i');
+      if (icon) icon.className = 'fa-solid fa-spinner fa-spin';
+    });
+  }
+})();
+</script>

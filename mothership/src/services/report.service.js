@@ -140,6 +140,14 @@ export const ingestReportBatch = async (payload) => {
   return { inserted, duplicates: reports.length - inserted };
 };
 
+/** Deletes notifications older than 30 days. */
+export const cleanupNotifications = async () => {
+  const { Op } = await import("sequelize");
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const deleted = await models.Notification.destroy({ where: { createdAt: { [Op.lt]: cutoff } } });
+  if (deleted > 0) console.log(`Cleaned up ${deleted} old notification(s)`);
+};
+
 /** Removes expired histories and report receipts in dependency-safe order. */
 export const cleanupHistory = async () => {
   const cutoff = new Date(Date.now() - config.retentionDays * 24 * 60 * 60 * 1000);
