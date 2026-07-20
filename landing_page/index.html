@@ -1,146 +1,143 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Symbio — Your Server Admin Buddy</title>
-<link rel="stylesheet" href="index.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Symbio brings host health, application checks, services, and logs into one focused workspace for agency-managed web servers.">
+  <meta name="theme-color" content="#11151a">
+  <meta property="og:title" content="Symbio — The operating layer for web servers">
+  <meta property="og:description" content="A private alpha for teams responsible for agency-managed web servers.">
+  <meta property="og:type" content="website">
+  <title>Symbio — The operating layer for web servers</title>
+  <link rel="preload" href="symbio_screenshot.png" as="image">
+  <link rel="stylesheet" href="index.css">
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
 
-<!-- ============ HEADER ============ -->
-<header class="site-header">
-  <div class="container header-inner">
-    <a class="site-brand" href="#">SYMBIO</a>
-    <a class="github-link" href="https://github.com/senjasolutions/symbio" target="_blank" rel="noopener">
-      <i class="fa-brands fa-github"></i> Fork on GitHub
-    </a>
-  </div>
-</header>
-
-<!-- ============ HERO ============ -->
-<section class="hero">
-  <div class="container hero-inner">
-    <div class="hero-text">
-      <h1 class="hero-title">Your Server Admin Buddy</h1>
-      <p class="hero-sub">With Symbio, delegate most of easy and basic Server Administration task while you focus on building the complex one.</p>
-      <p class="hero-cta">Launch Symbio on your Server now with this simple command</p>
-      <div class="code-box" id="installCode">
-        <code>curl -fSSl https://symbio.senja.co.uk/install.sh | bash</code>
-        <button class="copy-btn" id="copyBtn" title="Copy to clipboard">
-          <i class="fa-regular fa-clipboard"></i>
-        </button>
-      </div>
-      <p class="hero-disc">System Requirement: Ubuntu 22.04+ and Docker (preferably latest version)</p>
+  <header class="site-header" id="top">
+    <div class="site-header__inner">
+      <a class="wordmark" href="#top" aria-label="Symbio home">SYMBIO<span aria-hidden="true">.</span></a>
+      <nav class="site-nav" aria-label="Primary navigation">
+        <a href="#alpha">Alpha</a>
+        <a class="site-nav__github" href="https://github.com/senjasolutions/symbio" target="_blank" rel="noreferrer">
+          <span>View on GitHub</span>
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.1 1.5h5.4v5.4h-1.4V3.9L7.2 9.8l-1-1 5.9-5.9H9.1V1.5ZM14.5 9.1v4a1.4 1.4 0 0 1-1.4 1.4h-10a1.4 1.4 0 0 1-1.4-1.4v-10A1.4 1.4 0 0 1 3.1 1.7h4v1.4h-4v10h10v-4h1.4Z"/></svg>
+        </a>
+      </nav>
     </div>
-    <div class="hero-visual">
-      <img class="hero-screenshot" src="symbio_screenshot.png" alt="Symbio Dashboard Screenshot">
+  </header>
+
+  <main id="main-content">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero__field" aria-hidden="true">
+        <span class="hero__orb hero__orb--one"></span>
+        <span class="hero__orb hero__orb--two"></span>
+        <span class="hero__trace hero__trace--one"></span>
+        <span class="hero__trace hero__trace--two"></span>
+      </div>
+
+      <div class="hero__inner">
+        <div class="hero__copy reveal" data-reveal>
+          <p class="eyebrow"><span></span> Private alpha for agency-managed web servers</p>
+          <p class="hero__brand">SYMBIO</p>
+          <h1 id="hero-title">The operating layer for the servers behind your clients’ websites.</h1>
+          <p class="hero__lede">Host health, services, application checks, and logs stay together when an operator needs the full context.</p>
+          <div class="hero__actions">
+            <a class="button button--primary" href="#alpha">Explore the alpha <span aria-hidden="true">↓</span></a>
+            <a class="text-link" href="https://github.com/senjasolutions/symbio" target="_blank" rel="noreferrer">Read the project <span aria-hidden="true">↗</span></a>
+          </div>
+          <p class="hero__note">Single-server alpha · Ubuntu hosts · Product actively evolving</p>
+        </div>
+
+        <div class="hero__product reveal" data-reveal data-product-stage>
+          <div class="product-halo" aria-hidden="true"></div>
+          <div class="product-frame">
+            <div class="product-frame__chrome" aria-hidden="true">
+              <span></span><span></span><span></span>
+              <p>symbio / command center</p>
+              <i></i>
+            </div>
+            <img src="symbio_screenshot.png" alt="The Symbio dashboard showing server health, alerts, and system status.">
+          </div>
+          <p class="product-caption"><span>01</span> A focused view of the system in front of you.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="context" aria-labelledby="context-title">
+      <div class="section-wrap">
+        <div class="context__intro reveal" data-reveal>
+          <p class="section-kicker">Context, kept close</p>
+          <h2 id="context-title">A server problem should come with the evidence that explains it.</h2>
+          <p>Symbio brings the surrounding state into one workspace, so an operator can move from a signal to a better-informed next step.</p>
+        </div>
+
+        <ol class="evidence-list" aria-label="The Symbio evidence flow">
+          <li class="evidence-list__item reveal" data-reveal>
+            <span class="evidence-list__index">01</span>
+            <div>
+              <h3>Host health</h3>
+              <p>CPU, memory, storage, processes, ports, packages, and the condition of the machine.</p>
+            </div>
+            <span class="evidence-list__line" aria-hidden="true"></span>
+          </li>
+          <li class="evidence-list__item reveal" data-reveal>
+            <span class="evidence-list__index">02</span>
+            <div>
+              <h3>Service and application signals</h3>
+              <p>Service checks and application status sit beside the host they depend on.</p>
+            </div>
+            <span class="evidence-list__line" aria-hidden="true"></span>
+          </li>
+          <li class="evidence-list__item reveal" data-reveal>
+            <span class="evidence-list__index">03</span>
+            <div>
+              <h3>Logs and investigation</h3>
+              <p>Relevant system and application evidence remains available when a signal needs interpretation.</p>
+            </div>
+            <span class="evidence-list__line" aria-hidden="true"></span>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="operator" aria-labelledby="operator-title">
+      <div class="section-wrap operator__layout">
+        <div class="operator__statement reveal" data-reveal>
+          <p class="section-kicker">For the operator</p>
+          <h2 id="operator-title">Built around the responsibility that comes with a managed server.</h2>
+        </div>
+        <div class="operator__detail reveal" data-reveal>
+          <p>The current alpha brings monitoring, alerts, logs, applications, and AI-assisted analysis into a single-server workspace. It is designed for teams who need technical context to remain clear when they decide what happens next.</p>
+          <dl class="operator__facts">
+            <div><dt>Host</dt><dd>One Ubuntu server</dd></div>
+            <div><dt>View</dt><dd>Health, services, apps, logs</dd></div>
+            <div><dt>Stage</dt><dd>Private alpha</dd></div>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <section class="alpha" id="alpha" aria-labelledby="alpha-title">
+      <div class="alpha__field" aria-hidden="true"></div>
+      <div class="section-wrap alpha__inner reveal" data-reveal>
+        <p class="section-kicker">Private alpha</p>
+        <h2 id="alpha-title">Symbio is taking shape with the teams closest to the work.</h2>
+        <p>Follow the project to see the current build, its direction, and the work still ahead.</p>
+        <a class="button button--light" href="https://github.com/senjasolutions/symbio" target="_blank" rel="noreferrer">View Symbio on GitHub <span aria-hidden="true">↗</span></a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="site-footer__inner">
+      <a class="wordmark" href="#top" aria-label="Back to top">SYMBIO<span aria-hidden="true">.</span></a>
+      <p>Infrastructure intelligence for the work behind the screen.</p>
+      <p>© <span id="year">2026</span> Symbio</p>
     </div>
-  </div>
-</section>
+  </footer>
 
-<!-- ============ WHAT IS SYMBIO ============ -->
-<section class="section-what">
-  <div class="container">
-    <h2 class="section-title">What is Symbio?</h2>
-    <p class="section-desc">It is an all-in-one Monitoring, Alerting and Server Management with Powerful AI Integration.</p>
-    <div class="feature-grid">
-      <div class="card">
-        <div class="card-hdr">
-          <i class="fa-solid fa-brain"></i> Symbio Intelligence
-        </div>
-        <div class="card-body">
-          Integrate Server Management with AI LLM. Connect OpenAI, Anthropic or DeepSeek API and Symbio will use it to run Agent like Storage Maid, SUS Finder, Optimizer automatically and can be adjusted according to your need.
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-hdr">
-          <i class="fa-solid fa-desktop"></i> Server Monitoring
-        </div>
-        <div class="card-body">
-          View the whole server resource usage, information, logs, anything that you need to know about it with easy to use Dashboard that is full of information. You can also Ask Symbio Intelligence for more information.
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-hdr">
-          <i class="fa-solid fa-bell"></i> Alert System
-        </div>
-        <div class="card-body">
-          Get alerted through the web interface or messaging service (like Slack) when a resource threshold (like CPU Usage) is hit. So you know earlier before something happened. You can also integrate it with Symbio Intelligence to do something.
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-hdr">
-          <i class="fa-solid fa-window-maximize"></i> Application Monitoring
-        </div>
-        <div class="card-body">
-          Monitor the HTTP Request of the running application on your server. While also looking at the Logs for possible issue.
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============ SKILLS ============ -->
-<section class="section-skills">
-  <div class="container">
-    <h2 class="section-title">Symbio Intelligence Skills</h2>
-    <div class="skills-grid">
-      <div class="skill-card">
-        <div class="skill-icon"><i class="fa-solid fa-box"></i></div>
-        <div class="skill-name">Package Updater</div>
-        <div class="skill-desc">Check for available package updates, prioritize security patches, and apply them safely.</div>
-      </div>
-      <div class="skill-card">
-        <div class="skill-icon"><i class="fa-solid fa-hard-drive"></i></div>
-        <div class="skill-name">Storage Maid</div>
-        <div class="skill-desc">Monitor disk usage, identify space hogs, and perform safe cleanup automatically.</div>
-      </div>
-      <div class="skill-card">
-        <div class="skill-icon"><i class="fa-solid fa-heart-pulse"></i></div>
-        <div class="skill-name">Uptime Police</div>
-        <div class="skill-desc">Monitor service health and restart frozen services automatically.</div>
-      </div>
-      <div class="skill-card">
-        <div class="skill-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
-        <div class="skill-name">Error Finder</div>
-        <div class="skill-desc">Scan system and application logs for errors and report findings.</div>
-      </div>
-      <div class="skill-card">
-        <div class="skill-icon"><i class="fa-solid fa-shield-halved"></i></div>
-        <div class="skill-name">SUS Finder</div>
-        <div class="skill-desc">Detect suspicious processes, brute-force attempts, and unusual open ports.</div>
-      </div>
-      <div class="skill-card">
-        <div class="skill-icon"><i class="fa-solid fa-gauge-high"></i></div>
-        <div class="skill-name">Optimizer</div>
-        <div class="skill-desc">Analyses server settings, package bloat, and cron jobs for performance gains.</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============ PRE-FOOTER CTA ============ -->
-<section class="section-cta">
-  <div class="container" style="text-align:center;">
-    <h2 class="cta-title">Summon your Server buddy now</h2>
-    <div class="code-box">
-      <code>curl -fSSl https://symbio.senja.co.uk/install.sh | bash</code>
-      <button class="copy-btn" id="copyBtn2" title="Copy to clipboard">
-        <i class="fa-regular fa-clipboard"></i>
-      </button>
-    </div>
-    <p class="hero-disc">System Requirement: Ubuntu 22.04+ and Docker (preferably latest version)</p>
-  </div>
-</section>
-
-<!-- ============ FOOTER ============ -->
-<footer class="site-footer">
-  <div class="container" style="text-align:center;">
-    <p>&copy; 2026 Symbio. All rights reserved.</p>
-  </div>
-</footer>
-
-<script src="index.js"></script>
+  <script src="index.js"></script>
 </body>
 </html>
