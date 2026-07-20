@@ -16,6 +16,7 @@ import { Op } from "sequelize";
 import { models, sequelize } from "../db/index.js";
 import { fetchTopProcesses } from "./system.service.js";
 import { dispatchAlert } from "./notifications/index.js";
+import { triggerHealSkill } from "./skills/scheduler.js";
 
 let timer = null;
 let running = false;
@@ -259,6 +260,13 @@ const handleTransition = async (rule, latestEvent, isFiring, conditionMet, detai
       targetName,
       statusMatch,
     });
+
+    // Self-healing: trigger the configured skill (e.g. storage-maid) fire-and-forget
+    if (rule.healSkillKey) {
+      triggerHealSkill(rule.healSkillKey).catch((err) =>
+        console.error(`[alert-engine] Heal skill ${rule.healSkillKey} trigger failed:`, err.message)
+      );
+    }
   } else if (!conditionMet && isFiring) {
     if (latestEvent && latestEvent.status !== "acknowledged") {
       await models.AlertEvent.update(

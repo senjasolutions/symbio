@@ -267,3 +267,15 @@ Migration v17 adds `pattern`, `seen_count`, `last_seen_at`, `status` columns to 
 ## 11. Safety — Auto-Execution Disabled (2026-07-16)
 
 All skill auto-execution has been removed for safety. `error-finder.js` and `uptime-police.js` `execute()` methods now return empty arrays unconditionally. Every action now requires human approval via the pending actions workflow. This is a hard safety boundary — no configuration can re-enable auto-execution.
+
+## 12. Alert-Skill Self-Healing Integration (v20, 2026-07-17)
+
+Migration v20 adds `heal_skill_key` (TEXT, nullable) column to `alert_rules`. When set to `"storage-maid"`, the alert engine fires `triggerHealSkill()` from scheduler.js asynchronously after `dispatchAlert()` on the fire path.
+
+**Flow:** Alert fires → `handleTransition()` creates event, dispatches Slack → checks `rule.healSkillKey` → calls `triggerHealSkill("storage-maid")` → scheduler validates skill is enabled + not already running → `runSkill()` with `trigger: "alert"` → full skill lifecycle (collect → filter → analyze → report → execute). On resolve or cooldown: no re-trigger.
+
+**Spam prevention:** (1) Alert stays `firing` while condition met — no re-fire. (2) Cooldown after resolve. (3) `runningTasks` concurrent guard in scheduler. (4) If Storage Maid can't fix disk, alert stays firing — no re-trigger.
+
+**Form:** New "Self-Healing" card on alert rule create/edit with dropdown: "None" or "Storage Maid". Future: expandable to execute arbitrary commands.
+
+**Files:** `/mothership/src/db/migrations.js` v20, `models.js` `AlertRule.healSkillKey`, `alert-engine.js` trigger call, `scheduler.js` `triggerHealSkill()` export, `web.js` form handlers, `alert-rule-form.mustache` card, `en.json` 5 keys.

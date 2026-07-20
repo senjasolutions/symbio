@@ -10,13 +10,16 @@
   <div class="col-sm-6 col-xl-3"><div class="card h-100"><div class="card-body metric-card"><div><div class="text-secondary small"><i class="fa-solid fa-hard-drive"></i> {{#t}}dashboard.rootDisk{{/t}}</div><div class="metric-value" data-summary-key="diskPercent">{{diskPercent}}</div><small class="metric-capacity">{{diskAmount}}</small></div>{{{diskRing}}}</div></div></div>
 </div>
 
-{{#firingAlerts.length}}
-<section class="card border-danger mb-3">
-  <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
-    <strong><i class="fa-solid fa-bell me-1" aria-hidden="true"></i> {{#t}}alerts.firingNow{{/t}} ({{firingAlerts.length}})</strong>
+<div class="row g-3 mb-4">
+
+  <div class="col-sm-12 col-xl-6">
+<section class="card {{#firingAlerts.length}}border-danger{{/firingAlerts.length}}{{^firingAlerts.length}}border-success{{/firingAlerts.length}} mb-3">
+  <div class="card-header {{#firingAlerts.length}}bg-danger text-white{{/firingAlerts.length}}{{^firingAlerts.length}}bg-success text-white{{/firingAlerts.length}} d-flex justify-content-between align-items-center">
+    <strong><i class="fa-solid fa-bell me-1" aria-hidden="true"></i> {{#t}}alerts.firingNow{{/t}} {{#firingAlerts.length}}({{firingAlerts.length}}){{/firingAlerts.length}}</strong>
     <a class="btn btn-outline-light btn-sm" href="/alerts">{{#t}}alerts.viewAll{{/t}} &rarr;</a>
   </div>
   <div class="card-body p-2">
+    {{#firingAlerts.length}}
     {{#firingAlerts}}
     <div class="d-flex align-items-center gap-2 py-1 {{^last}}border-bottom{{/last}}">
       <span class="badge text-bg-{{severityClass}} flex-shrink-0">{{severityLabel}}</span>
@@ -24,11 +27,16 @@
       <small class="text-secondary flex-shrink-0">{{triggeredAt}}</small>
     </div>
     {{/firingAlerts}}
+    {{/firingAlerts.length}}
+    {{^firingAlerts.length}}
+    <p class="text-muted text-center my-3">{{#t}}alerts.noFiringAlerts{{/t}}</p>
+    {{/firingAlerts.length}}
   </div>
 </section>
-{{/firingAlerts.length}}
+</div>
 
 {{#summarizerContent}}
+  <div class="col-sm-12 col-xl-6">
 <section class="card mb-3">
   <div class="card-header d-flex justify-content-between align-items-center">
     <strong><i class="fa-solid fa-robot me-1" aria-hidden="true"></i>{{#t}}dashboard.summaryTitle{{/t}}</strong>
@@ -36,7 +44,9 @@
   </div>
   <div class="card-body" style="font-size:0.9rem;line-height:1.6;">{{{summarizerContent}}}</div>
 </section>
+</div>
 {{/summarizerContent}}
+</div>
 
 <!-- Command Center wrap-up: compact status cards for skills, AI model, tokens, balance -->
 <div class="row g-2 mb-4">

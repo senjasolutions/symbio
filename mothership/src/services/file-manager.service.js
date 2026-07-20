@@ -38,3 +38,25 @@ export const getDirectoryTree = (dirPath) =>
 /** Reads a file for the dedicated viewer (100 KB cap, text only). */
 export const viewFile = (filePath) =>
   agentFileFetch(`/api/v1/files/view?path=${encodeURIComponent(filePath)}`);
+
+// ── Write operations ──
+
+/** Creates a new file or directory at the given path. */
+export const createEntry = (dirPath, name, type) =>
+  agentFileFetch("/api/v1/files/create", { method: "POST", body: JSON.stringify({ dirPath, name, type }) });
+
+/** Writes UTF-8 content to a file (100 KB max). */
+export const writeFile = (filePath, content) =>
+  agentFileFetch("/api/v1/files/write", { method: "POST", body: JSON.stringify({ path: filePath, content }) });
+
+/** Deletes a file or directory at the given path. */
+export const deleteEntry = (filePath) =>
+  agentFileFetch("/api/v1/files/delete", { method: "POST", body: JSON.stringify({ path: filePath }) });
+
+/** Renames or moves a file/directory from `from` to `to`. */
+export const renameEntry = (fromPath, toPath) =>
+  agentFileFetch("/api/v1/files/rename", { method: "POST", body: JSON.stringify({ from: fromPath, to: toPath }) });
+
+/** Changes file/directory permissions (chmod). Mode is an octal string like "644". */
+export const changeMode = (filePath, mode) =>
+  agentFileFetch("/api/v1/files/chmod", { method: "POST", body: JSON.stringify({ path: filePath, mode }) });

@@ -88,9 +88,9 @@ services:
       # Host-root bind enables statfs, network inventory, log reading, and
       # the read-only file manager. No agent route accepts raw browser input.
       - /:/host/root:ro
-      # Read-only Docker socket for per-component container, volume, and
-      # network inventory (Phase 2). No create/start/stop/exec is performed.
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Write-capable Docker socket for container management operations
+      # (restart, stop, prune, pull). Phase 2 — see command-runner.js.
+      - /var/run/docker.sock:/var/run/docker.sock
     secrets:
       - agent_token
     read_only: true

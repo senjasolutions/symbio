@@ -8,7 +8,7 @@ import { workerState, refreshConfiguration, getCurrentConfig } from "./worker.js
 import { config } from "./config.js";
 import { readRegisteredTail, searchRegisteredLog, readSystemLog, searchSystemLog, TAIL_LIMITS, MAX_TAIL_SCAN_BYTES, boundedOutput, boundedLine, SEARCH_MATCH_LIMIT, SEARCH_CONTEXT_LINES } from "./log-reader.js";
 import { listDirectory, readFileContent, getDirectoryTree } from "./file-manager.js";
-import { viewFileContent } from "./file-manager.js";
+import { viewFileContent, createFile, createDirectory, writeFile, deleteFileOrDir, renameFileOrDir, changeMode } from "./file-manager.js";
 import { getServerInfo, getProcessList, getListeningPorts, getMemoryDetail, getDiskIO, getLoggedInUsers, getInstalledPackages, getTopProcesses } from "./system.js";
 import { serviceRegistry } from "./components/services/index.js";
 import { collectSkillData } from "./skills-collector.js";
@@ -182,6 +182,56 @@ export const createAgentBridgeApp = () => {
       const filePath = context.req.query("path");
       if (!filePath) throw new Error("File path is required.");
       const result = await viewFileContent(config.hostRootPath, filePath);
+      return context.json({ ok: true, ...result });
+    } catch (error) { return context.json({ ok: false, error: error.message }, 400); }
+  });
+
+  // ---- File write operations ----
+
+  app.post("/api/v1/files/create", async (context) => {
+    try {
+      const { dirPath, name, type } = await context.req.json();
+      if (type === "directory") {
+        const result = await createDirectory(config.hostRootPath, dirPath || "/", name);
+        return context.json({ ok: true, ...result });
+      }
+      const result = await createFile(config.hostRootPath, dirPath || "/", name);
+      return context.json({ ok: true, ...result });
+    } catch (error) { return context.json({ ok: false, error: error.message }, 400); }
+  });
+
+  app.post("/api/v1/files/write", async (context) => {
+    try {
+      const { path: filePath, content } = await context.req.json();
+      if (!filePath) throw new Error("File path is required.");
+      const result = await writeFile(config.hostRootPath, filePath, content || "");
+      return context.json({ ok: true, ...result });
+    } catch (error) { return context.json({ ok: false, error: error.message }, 400); }
+  });
+
+  app.post("/api/v1/files/delete", async (context) => {
+    try {
+      const { path: filePath } = await context.req.json();
+      if (!filePath) throw new Error("File path is required.");
+      const result = await deleteFileOrDir(config.hostRootPath, filePath);
+      return context.json({ ok: true, ...result });
+    } catch (error) { return context.json({ ok: false, error: error.message }, 400); }
+  });
+
+  app.post("/api/v1/files/rename", async (context) => {
+    try {
+      const { from, to } = await context.req.json();
+      if (!from || !to) throw new Error("Source and destination paths are required.");
+      const result = await renameFileOrDir(config.hostRootPath, from, to);
+      return context.json({ ok: true, ...result });
+    } catch (error) { return context.json({ ok: false, error: error.message }, 400); }
+  });
+
+  app.post("/api/v1/files/chmod", async (context) => {
+    try {
+      const { path: filePath, mode } = await context.req.json();
+      if (!filePath) throw new Error("File path is required.");
+      const result = await changeMode(config.hostRootPath, filePath, mode);
       return context.json({ ok: true, ...result });
     } catch (error) { return context.json({ ok: false, error: error.message }, 400); }
   });

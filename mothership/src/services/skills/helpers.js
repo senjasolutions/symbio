@@ -59,3 +59,48 @@ export async function upsertFinding({ models, run, finding, config }) {
   });
   return { finding: newFinding, isNew: true };
 }
+
+/**
+ * Builds a context string of currently open findings for a skill so the LLM
+ * knows what's already been flagged and can reuse existing pattern keys instead
+ * of generating new ones with different keys for the same underlying issue.
+ *
+ * This is a second layer of deduplication before the DB-level pattern match —
+ * the LLM sees what's open and either skips re-reporting or reuses the exact
+ * same pattern key so upsertFinding() can dedup it.
+ *
+ * @param {object} models - Sequelize models map
+ * @param {string} skillKey - The skill's unique key (e.g., "sus-finder")
+ * @param {number} [limit=20] - Max findings to include (token budget)
+ * @returns {Promise<string>} Formatted context string, or empty if no open findings
+ */
+export async function getOpenFindingsContext(models, skillKey, limit = 20) {
+  // Look up the skill ID from the key string first
+  const skill = await models.Skill.findOne({ where: { key: skillKey }, attributes: ["id"] });
+  if (!skill) return "";
+
+  const findings = await models.SkillFinding.findAll({
+    include: [{
+      model: models.SkillRun,
+      as: "skillRun",
+      required: true,
+      attributes: [],
+      where: { skillId: skill.id },
+    }],
+    where: { status: "open" },
+    limit,
+    order: [["lastSeenAt", "DESC"]],
+  });
+
+  if (!findings.length) return "";
+
+  const lines = findings.map((f) => {
+    const desc = (f.description || "").slice(0, 80);
+    return `  - [${f.severity}] ${(f.title || "").slice(0, 100)} (pattern: "${f.pattern || ""}")${desc ? ` — ${desc}` : ""}`;
+  });
+
+  return `\n\n## PREVIOUSLY REPORTED — STILL OPEN (DO NOT REPORT AGAIN)\n` +
+    `These issues are already flagged. If you detect the same underlying problem,\n` +
+    `reuse the EXACT pattern key shown below. For new issues, create UNIQUE patterns.\n\n` +
+    lines.join("\n") + "\n";
+}

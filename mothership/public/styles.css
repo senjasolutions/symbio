@@ -1026,3 +1026,59 @@ code { word-break: break-word; }
   width: 0;
   height: 0;
 }
+
+/* ── File Editor ── */
+
+.file-editor-textarea {
+  width: 100%;
+  min-height: 500px;
+  padding: 1rem;
+  font-family: "SF Mono", "Fira Code", "Consolas", "Liberation Mono", monospace;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  border: none;
+  border-radius: 0;
+  background: #f4f6f9;
+  color: #1a1a2e;
+  resize: vertical;
+  tab-size: 2;
+  outline: none;
+}
+.file-editor-textarea:focus {
+  background: #eef0f4;
+  box-shadow: inset 0 0 0 2px var(--symbio-primary, #216fa8);
+}
+
+/* ── File Manager Actions ── */
+
+.file-actions {
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+.file-row:hover .file-actions {
+  opacity: 1;
+}
+.file-action-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.file-action-input {
+  width: 5rem;
+  font-size: 0.72rem;
+  padding: 0.15rem 0.35rem;
+  height: 1.6rem;
+}
+
+/* ── File Viewer ── */
+
+.file-viewer-pre {
+  max-height: 600px;
+  overflow: auto;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  padding: 1rem;
+  background: #f4f6f9;
+  border-radius: 8px;
+  border: 1px solid #e0e4ea;
+}

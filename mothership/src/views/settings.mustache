@@ -34,7 +34,38 @@
     </form>
   </div>
 </section>
-{{#isSuperadmin}}<section class="card"><div class="card-footer"><form class="mb-0" method="post" action="/setup-wizard/reset"><input type="hidden" name="_csrf" value="{{csrfToken}}"><button class="btn btn-outline-secondary btn-sm" type="submit"><i class="fa-solid fa-wand-magic-sparkles me-1" aria-hidden="true"></i> {{#t}}setupWizard.settingsButton{{/t}}</button></form></div></section>{{/isSuperadmin}}
+
+
+{{#summaryRefreshed}}<div class="alert alert-success"><i class="fa-solid fa-check me-1" aria-hidden="true"></i> {{#t}}settings.summaryRefreshed{{/t}}</div>{{/summaryRefreshed}}
+{{#summaryTtlSaved}}<div class="alert alert-success"><i class="fa-solid fa-check me-1" aria-hidden="true"></i> {{#t}}settings.summaryTtlSaved{{/t}}</div>{{/summaryTtlSaved}}
+<section class="card mb-3">
+  <div class="card-header"><strong><i class="fa-solid fa-robot me-1" aria-hidden="true"></i>{{#t}}settings.summaryTitle{{/t}}</strong></div>
+  <div class="card-body">
+    <form method="post" action="/settings/dashboard/ttl" class="mb-2">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}">
+      <label class="form-label" for="dashboardTtl">{{#t}}settings.summaryTtl{{/t}}</label>
+      <div class="d-flex align-items-center gap-2">
+        <select class="form-select" id="dashboardTtl" name="dashboardTtl" style="max-width:200px;">
+          <option value="3600"{{#dashboardTtl3600}} selected{{/dashboardTtl3600}}>{{#t}}settings.summaryTtl1h{{/t}}</option>
+          <option value="21600"{{#dashboardTtl21600}} selected{{/dashboardTtl21600}}>{{#t}}settings.summaryTtl6h{{/t}}</option>
+          <option value="43200"{{#dashboardTtl43200}} selected{{/dashboardTtl43200}}>{{#t}}settings.summaryTtl12h{{/t}}</option>
+          <option value="86400"{{#dashboardTtl86400}} selected{{/dashboardTtl86400}}>{{#t}}settings.summaryTtl24h{{/t}}</option>
+          <option value="259200"{{#dashboardTtl259200}} selected{{/dashboardTtl259200}}>{{#t}}settings.summaryTtl72h{{/t}}</option>
+        </select>
+        <button class="btn btn-primary btn-sm" type="submit"><i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i> {{#t}}settings.save{{/t}}</button>
+      </div>
+    </form>
+ 
+  </div>
+</section>
+
+{{#isSuperadmin}}<section class="card"><div class="card-footer"><form class="mb-0" method="post" action="/setup-wizard/reset"><input type="hidden" name="_csrf" value="{{csrfToken}}"><button class="btn btn-outline-secondary btn-sm" type="submit"><i class="fa-solid fa-wand-magic-sparkles me-1" aria-hidden="true"></i> {{#t}}setupWizard.settingsButton{{/t}}</button></form></div>
+   <form method="post" action="/settings/dashboard/refresh">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}">
+      <button class="btn btn-outline-secondary btn-sm" type="submit"><i class="fa-solid fa-rotate me-1" aria-hidden="true"></i> {{#t}}settings.summaryRefreshBtn{{/t}}</button>
+   
+    </form>
+</section>{{/isSuperadmin}}
 {{/tabGeneral}}
 
 {{#tabUsers}}
@@ -182,3 +213,4 @@
 <section class="card"><div class="card-body text-secondary"><i class="fa-solid fa-lock me-1" aria-hidden="true"></i> {{#t}}settings.restrictedMessage{{/t}}</div></section>
 {{/isSuperadmin}}
 {{/tabMessaging}}
+

@@ -6,7 +6,7 @@
 import { callSkillAI } from "../llm.service.js";
 import { models } from "../../db/index.js";
 import { executeWithProof } from "./proof.js";
-import { upsertFinding } from "./helpers.js";
+import { upsertFinding, getOpenFindingsContext } from "./helpers.js";
 
 const SKILL_KEY = "storage-maid";
 
@@ -16,6 +16,8 @@ RULES:
 - NEVER suggest deleting files from /etc, /usr, /bin, /sbin, /lib, /boot
 - NEVER suggest removing packages (that is for Package Updater)
 - Safe: truncate log files >100MB, clean apt cache, autoremove unneeded deps, vacuum journalctl
+- Safe: docker.image.prune removes unused Docker images to free disk space
+- If Docker data is provided and reclaimable space exists, suggest docker.prune-images or docker.prune
 
 Keep track of patterns you notice — recurring large files, rapid disk fills, etc. Use the "memory" field to record important observations for future runs.
 
@@ -34,7 +36,7 @@ Respond ONLY with valid JSON:
 const DEPTH_HINTS = {
   light: "Focus only on log files and user home cache. Recommend truncating oversized logs and cleaning journalctl.",
   standard: "Scan logs, apt cache, and temporary files. Recommend truncating logs, cleaning apt cache, autoremove, and vacuuming journalctl.",
-  deep: "Full system sweep — logs, apt cache, temp files, Docker unused images/containers, spool files. Be thorough but never touch system config files.",
+  deep: "Full system sweep — logs, apt cache, temp files, Docker unused images/containers, spool files. Be thorough but never touch system config files. If Docker reclaimable space exists, include docker.prune-images in your suggestions.",
 };
 
 export default {
@@ -53,7 +55,10 @@ export default {
     const depthMinMb = { light: 100, standard: 50, deep: 20 };
     const allDirs = depthDirs[depth] || depthDirs.light;
     const allowedDirs = allDirs.filter((d) => !excludeDirs.some((ex) => d.startsWith(ex)));
-    return agentClient.collectSkillData(["disk"], {
+    // Collect disk data and optionally Docker data at deep depth
+    const types = ["disk"];
+    if (depth === "deep" || config.includeDocker === true) types.push("docker");
+    return agentClient.collectSkillData(types, {
       largeFilesMinMb: depthMinMb[depth],
       largeFilesDirs: allowedDirs.length ? allowedDirs : ["/var/log"],
     });
@@ -65,6 +70,7 @@ export default {
 
   async analyze(collected, llmConfig, config, memory) {
     const disk = collected.disk || {};
+    const docker = collected.docker || {};
     const depth = config.cleanDepth || "light";
     const diskText = [
       `Disks: ${JSON.stringify(disk.disks || [])}`,
@@ -72,13 +78,34 @@ export default {
       `Large files: ${JSON.stringify((disk.largeFiles || []).slice(0, 30))}`,
     ].join("\n");
 
+    // Build Docker context if available
+    let dockerText = "";
+    if (docker.diskUsage && Object.keys(docker.diskUsage).length) {
+      const du = docker.diskUsage;
+      const lines = ["--- Docker Disk Usage ---"];
+      for (const [category, info] of Object.entries(du)) {
+        lines.push(`  ${category}: ${info.active}/${info.total} active, ${info.size} used, ${info.reclaimable} reclaimable`);
+      }
+      if (docker.containers?.length) {
+        const running = docker.containers.filter((c) => c.running).length;
+        const stopped = docker.containers.filter((c) => c.exited).length;
+        const restarting = docker.containers.filter((c) => c.restarting).length;
+        lines.push(`  Containers: ${running} running, ${stopped} stopped, ${restarting} restarting`);
+      }
+      dockerText = "\n\n" + lines.join("\n");
+    }
+
+    // Append open findings context so the LLM reuses patterns for known issues
+    const openContext = await getOpenFindingsContext(models, SKILL_KEY);
+    const dataContent = diskText + dockerText + openContext;
+
     const depthHint = DEPTH_HINTS[depth] || DEPTH_HINTS.light;
     const systemPrompt = BASE_SYSTEM_PROMPT + "\n\n" + depthHint + (memory ? `\n\nMemory from past runs:\n${memory}` : "");
 
     const result = await callSkillAI({
       provider: llmConfig.provider, apiKey: llmConfig.apiKey,
       endpoint: llmConfig.endpoint, model: llmConfig.model,
-      systemPrompt, dataContent: diskText, maxTokens: 1536,
+      systemPrompt, dataContent, maxTokens: 1536,
       language: llmConfig.language, personality: llmConfig.personality,
       customInstruction: llmConfig.customInstruction,
     });

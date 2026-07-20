@@ -5,12 +5,36 @@
  */
 
 import fs from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
 import path from "node:path";
+import { execFile } from "node:child_process";
 
 const HOST_ROOT = "/host/root";
 const NGINX_CONF = "/etc/nginx/nginx.conf";
 const SITES_ENABLED = "/etc/nginx/sites-enabled";
+const SITES_AVAILABLE = "/etc/nginx/sites-available";
 const MODULES_ENABLED = "/etc/nginx/modules-enabled";
+
+/** Runs a command via execFile and returns {status, stdout, stderr}. */
+const runCommand = (cmd, args, timeout = 15000) => new Promise((resolve) => {
+  execFile(cmd, args, { timeout }, (error, stdout, stderr) => {
+    resolve({
+      status: error ? "failed" : "success",
+      stdout: (stdout || "").slice(0, 5000),
+      stderr: (stderr || "").slice(0, 2000),
+      exitCode: error?.code || 0,
+    });
+  });
+});
+
+/** Runs nginx -t and returns validation result. */
+const validateNginxConfig = async () => {
+  const result = await runCommand("nginx", ["-t"]);
+  return { valid: result.status === "success", output: result.stderr || result.stdout };
+};
+
+/** Reloads nginx without dropping connections. */
+const reloadNginx = async () => runCommand("nginx", ["-s", "reload"]);
 
 /**
  * Reads a text file under the host root, returning null on any error.
@@ -167,5 +191,114 @@ export default {
         return c.json({ ok: true, modules: [], sites: [], error: error.message });
       }
     });
+
+     // ── Site management ──
+     // Reads the content of a config file from sites-available or sites-enabled.
+     router.get("/api/v1/services/nginx/read-config", async (c) => {
+       try {
+         const fileName = c.req.query("file");
+         if (!fileName || fileName.includes("/") || fileName.includes("..") || fileName.includes("\0"))
+           return c.json({ ok: false, error: "Invalid file name." }, 400);
+         // Check sites-available first (source), then sites-enabled
+         let content = await readHostFile(path.join(SITES_AVAILABLE, fileName));
+         const source = content ? "sites-available" : null;
+         if (!content) {
+           content = await readHostFile(path.join(SITES_ENABLED, fileName));
+         }
+         if (content === null) return c.json({ ok: false, error: "Config file not found." }, 404);
+         return c.json({ ok: true, file: fileName, source: source || "sites-enabled", content,
+           bytes: Buffer.byteLength(content, "utf8") });
+       } catch (error) {
+         return c.json({ ok: false, error: error.message }, 400);
+       }
+     });
+
+     // Writes a config file to sites-available, validates, and optionally reloads.
+     router.post("/api/v1/services/nginx/write-config", async (c) => {
+       try {
+         const { file, content, reload } = await c.req.json();
+         if (!file || file.includes("/") || file.includes("..") || file.includes("\0"))
+           return c.json({ ok: false, error: "Invalid file name." }, 400);
+         if (typeof content !== "string")
+           return c.json({ ok: false, error: "Content must be a string." }, 400);
+         if (Buffer.byteLength(content, "utf8") > 100 * 1024)
+           return c.json({ ok: false, error: "Content exceeds 100 KB limit." }, 400);
+         // Read previous content for rollback
+         const prevContent = await readHostFile(path.join(SITES_AVAILABLE, file));
+         const targetPath = path.join(HOST_ROOT, SITES_AVAILABLE, file);
+         await fs.writeFile(targetPath, content, "utf8");
+         // Validate
+         const validation = await validateNginxConfig();
+         if (!validation.valid) {
+           // Rollback
+           if (prevContent !== null) await fs.writeFile(targetPath, prevContent, "utf8");
+           else {
+             try { await fs.unlink(targetPath); } catch {}
+           }
+           return c.json({ ok: false, error: `Nginx config validation failed: ${validation.output}` }, 400);
+         }
+         // Reload if requested
+         if (reload) await reloadNginx();
+         return c.json({ ok: true, validated: true, reloaded: !!reload });
+       } catch (error) {
+         return c.json({ ok: false, error: error.message }, 400);
+       }
+     });
+
+     // Enables a site by symlinking from sites-available to sites-enabled.
+     router.post("/api/v1/services/nginx/enable-site", async (c) => {
+       try {
+         const { site } = await c.req.json();
+         if (!site || site.includes("/") || site.includes("..") || site.includes("\0"))
+           return c.json({ ok: false, error: "Invalid site name." }, 400);
+         const availablePath = path.join(HOST_ROOT, SITES_AVAILABLE, site);
+         const enabledPath = path.join(HOST_ROOT, SITES_ENABLED, site);
+         // Check source exists
+         try { await fs.access(availablePath, fsConstants.F_OK); }
+         catch { return c.json({ ok: false, error: `Site config not found in ${SITES_AVAILABLE}.` }, 404); }
+         // Check not already enabled
+         try { await fs.access(enabledPath, fsConstants.F_OK); return c.json({ ok: false, error: "Site is already enabled." }, 400); }
+         catch { /* expected */ }
+         // Create relative symlink
+         await fs.symlink(path.join("..", "sites-available", site), enabledPath);
+         // Validate
+         const validation = await validateNginxConfig();
+         if (!validation.valid) {
+           // Rollback
+           try { await fs.unlink(enabledPath); } catch {}
+           return c.json({ ok: false, error: `Nginx config validation failed after enabling site: ${validation.output}` }, 400);
+         }
+         // Reload
+         await reloadNginx();
+         return c.json({ ok: true, validated: true, reloaded: true });
+       } catch (error) {
+         return c.json({ ok: false, error: error.message }, 400);
+       }
+     });
+
+     // Disables a site by removing the symlink from sites-enabled.
+     router.post("/api/v1/services/nginx/disable-site", async (c) => {
+       try {
+         const { site } = await c.req.json();
+         if (!site || site.includes("/") || site.includes("..") || site.includes("\0"))
+           return c.json({ ok: false, error: "Invalid site name." }, 400);
+         const enabledPath = path.join(HOST_ROOT, SITES_ENABLED, site);
+         // Check it exists
+         try { await fs.access(enabledPath, fsConstants.F_OK); }
+         catch { return c.json({ ok: false, error: "Site is not enabled." }, 404); }
+         // Remove symlink
+         await fs.unlink(enabledPath);
+         // Validate
+         const validation = await validateNginxConfig();
+         if (!validation.valid) {
+           return c.json({ ok: false, error: `Nginx config validation failed after disabling site: ${validation.output}. The site symlink has been removed; fix remaining config issues manually.` }, 400);
+         }
+         // Reload
+         await reloadNginx();
+         return c.json({ ok: true, validated: true, reloaded: true });
+       } catch (error) {
+         return c.json({ ok: false, error: error.message }, 400);
+       }
+     });
   },
 };

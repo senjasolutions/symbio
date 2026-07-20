@@ -6,7 +6,7 @@
 
 import { callSkillAI } from "../llm.service.js";
 import { models } from "../../db/index.js";
-import { upsertFinding } from "./helpers.js";
+import { upsertFinding, getOpenFindingsContext } from "./helpers.js";
 
 const SKILL_KEY = "optimizer";
 
@@ -82,6 +82,10 @@ export default {
       `Installed packages: ${packages.slice(0, 30).map((p) => p.name).join(", ")}`,
     ].join("\n");
 
+    // Append open findings context so the LLM reuses patterns for known issues
+    const openContext = await getOpenFindingsContext(models, SKILL_KEY);
+    const dataContent = dataText + openContext;
+
     const categories = Array.isArray(config?.categories) ? config.categories : [];
     const categoryFilter = categories.length ? `Only suggest optimizations for these categories: ${categories.join(", ")}.` : "";
     const systemPrompt = SYSTEM_PROMPT + (memory ? `\n\nMemory from past runs:\n${memory}` : "") + "\n\n" + categoryFilter;
@@ -89,7 +93,7 @@ export default {
     const result = await callSkillAI({
       provider: llmConfig.provider, apiKey: llmConfig.apiKey,
       endpoint: llmConfig.endpoint, model: llmConfig.model,
-      systemPrompt, dataContent: dataText, maxTokens: 2048,
+      systemPrompt, dataContent, maxTokens: 2048,
       language: llmConfig.language, personality: llmConfig.personality,
       customInstruction: llmConfig.customInstruction,
     });

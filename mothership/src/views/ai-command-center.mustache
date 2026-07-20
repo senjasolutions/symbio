@@ -91,7 +91,7 @@
 </section>
 {{/hasRunningTasks}}
 
-{{#pendingActions}}
+{{#hasPendingActions}}
 <section class="card mt-3">
   <div class="card-header d-flex justify-content-between align-items-center">
     <strong><i class="fa-solid fa-list-check me-1" aria-hidden="true"></i>{{#t}}ai.pendingActions{{/t}}</strong>
@@ -119,7 +119,7 @@
     <a class="btn btn-outline-primary btn-sm" href="/ai/actions">{{#t}}ai.viewAllActions{{/t}} &rarr;</a>
   </div>
 </section>
-{{/pendingActions}}
+{{/hasPendingActions}}
 
 
 <section class="card mt-3">

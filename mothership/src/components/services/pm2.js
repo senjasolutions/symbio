@@ -22,7 +22,14 @@ export default {
     const { fetchPM2Processes } = await import("../../services/pm2.service.js");
     try {
       const data = await fetchPM2Processes();
-      return { processes: data.processes || [], processesError: data.error || "" };
+      return {
+        processes: (data.processes || []).map((p) => ({
+          ...p,
+          online: p.status === "online",
+          stopped: p.status === "stopped",
+        })),
+        processesError: data.error || "",
+      };
     } catch (error) {
       return { processes: [], processesError: error.message };
     }

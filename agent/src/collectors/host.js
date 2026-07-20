@@ -179,10 +179,13 @@ export const collectProcesses = async () => {
     try {
       const comm = (await fs.readFile(path.join(config.procPath, entry.name, "comm"), "utf8")).trim().toLowerCase();
       if (comm) found.add(comm);
-      if (comm === "node") {
-        const command = (await fs.readFile(path.join(config.procPath, entry.name, "cmdline"), "utf8")).toLowerCase();
-        if (command.includes("pm2")) found.add("pm2");
-      }
+      // pm2 sets its process title to "PM2 vX.Y.Z: God" — exact comm won't match "pm2".
+      // Also check cmdline for manager names like pm2 (runs under node, python, etc.).
+      if (comm.startsWith("pm2") || comm.includes("pm2")) found.add("pm2");
+      try {
+        const cmdline = (await fs.readFile(path.join(config.procPath, entry.name, "cmdline"), "utf8")).toLowerCase();
+        if (cmdline.includes("pm2")) found.add("pm2");
+      } catch {}
     } catch {
       // hidepid and normal process races make an unreadable or exited PID non-fatal.
     }

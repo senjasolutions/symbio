@@ -4,8 +4,58 @@
  */
 
 import { execFile } from "node:child_process";
+import http from "node:http";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { getServerInfo, getProcessList, getListeningPorts, getMemoryDetail, getDiskIO, getLoggedInUsers, getInstalledPackages } from "./system.js";
 import { readSystemLog } from "./log-reader.js";
+
+/**
+ * Maps service names to process comm names found in /proc/PID/comm.
+ * Mirrors the mapping in components/services/index.js but kept inline
+ * to avoid coupling the collector to the component registry.
+ */
+const SERVICE_PROCESS_NAMES = {
+  nginx: ["nginx"],
+  apache2: ["apache2", "httpd"],
+  mysql: ["mysqld", "mariadbd"],
+  postgresql: ["postgres"],
+  "redis-server": ["redis-server"],
+  docker: ["dockerd"],
+  pm2: ["pm2"],
+};
+
+/**
+ * Scans /host/proc for running processes by reading each PID's comm file.
+ * Also checks cmdline for processes that may have different comm names
+ * (e.g. pm2 runs as "node" under NVM, or "PM2 v5.2.2: God" as its title).
+ * Returns a Set of normalized process names (lowercase).
+ */
+const scanHostProcesses = async () => {
+  const found = new Set();
+  let entries;
+  try {
+    entries = await fs.readdir("/host/proc", { withFileTypes: true });
+  } catch {
+    return found;
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !/^\d+$/.test(entry.name)) continue;
+    try {
+      const comm = (await fs.readFile(path.join("/host/proc", entry.name, "comm"), "utf8")).trim().toLowerCase();
+      if (!comm) continue;
+      found.add(comm);
+      // pm2 sets its process title to "PM2 vX.Y.Z: God" — the trimmed comm
+      // won't match "pm2" exactly. Also check cmdline for known manager names.
+      if (comm.startsWith("pm2") || comm.includes("pm2")) found.add("pm2");
+      try {
+        const cmdline = (await fs.readFile(path.join("/host/proc", entry.name, "cmdline"), "utf8")).toLowerCase();
+        if (cmdline.includes("pm2")) found.add("pm2");
+      } catch {}
+    } catch {}
+  }
+  return found;
+};
 
 /** Collects requested data types from the host system. */
 export const collectSkillData = async (config, collectTypes, options) => {
@@ -70,17 +120,17 @@ export const collectSkillData = async (config, collectTypes, options) => {
         }
         case "service-status": {
           const services = options.services || [];
+          const processes = await scanHostProcesses();
           result.serviceStatus = { services: [] };
           for (const name of services) {
-            try {
-              const active = await runCollect("systemctl", ["is-active", name], 15000);
-              const proc = await runCollect("pgrep", ["-x", name], 5000);
-              result.serviceStatus.services.push({
-                name,
-                isActive: (active.stdout || "").trim() || "unknown",
-                processDetected: proc ? proc.exitCode === 0 : false,
-              });
-            } catch { result.serviceStatus.services.push({ name, isActive: "unknown", processDetected: false }); }
+            // Check if any known process name for this service is running
+            const procNames = SERVICE_PROCESS_NAMES[name] || [name];
+            const processDetected = procNames.some((p) => processes.has(p));
+            result.serviceStatus.services.push({
+              name,
+              isActive: processDetected ? "active" : "unknown",
+              processDetected,
+            });
           }
           break;
         }
@@ -134,6 +184,10 @@ export const collectSkillData = async (config, collectTypes, options) => {
         case "users":
           result.users = await getLoggedInUsers();
           break;
+        case "docker": {
+          result.docker = await collectDockerData();
+          break;
+        }
       }
     } catch (error) {
       errors[type] = error.message;
@@ -151,6 +205,75 @@ const runCollect = (cmd, args, timeout) => new Promise((resolve) => {
   });
   child.on("error", () => resolve({ stdout: "", stderr: "", exitCode: -1 }));
 });
+
+const DOCKER_SOCKET = "/var/run/docker.sock";
+
+/** Makes a GET request to the Docker engine API over the UNIX socket. */
+const dockerApi = (apiPath) => new Promise((resolve, reject) => {
+  const req = http.get({ socketPath: DOCKER_SOCKET, path: apiPath }, (res) => {
+    let body = "";
+    res.on("data", (chunk) => { body += chunk; });
+    res.on("end", () => {
+      if (res.statusCode < 200 || res.statusCode >= 300) return reject(new Error(`HTTP ${res.statusCode}`));
+      try { resolve(JSON.parse(body)); } catch { reject(new Error("Parse failed")); }
+    });
+  });
+  req.on("error", reject);
+  req.end();
+});
+
+/** Collects Docker container list and disk usage via the Docker API socket. */
+const collectDockerData = async () => {
+  try {
+    const [containersJson, dfJson] = await Promise.all([
+      dockerApi("/containers/json?all=true"),
+      dockerApi("/system/df"),
+    ]);
+
+    // Map Docker API container JSON to the same format parseDockerContainerSummary expects
+    const containers = (containersJson || []).map((c) => {
+      const name = c.Names && c.Names[0] ? c.Names[0].replace(/^\//, "") : "";
+      const running = c.State === "running";
+      const exited = c.State === "exited";
+      const restarting = c.State === "restarting";
+      return { name, status: (c.Status || "").slice(0, 80), running, exited, restarting };
+    });
+
+    // Map Docker API system/df JSON to the same format parseDockerDf expects
+    const diskUsage = {};
+    if (dfJson) {
+      const categories = [
+        { key: "images", total: dfJson.Images, label: "Images" },
+        { key: "containers", total: dfJson.Containers, label: "Containers" },
+        { key: "volumes", total: dfJson.Volumes, label: "Local Volumes" },
+        { key: "build_cache", total: dfJson.BuildCache, label: "Build Cache" },
+      ];
+      for (const cat of categories) {
+        if (cat.total) {
+          diskUsage[cat.key] = {
+            total: cat.total.TotalCount || 0,
+            active: cat.total.ActiveCount || 0,
+            size: cat.total.Size ? formatDockerBytes(cat.total.Size) : "0B",
+            reclaimable: cat.total.ReclaimableSize ? formatDockerBytes(cat.total.ReclaimableSize) : "0B",
+          };
+        }
+      }
+    }
+
+    return { containers, diskUsage };
+  } catch {
+    return { containers: [], diskUsage: {} };
+  }
+};
+
+/** Formats a byte count from Docker API into a human-readable string. */
+const formatDockerBytes = (bytes) => {
+  if (bytes == null) return "0B";
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(0)}KB`;
+  if (bytes < 1073741824) return `${(bytes / 1048576).toFixed(0)}MB`;
+  return `${(bytes / 1073741824).toFixed(2)}GB`;
+};
 
 /** Parses `apt list --upgradable` output into structured objects. */
 const parsePackageUpdates = (text) => {
@@ -197,3 +320,5 @@ const parseLargeFiles = (text) => {
   }
   return files;
 };
+
+/** Parses `find -printf` output into structured file objects. */

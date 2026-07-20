@@ -1,4 +1,4 @@
-/** Agent SQLite stores only cached configuration and a bounded retry outbox. */
+/** Agent SQLite stores cached configuration, a bounded retry outbox, and command audit logs. */
 
 import { Sequelize, DataTypes } from "sequelize";
 import { config } from "./config.js";
@@ -43,6 +43,31 @@ export const connectAgentDatabase = async () => {
       )`, { transaction });
       await sequelize.query("CREATE INDEX idx_outbox_created ON outbox_reports(created_at)", { transaction });
       await sequelize.query("INSERT INTO schema_migrations (version, applied_at) VALUES (1, ?)", {
+        replacements: [new Date().toISOString()], transaction,
+      });
+    });
+  }
+
+  // Migration 2: command_audit_log table (added in Phase 1 command framework)
+  const [v2rows] = await sequelize.query("SELECT version FROM schema_migrations WHERE version = 2");
+  if (!v2rows.length) {
+    await sequelize.transaction(async (transaction) => {
+      await sequelize.query(`CREATE TABLE IF NOT EXISTS command_audit_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        action_type TEXT NOT NULL,
+        parameters TEXT DEFAULT '{}',
+        command TEXT NOT NULL DEFAULT '',
+        stdout_snippet TEXT DEFAULT '',
+        stderr_snippet TEXT DEFAULT '',
+        exit_code INTEGER DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'success',
+        execution_time_ms INTEGER DEFAULT 0,
+        triggered_by TEXT DEFAULT 'skill',
+        created_at DATETIME NOT NULL
+      )`, { transaction });
+      await sequelize.query("CREATE INDEX IF NOT EXISTS idx_audit_created ON command_audit_log(created_at)", { transaction });
+      await sequelize.query("CREATE INDEX IF NOT EXISTS idx_audit_type ON command_audit_log(action_type)", { transaction });
+      await sequelize.query("INSERT INTO schema_migrations (version, applied_at) VALUES (2, ?)", {
         replacements: [new Date().toISOString()], transaction,
       });
     });

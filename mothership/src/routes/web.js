@@ -5,6 +5,7 @@
 
 import { Hono } from "hono";
 import { Op, QueryTypes } from "sequelize";
+import fs from "node:fs";
 import { createSession, destroySession, requireApiAuth, requireAuth, requireCsrf, resolveSession } from "../lib/auth.js";
 import { bucketSeries, chartRange, renderLineChart } from "../lib/charts.js";
 import { formatBytes, formatPercent, formatUptime, rollingAverage } from "../lib/format.js";
@@ -31,8 +32,10 @@ const modelLogo = (model) => {
   return null;
 };
 import { models, sequelize } from "../db/index.js";
+import { config } from "../config.js";
 import { readApplicationLog, searchApplicationLog } from "../services/agent-log.service.js";
 import { listDirectory, readFile, getDirectoryTree, viewFile } from "../services/file-manager.service.js";
+import { createEntry, writeFile as writeFileService, deleteEntry, renameEntry, changeMode } from "../services/file-manager.service.js";
 import { fetchServerInfo, fetchProcessList, fetchListeningPorts, fetchMemoryDetail, fetchDiskIO, fetchLoggedInUsers, fetchInstalledPackages } from "../services/system.service.js";
 import { serviceRegistry } from "../components/services/index.js";
 import { readSystemLog, searchSystemLog } from "../services/system-log.service.js";
@@ -40,6 +43,7 @@ import { readMothershipLog, searchMothershipLog, readAgentLog, searchAgentLog } 
 import { askAI, checkBalance, discoverApplications, buildDiscoveryContext, buildSystemPrompt, PROVIDER_MODELS } from "../services/llm.service.js";
 import { executeSkillActions } from "../services/agent-client.js";
 import { executeWithProof } from "../services/skills/proof.js";
+import { buildCommands, generateDisplayId, generateExplanation, reviseCommands } from "../services/skills/execution-request.js";
 
 const router = new Hono();
 const LOG_TAIL_LIMITS = [50, 100, 200, 500, 1000];
@@ -569,7 +573,7 @@ protectedRoutes.get("/dashboard", async (context) => {
         logContent: contextStr,
         language: llmConfig.language, personality: llmConfig.personality,
         customInstruction: llmConfig.customInstruction,
-        question: "Write a short server health summary (2-3 sentences). Mention any warnings or pending actions. Add one practical maintenance tip. Be concise.",
+        question: "Write a short server health summary as a single paragraph (2-3 sentences, no headings). Mention any warnings or pending actions. Add one practical maintenance tip. Be concise.",
       });
       if (result.content) {
         const contentHtml = renderMarkdown(result.content);
@@ -1019,6 +1023,24 @@ protectedRoutes.get("/servers/:id/processes", async (context) => {
   }, { title: "Process List — Symbio" });
 });
 
+/** Kills a process on the server. Requires CSRF for security. */
+protectedRoutes.post("/servers/:id/processes/kill", requireCsrf, async (context) => {
+  const server = await models.Server.findByPk(context.req.param("id"));
+  if (!server) return context.notFound();
+  const form = context.get("form");
+  const pid = parseInt(String(form.pid), 10);
+  const force = String(form.force) === "1";
+  const query = String(form.q || "");
+  const page = String(form.page || "1");
+  const actionType = force ? "process.kill-force" : "process.kill";
+  try {
+    await executeSkillActions([{ action: actionType, params: { pid } }]);
+    return context.redirect(`/servers/${server.id}/processes?page=${page}${query ? `&q=${encodeURIComponent(query)}` : ""}&killed=1`);
+  } catch (caught) {
+    return context.redirect(`/servers/${server.id}/processes?page=${page}${query ? `&q=${encodeURIComponent(query)}` : ""}&error=${encodeURIComponent(caught.message)}`);
+  }
+});
+
 protectedRoutes.get("/servers/:id/ports", async (context) => {
   const server = await resolveServer(context.req.param("id"));
   if (!server) return context.notFound();
@@ -1218,12 +1240,124 @@ protectedRoutes.get("/servers/:id/file-manager/view", async (context) => {
   }, { title: `${fileName} — File Viewer — Symbio` });
 });
 
+// ── File Manager Write Operations ──
+
+protectedRoutes.post("/servers/:id/file-manager/create", requireCsrf, async (context) => {
+  const server = await models.Server.findByPk(context.req.param("id"));
+  if (!server) return context.notFound();
+  const form = context.get("form");
+  const currentPath = String(context.req.query("path") || form.path || "/");
+  const name = String(form.name || "").trim();
+  const type = String(form.type || "file");
+  if (!name) return context.redirect(`/servers/${server.id}/file-manager?path=${encodeURIComponent(currentPath)}&error=${encodeURIComponent("Name is required.")}`);
+  try {
+    await createEntry(currentPath, name, type);
+    return context.redirect(`/servers/${server.id}/file-manager?path=${encodeURIComponent(currentPath)}&created=1`);
+  } catch (caught) {
+    return context.redirect(`/servers/${server.id}/file-manager?path=${encodeURIComponent(currentPath)}&error=${encodeURIComponent(caught.message)}`);
+  }
+});
+
+protectedRoutes.post("/servers/:id/file-manager/delete", requireCsrf, async (context) => {
+  const server = await models.Server.findByPk(context.req.param("id"));
+  if (!server) return context.notFound();
+  const form = context.get("form");
+  const filePath = String(form.path || "");
+  const parentDir = String(context.req.query("path") || "/");
+  if (!filePath) return context.redirect(`/servers/${server.id}/file-manager?path=${encodeURIComponent(parentDir)}&error=${encodeURIComponent("Path is required.")}`);
+  try {
+    await deleteEntry(filePath);
+    return context.redirect(`/servers/${server.id}/file-manager?path=${encodeURIComponent(parentDir)}&deleted=1`);
+  } catch (caught) {
+    return context.redirect(`/servers/${server.id}/file-manager?path=${encodeURIComponent(parentDir)}&error=${encodeURIComponent(caught.message)}`);
+  }
+});
+
+protectedRoutes.post("/servers/:id/file-manager/rename", requireCsrf, async (context) => {
+  const server = await models.Server.findByPk(context.req.param("id"));
+  if (!server) return context.notFound();
+  const form = context.get("form");
+  const fromPath = String(form.from || "");
+  const toName = String(form.to || "").trim();
+  const currentPath = String(context.req.query("path") || "/");
+  if (!fromPath || !toName) return context.redirect(`/servers/${server.id}/file-manager?path=${encodeURIComponent(currentPath)}&error=${encodeURIComponent("Source and new name are required.")}`);
+  const toDir = fromPath.includes("/") ? fromPath.split("/").slice(0, -1).join("/") : "/";
+  const toPath = toDir === "/" ? `/${toName}` : `${toDir}/${toName}`;
+  try {
+    await renameEntry(fromPath, toPath);
+    return context.redirect(`/servers/${server.id}/file-manager?path=${encodeURIComponent(currentPath)}&renamed=1`);
+  } catch (caught) {
+    return context.redirect(`/servers/${server.id}/file-manager?path=${encodeURIComponent(currentPath)}&error=${encodeURIComponent(caught.message)}`);
+  }
+});
+
+protectedRoutes.post("/servers/:id/file-manager/chmod", requireCsrf, async (context) => {
+  const server = await models.Server.findByPk(context.req.param("id"));
+  if (!server) return context.notFound();
+  const form = context.get("form");
+  const filePath = String(form.path || "");
+  const mode = String(form.mode || "").trim();
+  const currentPath = String(context.req.query("path") || "/");
+  try {
+    await changeMode(filePath, mode);
+    return context.redirect(`/servers/${server.id}/file-manager?path=${encodeURIComponent(currentPath)}&chmod=1`);
+  } catch (caught) {
+    return context.redirect(`/servers/${server.id}/file-manager?path=${encodeURIComponent(currentPath)}&error=${encodeURIComponent(caught.message)}`);
+  }
+});
+
+// File Editor — GET renders file content in a textarea, POST saves it.
+protectedRoutes.get("/servers/:id/file-manager/edit", async (context) => {
+  const server = await models.Server.findByPk(context.req.param("id"));
+  if (!server) return context.notFound();
+  const filePath = context.req.query("path");
+  if (!filePath) return context.redirect(`/servers/${server.id}/file-manager`);
+  let content = ""; let error = ""; let bytes = 0;
+  try {
+    const result = await viewFile(filePath);
+    content = result.text || "";
+    bytes = result.bytes || 0;
+  } catch (caught) { error = caught.message; }
+  // Read raw content via read endpoint too for editing (viewFile has 100KB limit but binary check)
+  const fileName = filePath.split("/").pop() || filePath;
+  const parentDir = filePath.includes("/") ? filePath.split("/").slice(0, -1).join("/") : "/";
+  return renderPage(context, "server-file-editor", {
+    server: server.toJSON(), filePath, fileName, parentDir, content, bytes, error,
+    readOnly: !!error,
+  }, { title: `Edit ${fileName} — Symbio` });
+});
+
+protectedRoutes.post("/servers/:id/file-manager/edit", requireCsrf, async (context) => {
+  const server = await models.Server.findByPk(context.req.param("id"));
+  if (!server) return context.notFound();
+  const body = await context.req.parseBody();
+  const filePath = String(body.path || "");
+  const content = String(body.content || "");
+  const parentDir = filePath.includes("/") ? filePath.split("/").slice(0, -1).join("/") : "/";
+  try {
+    await writeFileService(filePath, content);
+    return context.redirect(`/servers/${server.id}/file-manager?path=${encodeURIComponent(parentDir)}&saved=1`);
+  } catch (caught) {
+    const fileName = filePath.split("/").pop() || filePath;
+    return renderPage(context, "server-file-editor", {
+      server: server.toJSON(), filePath, fileName, parentDir, content, bytes: Buffer.byteLength(content, "utf8"),
+      error: caught.message, readOnly: false,
+    }, { title: `Edit ${fileName} — Symbio` });
+  }
+});
+
+// ── Services — File View (existing) ──
+
 protectedRoutes.get("/servers/:serverId/services", async (context) => {
   const server = await models.Server.findByPk(context.req.param("serverId"));
   if (!server) return context.notFound();
+  const services = decorateStatuses(await loadServices({ serverId: server.id })).map((s) => ({
+    ...s,
+    // Only nginx, apache, docker, pm2, redis support restart. MySQL/Postgres stay read-only.
+    supportsRestart: ["nginx", "apache", "docker", "pm2", "redis"].includes(s.type),
+  }));
   return renderPage(context, "services-list", {
-    serverId: server.id,
-    services: decorateStatuses(await loadServices({ serverId: server.id })),
+    serverId: server.id, services,
   }, { title: "Services — Symbio" });
 });
 
@@ -1321,6 +1455,185 @@ protectedRoutes.post("/servers/:serverId/services/:serviceId/edit", requireCsrf,
     return context.redirect(`/servers/${server.id}/services/${service.id}`);
   } catch (error) {
     return context.redirect(`/servers/${server.id}/services/${service.id}/edit?error=${encodeURIComponent(error.message)}`);
+  }
+});
+
+// ── Service Actions (Start / Stop / Restart / Reload) ──
+
+/** Helper: calls the agent bridge directly for nginx/apache-specific endpoints. */
+const serviceBridgeFetch = async (path, method = "GET", body = null) => {
+  const response = await fetch(`${config.agentBridgeUrl}${path}`, {
+    method,
+    headers: { authorization: `Bearer ${config.agentToken}`, "content-type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(30_000),
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || !payload?.ok) throw new Error(payload?.error || "Service request failed.");
+  return payload;
+};
+
+/** Generic service restart — executes systemctl.restart via the agent bridge. */
+protectedRoutes.post("/servers/:serverId/services/:serviceId/restart", requireCsrf, async (context) => {
+  const server = await models.Server.findByPk(context.req.param("serverId"));
+  if (!server) return context.notFound();
+  const service = await models.ServerService.findByPk(context.req.param("serviceId"));
+  if (!service || service.serverId !== server.id) return context.notFound();
+  try {
+    // Map service type to the systemd service name
+    const serviceName = service.type === "nginx" ? "nginx"
+      : service.type === "apache" ? "apache2"
+      : service.type === "docker" ? "docker"
+      : service.type === "mysql" ? "mysql"
+      : service.type === "postgresql" ? "postgresql"
+      : service.type === "redis" ? "redis-server"
+      : service.type === "pm2" ? null
+      : service.type;
+    if (serviceName) {
+      await executeSkillActions([{ action: "systemctl.restart", params: { service: serviceName } }]);
+    }
+    return context.redirect(`/servers/${server.id}/services/${service.id}?restarted=1`);
+  } catch (caught) {
+    return context.redirect(`/servers/${server.id}/services/${service.id}?error=${encodeURIComponent(caught.message)}`);
+  }
+});
+
+// ── Docker Container Actions ──
+
+protectedRoutes.post("/servers/:serverId/services/:serviceId/docker/container/:containerId/action", requireCsrf, async (context) => {
+  const server = await models.Server.findByPk(context.req.param("serverId"));
+  if (!server) return context.notFound();
+  const service = await models.ServerService.findByPk(context.req.param("serviceId"));
+  if (!service || service.type !== "docker" || service.serverId !== server.id) return context.notFound();
+  const form = context.get("form");
+  const action = String(form.action || "");
+  const container = String(form.container || "");
+  const allowed = new Set(["start", "stop", "restart", "remove"]);
+  if (!allowed.has(action)) return context.redirect(`/servers/${server.id}/services/${service.id}?error=${encodeURIComponent("Invalid action.")}`);
+  try {
+    const actionType = action === "remove" ? "docker.remove" : `docker.${action}`;
+    await executeSkillActions([{ action: actionType, params: { container } }]);
+    return context.redirect(`/servers/${server.id}/services/${service.id}?action=ok`);
+  } catch (caught) {
+    return context.redirect(`/servers/${server.id}/services/${service.id}?error=${encodeURIComponent(caught.message)}`);
+  }
+});
+
+// ── Docker Volume / Prune Actions ──
+
+protectedRoutes.post("/servers/:serverId/services/:serviceId/docker/volume/:name/remove", requireCsrf, async (context) => {
+  const server = await models.Server.findByPk(context.req.param("serverId"));
+  if (!server) return context.notFound();
+  const service = await models.ServerService.findByPk(context.req.param("serviceId"));
+  if (!service || service.type !== "docker" || service.serverId !== server.id) return context.notFound();
+  const volume = context.req.param("name");
+  try {
+    await executeSkillActions([{ action: "docker.remove-volume", params: { volume } }]);
+    return context.redirect(`/servers/${server.id}/services/${service.id}?tab=volumes&action=ok`);
+  } catch (caught) {
+    return context.redirect(`/servers/${server.id}/services/${service.id}?tab=volumes&error=${encodeURIComponent(caught.message)}`);
+  }
+});
+
+protectedRoutes.post("/servers/:serverId/services/:serviceId/docker/prune", requireCsrf, async (context) => {
+  const server = await models.Server.findByPk(context.req.param("serverId"));
+  if (!server) return context.notFound();
+  const service = await models.ServerService.findByPk(context.req.param("serviceId"));
+  if (!service || service.type !== "docker" || service.serverId !== server.id) return context.notFound();
+  const form = context.get("form");
+  const pruneType = String(form.type || "system");
+  const actionMap = { system: "docker.prune", images: "docker.prune-images", volumes: "docker.prune-volumes" };
+  const actionType = actionMap[pruneType];
+  if (!actionType) return context.redirect(`/servers/${server.id}/services/${service.id}?error=${encodeURIComponent("Invalid prune type.")}`);
+  try {
+    await executeSkillActions([{ action: actionType, params: {} }]);
+    return context.redirect(`/servers/${server.id}/services/${service.id}?action=ok`);
+  } catch (caught) {
+    return context.redirect(`/servers/${server.id}/services/${service.id}?error=${encodeURIComponent(caught.message)}`);
+  }
+});
+
+// ── PM2 Process Actions ──
+
+protectedRoutes.post("/servers/:serverId/services/:serviceId/pm2/process/action", requireCsrf, async (context) => {
+  const server = await models.Server.findByPk(context.req.param("serverId"));
+  if (!server) return context.notFound();
+  const service = await models.ServerService.findByPk(context.req.param("serviceId"));
+  if (!service || service.type !== "pm2" || service.serverId !== server.id) return context.notFound();
+  const form = context.get("form");
+  const action = String(form.action || "");
+  const name = String(form.name || "");
+  const allowed = new Set(["start", "stop", "restart", "delete"]);
+  if (!allowed.has(action) || !name) return context.redirect(`/servers/${server.id}/services/${service.id}?error=${encodeURIComponent("Invalid PM2 action.")}`);
+  try {
+    await executeSkillActions([{ action: `pm2.${action}`, params: { name } }]);
+    return context.redirect(`/servers/${server.id}/services/${service.id}?action=ok`);
+  } catch (caught) {
+    return context.redirect(`/servers/${server.id}/services/${service.id}?error=${encodeURIComponent(caught.message)}`);
+  }
+});
+
+// ── Nginx Site Management ──
+
+protectedRoutes.post("/servers/:serverId/services/:serviceId/nginx/enable-site", requireCsrf, async (context) => {
+  const server = await models.Server.findByPk(context.req.param("serverId"));
+  if (!server) return context.notFound();
+  const service = await models.ServerService.findByPk(context.req.param("serviceId"));
+  if (!service || service.type !== "nginx" || service.serverId !== server.id) return context.notFound();
+  const form = context.get("form");
+  const site = String(form.site || "");
+  try {
+    await serviceBridgeFetch("/api/v1/services/nginx/enable-site", "POST", { site });
+    return context.redirect(`/servers/${server.id}/services/${service.id}?action=ok`);
+  } catch (caught) {
+    return context.redirect(`/servers/${server.id}/services/${service.id}?error=${encodeURIComponent(caught.message)}`);
+  }
+});
+
+protectedRoutes.post("/servers/:serverId/services/:serviceId/nginx/disable-site", requireCsrf, async (context) => {
+  const server = await models.Server.findByPk(context.req.param("serverId"));
+  if (!server) return context.notFound();
+  const service = await models.ServerService.findByPk(context.req.param("serviceId"));
+  if (!service || service.type !== "nginx" || service.serverId !== server.id) return context.notFound();
+  const form = context.get("form");
+  const site = String(form.site || "");
+  try {
+    await serviceBridgeFetch("/api/v1/services/nginx/disable-site", "POST", { site });
+    return context.redirect(`/servers/${server.id}/services/${service.id}?action=ok`);
+  } catch (caught) {
+    return context.redirect(`/servers/${server.id}/services/${service.id}?error=${encodeURIComponent(caught.message)}`);
+  }
+});
+
+// ── Apache Site Management ──
+
+protectedRoutes.post("/servers/:serverId/services/:serviceId/apache/enable-site", requireCsrf, async (context) => {
+  const server = await models.Server.findByPk(context.req.param("serverId"));
+  if (!server) return context.notFound();
+  const service = await models.ServerService.findByPk(context.req.param("serviceId"));
+  if (!service || service.type !== "apache" || service.serverId !== server.id) return context.notFound();
+  const form = context.get("form");
+  const site = String(form.site || "");
+  try {
+    await serviceBridgeFetch("/api/v1/services/apache/enable-site", "POST", { site });
+    return context.redirect(`/servers/${server.id}/services/${service.id}?action=ok`);
+  } catch (caught) {
+    return context.redirect(`/servers/${server.id}/services/${service.id}?error=${encodeURIComponent(caught.message)}`);
+  }
+});
+
+protectedRoutes.post("/servers/:serverId/services/:serviceId/apache/disable-site", requireCsrf, async (context) => {
+  const server = await models.Server.findByPk(context.req.param("serverId"));
+  if (!server) return context.notFound();
+  const service = await models.ServerService.findByPk(context.req.param("serviceId"));
+  if (!service || service.type !== "apache" || service.serverId !== server.id) return context.notFound();
+  const form = context.get("form");
+  const site = String(form.site || "");
+  try {
+    await serviceBridgeFetch("/api/v1/services/apache/disable-site", "POST", { site });
+    return context.redirect(`/servers/${server.id}/services/${service.id}?action=ok`);
+  } catch (caught) {
+    return context.redirect(`/servers/${server.id}/services/${service.id}?error=${encodeURIComponent(caught.message)}`);
   }
 });
 
@@ -2044,6 +2357,12 @@ protectedRoutes.get("/settings", async (context) => {
     const themeRow = await models.Setting.findByPk("theme");
     if (themeRow) currentTheme = themeRow.value || "blue";
   } catch {}
+  // Read dashboard summary TTL setting
+  let dashboardTtl = 86400;
+  try {
+    const ttlRow = await models.Setting.findByPk("dashboard_summary_ttl");
+    if (ttlRow) dashboardTtl = parseInt(ttlRow.value) || 86400;
+  } catch {}
   return renderPage(context, "settings", {
     serverTimezone,
     users: usersDecorated,
@@ -2064,6 +2383,14 @@ protectedRoutes.get("/settings", async (context) => {
     messagingError: tab === "messaging" ? (context.req.query("error") || "") : "",
     themeChoices: THEME_CHOICES.map((c) => ({ ...c, selected: c.code === currentTheme })),
     themeSaved: tab === "general" && context.req.query("themeSaved") === "1",
+    dashboardTtl,
+    dashboardTtl3600: dashboardTtl === 3600,
+    dashboardTtl21600: dashboardTtl === 21600,
+    dashboardTtl43200: dashboardTtl === 43200,
+    dashboardTtl86400: dashboardTtl === 86400,
+    dashboardTtl259200: dashboardTtl === 259200,
+    summaryRefreshed: tab === "general" && context.req.query("refreshed") === "1",
+    summaryTtlSaved: tab === "general" && context.req.query("ttlSaved") === "1",
   }, { title: "Settings — Symbio" });
 });
 
@@ -2076,6 +2403,22 @@ protectedRoutes.post("/settings/theme", requireCsrf, async (context) => {
     await models.Setting.upsert({ key: "theme", value: theme, updatedAt: new Date() });
   }
   return context.redirect("/settings?tab=general&themeSaved=1");
+});
+
+/** Deletes the cached dashboard summary so it regenerates on next dashboard page load. */
+protectedRoutes.post("/settings/dashboard/refresh", requireCsrf, async (context) => {
+  try {
+    await models.Setting.destroy({ where: { key: "dashboard_summary" } });
+  } catch {}
+  return context.redirect("/settings?tab=general&refreshed=1");
+});
+
+/** Saves the dashboard summary cache TTL (in seconds). */
+protectedRoutes.post("/settings/dashboard/ttl", requireCsrf, async (context) => {
+  const form = context.get("form");
+  const ttl = Math.max(60, parseInt(form.dashboardTtl) || 86400);
+  await models.Setting.upsert({ key: "dashboard_summary_ttl", value: String(ttl), updatedAt: new Date() });
+  return context.redirect("/settings?tab=general&ttlSaved=1");
 });
 
 /** Creates a new admin user. Superadmin only. */
@@ -2206,6 +2549,7 @@ protectedRoutes.get("/setup-wizard", async (context) => {
   if (state.completed && !context.req.query("step")) return context.redirect("/dashboard");
   const explicitStep = parseInt(context.req.query("step"));
   if (context.req.query("step") === "skip3") {
+    await writeWizardState({ completed: true, step: 3 });
     return context.redirect("/dashboard");
   }
   const step = (explicitStep === 1 || explicitStep === 2 || explicitStep === 3) ? explicitStep : (state.step || 1);
@@ -2818,6 +3162,8 @@ const decorateRuleForm = (rule) => {
     statusCheckedDegraded: !!statusChecked.degraded,
     statusCheckedUnavailable: !!statusChecked.unavailable,
     statusCheckedNotDetected: !!statusChecked.not_detected,
+    healSkillKey: rule.healSkillKey || "",
+    hasHeal: rule.healSkillKey === "storage-maid",
   };
 };
 
@@ -2943,6 +3289,7 @@ protectedRoutes.get("/alerts/rules/create", async (context) => {
     channels: channels.map(c => ({ ...c, checked: false })),
     applications: applications.map(a => ({ ...a, selected: false })),
     services: services.map(s => ({ ...s, selected: false })),
+    healSkillExists: true,
     error: context.req.query("error") || "",
   }, { titleKey: "alerts.createRule" });
 });
@@ -2988,6 +3335,7 @@ protectedRoutes.post("/alerts/rules/create", requireCsrf, async (context) => {
       diagnosticEnabled: isStatusType || resource === "network" ? false : (form.diagnosticEnabled === "1"),
       targetId: isStatusType ? (parseInt(form.targetId) || null) : null,
       statusMatch: JSON.stringify(statusMatch),
+      healSkillKey: String(form.healSkillKey || "").trim() || null,
     });
     return context.redirect("/alerts?saved=1");
   } catch (error) {
@@ -3017,6 +3365,7 @@ protectedRoutes.get("/alerts/rules/:id/edit", async (context) => {
     channels: channels.map(c => ({ ...c, checked: selectedIds.includes(c.id) })),
     applications: applications.map(a => ({ ...a, selected: a.id === rule.targetId })),
     services: services.map(s => ({ ...s, selected: s.id === rule.targetId })),
+    healSkillExists: true,
     error: context.req.query("error") || "",
   }, { titleKey: "alerts.editRule" });
 });
@@ -3061,6 +3410,7 @@ protectedRoutes.post("/alerts/rules/:id/edit", requireCsrf, async (context) => {
       diagnosticEnabled: isStatusType || resource === "network" ? false : (form.diagnosticEnabled === "1"),
       targetId: isStatusType ? (parseInt(form.targetId) || null) : null,
       statusMatch: JSON.stringify(statusMatch),
+      healSkillKey: String(form.healSkillKey || "").trim() || null,
     });
     return context.redirect("/alerts?saved=1");
   } catch (error) {
@@ -3248,6 +3598,7 @@ protectedRoutes.get("/ai/command-center", async (context) => {
       errorMessage: r.errorMessage ? r.errorMessage.slice(0, 200) : "",
     })),
     pendingActions: pendingActions.slice(0, 5),
+    hasPendingActions: pendingActions.length > 0,
   }, { title: "Command Center — Symbio" });
 });
 
@@ -3337,6 +3688,17 @@ protectedRoutes.post("/ai/command-center/:key/toggle", requireCsrf, async (conte
 /** Pending Actions page — browse and manage all skill actions requiring approval. */
 protectedRoutes.get("/ai/actions", async (context) => {
   const pendingActions = await loadPendingActions();
+  const page = Math.max(1, parseInt(context.req.query("page")) || 1);
+  const perPage = 50;
+
+  // Count total history rows for pagination
+  const [[{ total }]] = await sequelize.query(`
+    SELECT COUNT(*) as total FROM skill_actions
+    WHERE status IN ('executed','rejected','done','acknowledged')
+  `);
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const offset = (page - 1) * perPage;
+
   const [history] = await sequelize.query(`
     SELECT sa.*, s.name as skill_name, s.icon as skill_icon, s.key as skill_key,
            sf.title as finding_title, sf.description as finding_description
@@ -3346,7 +3708,7 @@ protectedRoutes.get("/ai/actions", async (context) => {
     LEFT JOIN skill_findings sf ON sa.finding_id = sf.id
     WHERE sa.status IN ('executed','rejected','done','acknowledged')
     ORDER BY sa.created_at DESC
-    LIMIT 50
+    LIMIT ${perPage} OFFSET ${offset}
   `);
   return renderPage(context, "ai-actions", {
     pendingActions, pendingCount: pendingActions.length,
@@ -3360,7 +3722,265 @@ protectedRoutes.get("/ai/actions", async (context) => {
     markedDone: context.req.query("done") === "1",
     acknowledged: context.req.query("acknowledged") === "1",
     handled: context.req.query("handled") === "1",
+    // Pagination
+    page, totalPages, hasPrev: page > 1, hasNext: page < totalPages,
+    prevPage: page - 1, nextPage: page + 1,
+    historyCount: history.length,
   }, { title: "Pending Actions — Symbio" });
+});
+
+/** Action detail page — shows full proof (before/after/diff), parameters, and metadata. */
+protectedRoutes.get("/ai/actions/:id", async (context) => {
+  const action = await models.SkillAction.findByPk(context.req.param("id"), { raw: true });
+  if (!action) return context.notFound();
+  const finding = action.findingId ? await models.SkillFinding.findByPk(action.findingId, { raw: true }) : null;
+  const run = await models.SkillRun.findByPk(action.skillRunId, { raw: true });
+  const skill = run ? await models.Skill.findByPk(run.skillId, { raw: true }) : null;
+
+  let result = {};
+  let params = {};
+  try { result = JSON.parse(action.result || "{}"); } catch {}
+  try { params = JSON.parse(action.parameters || "{}"); } catch {}
+
+  const hasProof = !!(result.beforeSummary && result.afterSummary);
+  const skillName = skill?.name || "Unknown";
+  const skillIcon = skill?.icon || "fa-solid fa-gear";
+  const skillIconImg = skill?.icon && !skill.icon.startsWith("fa-");
+  const created = action.created_at || action.createdAt;
+  const executedAt = action.executed_at || action.executedAt;
+
+  const statusBadge = action.status === "executed" ? "text-bg-success"
+    : action.status === "rejected" ? "text-bg-secondary"
+    : action.status === "acknowledged" ? "text-bg-info"
+    : "text-bg-info";
+
+  return renderPage(context, "ai-action-detail", {
+    actionId: action.id,
+    actionType: action.action_type || action.actionType,
+    actionTarget: action.target || "",
+    status: action.status,
+    statusBadge,
+    skillName, skillIcon, skillIconImg,
+    findingTitle: finding?.title || "",
+    findingDesc: finding?.description || "",
+    findingSeverity: finding?.severity || "",
+    findingPattern: finding?.pattern || "",
+    severityBadge: finding?.severity === "critical" ? "text-bg-danger" : finding?.severity === "warning" ? "text-bg-warning" : "text-bg-info",
+    hasProof,
+    beforeSummary: result.beforeSummary || "",
+    afterSummary: result.afterSummary || "",
+    diff: result.diff || "",
+    error: result.error || "",
+    paramsJson: Object.keys(params).length ? JSON.stringify(params, null, 2) : null,
+    createdAt: created ? new Date(created).toLocaleString() : "—",
+    executedAt: executedAt ? new Date(executedAt).toLocaleString() : null,
+    approvedBy: action.approved_by || action.approvedBy || null,
+  }, { title: "Action Detail — Symbio" });
+});
+
+/**
+ * Execution Request confirmation page — shows exact commands, AI explanation,
+ * risk level, and affected systems before the user confirms execution.
+ * Maximum user assurance — second layer of hallucination protection.
+ */
+protectedRoutes.get("/ai/actions/:id/execute", async (context) => {
+  const action = await models.SkillAction.findByPk(context.req.param("id"));
+  if (!action) return context.redirect("/ai/actions");
+
+  // Check if this is an executable skill
+  const run = await models.SkillRun.findByPk(action.skillRunId, { raw: true });
+  const skill = run ? await models.Skill.findByPk(run.skillId, { raw: true }) : null;
+  const skillKey = skill?.key;
+  const nonExecutableSkills = ["sus-finder", "error-finder", "optimizer"];
+  if (!skillKey || nonExecutableSkills.includes(skillKey)) {
+    return context.redirect(`/ai/actions/${action.id}/guide`);
+  }
+
+  const skillName = skill?.name || "Unknown";
+  const skillIcon = skill?.icon || "fa-solid fa-gear";
+  const skillIconImg = skill?.icon && !skill.icon.startsWith("fa-");
+  const finding = action.findingId ? await models.SkillFinding.findByPk(action.findingId, { raw: true }) : null;
+  let params = {};
+  try { params = JSON.parse(action.parameters || "{}"); } catch {}
+
+  // Load existing execution request (any status), or create new if action is still pending
+  let exReq = await models.ExecutionRequest.findOne({
+    where: { actionId: action.id },
+    order: [["createdAt", "DESC"]],
+  });
+
+  if (!exReq) {
+    if (action.status !== "pending") return context.redirect("/ai/actions");
+    const commands = buildCommands(action.actionType, params, action.target);
+    const displayId = await generateDisplayId(sequelize);
+    const llmRow = await models.Setting.findByPk("llm_config");
+    let llmConfig = null;
+    try { if (llmRow) llmConfig = JSON.parse(llmRow.value); } catch {}
+    const contextStr = finding ? `${finding.title || ""} — ${finding.description || ""}` : "";
+    const { explanation, riskLevel, affected } = await generateExplanation(llmConfig, commands, action.actionType, contextStr);
+    exReq = await models.ExecutionRequest.create({
+      displayId, actionId: action.id, actionType: action.actionType,
+      commands: JSON.stringify(commands), explanation, riskLevel, affected,
+      revisionHistory: "[]", status: "pending",
+    });
+  }
+
+  // Parse stored data for template
+  const commands = JSON.parse(exReq.commands || "[]");
+  const revisionHistory = JSON.parse(exReq.revisionHistory || "[]");
+  const riskBadgeClass = exReq.riskLevel === "high" ? "text-bg-danger" : exReq.riskLevel === "medium" ? "text-bg-warning" : "text-bg-info";
+  const created = exReq.createdAt ? new Date(exReq.createdAt).toLocaleString() : new Date().toLocaleString();
+  const isProcessed = exReq.status !== "pending";
+
+  return renderPage(context, "ai-execute-confirm", {
+    actionId: action.id,
+    skillName, skillIcon, skillIconImg,
+    findingTitle: finding?.title || "",
+    findingDesc: finding?.description || "",
+    findingSeverity: finding?.severity || "",
+    severityBadge: finding?.severity === "critical" ? "text-bg-danger" : finding?.severity === "warning" ? "text-bg-warning" : "text-bg-info",
+    findingPattern: finding?.pattern || "",
+    actionCreatedAt: action.createdAt ? new Date(action.createdAt).toLocaleString() : "—",
+    displayId: exReq.displayId,
+    actionType: exReq.actionType,
+    commands,
+    hasCommands: commands.length > 0,
+    explanation: exReq.explanation,
+    riskLevel: exReq.riskLevel,
+    riskBadgeClass,
+    affected: exReq.affected,
+    created,
+    revisionHistory: revisionHistory.map((m) => ({ ...m, isUser: m.role === "user" })),
+    hasRevisionHistory: revisionHistory.length > 0,
+    isProcessed,
+    exReqStatus: exReq.status,
+    executed: isProcessed && exReq.status === "executed" && context.req.query("executed") === "1",
+    dismissed: isProcessed && exReq.status === "dismissed",
+    done: isProcessed && exReq.status === "done",
+    failed: isProcessed && exReq.status === "failed",
+    executedMessage: context.req.query("executed") === "1",
+    dismissedMessage: context.req.query("dismissed") === "1",
+    doneMessage: context.req.query("done") === "1",
+  }, { title: "Execution Confirmation — Symbio" });
+});
+
+/**
+ * Processes the execution request: apply (execute), dismiss, mark done, or revise.
+ */
+protectedRoutes.post("/ai/actions/:id/execute", requireCsrf, async (context) => {
+  const action = await models.SkillAction.findByPk(context.req.param("id"));
+  if (!action) return context.redirect("/ai/actions");
+
+  const exReq = await models.ExecutionRequest.findOne({
+    where: { actionId: action.id, status: "pending" },
+    order: [["createdAt", "DESC"]],
+  });
+  if (!exReq) return context.redirect("/ai/actions");
+
+  const formAction = context.req.body?.action || "";
+
+  // — revise: AI adjusts commands based on user question —
+  if (formAction === "revise") {
+    const userMessage = (context.req.body?.revise_message || "").trim();
+    if (!userMessage) return context.redirect(`/ai/actions/${action.id}/execute`);
+
+    const commands = JSON.parse(exReq.commands || "[]");
+    const revisionHistory = JSON.parse(exReq.revisionHistory || "[]");
+
+    // Load LLM config
+    const llmRow = await models.Setting.findByPk("llm_config");
+    let llmConfig = null;
+    try { if (llmRow) llmConfig = JSON.parse(llmRow.value); } catch {}
+
+    const result = await reviseCommands(llmConfig, commands, exReq.actionType, userMessage, revisionHistory);
+
+    // Append to revision history
+    revisionHistory.push({ role: "user", message: userMessage, timestamp: new Date().toISOString() });
+    revisionHistory.push({
+      role: "assistant",
+      message: result.explanation || "Commands revised.",
+      commands: result.commands,
+      timestamp: new Date().toISOString(),
+    });
+
+    exReq.commands = JSON.stringify(result.commands);
+    exReq.explanation = result.explanation;
+    exReq.riskLevel = result.riskLevel;
+    exReq.affected = result.affected;
+    exReq.revisionHistory = JSON.stringify(revisionHistory);
+    exReq.updatedAt = new Date();
+    await exReq.save();
+
+    return context.redirect(`/ai/actions/${action.id}/execute`);
+  }
+
+  // — apply: execute the commands with proof —
+  if (formAction === "apply") {
+    const commands = JSON.parse(exReq.commands || "[]");
+    if (!commands.length) return context.redirect(`/ai/actions/${action.id}/execute`);
+
+    try {
+      const proof = await executeWithProof({ action: action.actionType, params: JSON.parse(action.parameters || "{}") });
+      action.status = "executed";
+      action.result = JSON.stringify(proof);
+      action.approvedBy = context.get("auth")?.user?.username || "unknown";
+      action.approvedAt = new Date();
+      action.executedAt = new Date();
+      await action.save();
+
+      exReq.status = "executed";
+      exReq.updatedAt = new Date();
+      await exReq.save();
+
+      // Close the associated finding
+      if (action.findingId) {
+        try { await models.SkillFinding.update({ status: "resolved" }, { where: { id: action.findingId } }); } catch {}
+      }
+    } catch (error) {
+      action.status = "failed";
+      action.result = JSON.stringify({ error: error.message });
+      await action.save();
+      exReq.status = "failed";
+      exReq.updatedAt = new Date();
+      await exReq.save();
+    }
+    return context.redirect(`/ai/actions/${action.id}/execute?executed=1`);
+  }
+
+  // — dismiss: acknowledge and ignore —
+  if (formAction === "dismiss") {
+    action.status = "acknowledged";
+    action.approvedBy = context.get("auth")?.user?.username || "unknown";
+    action.approvedAt = new Date();
+    await action.save();
+
+    exReq.status = "dismissed";
+    exReq.updatedAt = new Date();
+    await exReq.save();
+
+    return context.redirect(`/ai/actions/${action.id}/execute?dismissed=1`);
+  }
+
+  // — done: user ran the command manually —
+  if (formAction === "done") {
+    action.status = "done";
+    action.approvedBy = context.get("auth")?.user?.username || "unknown";
+    action.approvedAt = new Date();
+    await action.save();
+
+    exReq.status = "done";
+    exReq.updatedAt = new Date();
+    await exReq.save();
+
+    // Close the associated finding
+    if (action.findingId) {
+      try { await models.SkillFinding.update({ status: "resolved" }, { where: { id: action.findingId } }); } catch {}
+    }
+
+    return context.redirect(`/ai/actions/${action.id}/execute?done=1`);
+  }
+
+  return context.redirect("/ai/actions");
 });
 
 /** Clarify a finding — calls AI to explain in plain language with actionable steps. */
@@ -4002,6 +4622,39 @@ protectedRoutes.get("/installation-status", async (context) => {
   });
   const port = process.env.SYMBIO_PORT || "8765";
   const internalPort = process.env.SYMBIO_INTERNAL_PORT || "18766";
+
+  // Storage status — reads database file sizes and data volume usage
+  const dbPath = process.env.SYMBIO_DATABASE_PATH || "/data/mothership.sqlite";
+  let dbSize = null, dbWalSize = null, dbShmSize = null;
+  let volumeTotal = null, volumeUsed = null, volumeAvail = null, volumePercent = null;
+  try {
+    const dbStat = fs.statSync(dbPath);
+    dbSize = dbStat.size;
+  } catch {}
+  try {
+    const walStat = fs.statSync(dbPath + "-wal");
+    dbWalSize = walStat.size;
+  } catch {}
+  try {
+    const shmStat = fs.statSync(dbPath + "-shm");
+    dbShmSize = shmStat.size;
+  } catch {}
+  try {
+    const sf = fs.statfsSync("/data");
+    volumeTotal = sf.blocks * sf.bsize;
+    volumeAvail = sf.bavail * sf.bsize;
+    volumeUsed = volumeTotal - sf.bfree * sf.bsize;
+    volumePercent = volumeTotal > 0 ? Math.round((volumeUsed / volumeTotal) * 100) : 0;
+  } catch {}
+
+  const fmt = (bytes) => {
+    if (bytes == null) return "—";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1073741824) return `${(bytes / 1048576).toFixed(2)} MB`;
+    return `${(bytes / 1073741824).toFixed(2)} GB`;
+  };
+
   return renderPage(context, "installation-status", {
     version: process.env.npm_package_version || "beta",
     publicBinding: `${process.env.SYMBIO_BIND_IP || "0.0.0.0"}:${port}`,
@@ -4012,6 +4665,17 @@ protectedRoutes.get("/installation-status", async (context) => {
     lastReport: agent?.lastSeenAt ? new Date(agent.lastSeenAt).toLocaleString() : "Never",
     migrations: migrationRows,
     components,
+    dbSize: fmt(dbSize),
+    dbSizeRaw: dbSize,
+    dbWalSize: fmt(dbWalSize),
+    dbWalExists: dbWalSize != null,
+    dbShmSize: fmt(dbShmSize),
+    dbShmExists: dbShmSize != null,
+    volumeTotal: fmt(volumeTotal),
+    volumeUsed: fmt(volumeUsed),
+    volumeAvail: fmt(volumeAvail),
+    volumePercent,
+    volumePercentClass: volumePercent == null ? "bg-secondary" : volumePercent >= 90 ? "bg-danger" : volumePercent >= 70 ? "bg-warning" : "bg-success",
   }, { title: "Installation Status — Symbio" });
 });
 

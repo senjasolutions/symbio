@@ -1,8 +1,11 @@
 /**
- * Read-only file manager keeps host filesystem access bounded and validated.
- * It uses Node.js fs for directory listing, file reading, and directory tree
- * discovery, reusing the same mount-point containment pattern as log-reader.
- * No shell commands, no browser-supplied paths reach the host directly.
+ * File manager with read-write capabilities for host filesystem access.
+ * All operations go through the same mount-point containment pattern as
+ * log-reader: validateHostPath → mountedPath → resolvePath → isAllowedPath.
+ *
+ * Write operations (create, write, delete, rename, chmod) use node:fs
+ * directly — no shell commands, no exec(). Every write uses the same
+ * security stack as read operations.
  *
  * SECURITY: See isAllowedPath() for the path-whitelist and blocklist
  * enforcement that makes this fort-knox-grade.
@@ -15,6 +18,10 @@ import path from "node:path";
 const MAX_READ_BYTES = 1 * 1024 * 1024;
 const MAX_FILE_PREVIEW_BYTES = 2 * 1024 * 1024;
 const MAX_VIEW_BYTES = 100 * 1024; // 100 KB hard cap for the file viewer
+const MAX_WRITE_BYTES = 100 * 1024; // 100 KB hard cap for file writes
+
+// Valid chmod mode: octal string 000–777, 3 or 4 digits
+const CHMOD_RE = /^[0-7]{3,4}$/;
 
 // Only directories under these roots are browsable. Everything else is denied.
 // This is paired with BLOCKED_PATTERNS below — the real LFI defense is the
@@ -299,4 +306,127 @@ export const getDirectoryTree = async (hostRootPath, dirPath) => {
   } finally {
     await handle.close();
   }
+};
+
+// ── Write Operations ────────────────────────────────────────────────
+// Every write function uses the same resolvePath security stack as reads.
+// For create operations where the target doesn't exist yet, we validate
+// the parent directory through resolvePath and then construct the target.
+
+/** Validates a file/directory name doesn't contain traversal or blocked patterns. */
+const validateName = (name) => {
+  if (typeof name !== "string" || !name || name.includes("/") || name.includes("\0") || name === ".." || name === ".")
+    throw new Error("Invalid file name.");
+  for (const pattern of BLOCKED_PATTERNS) {
+    if (name === pattern || name.includes(pattern))
+      throw new Error("File name is restricted.");
+  }
+};
+
+/** Resolves the parent directory and constructs the full target path for a new entry. */
+const resolveParentForCreate = async (hostRootPath, dirPath, name) => {
+  validateName(name);
+  const { target: parentTarget } = await resolvePath(hostRootPath, dirPath);
+  const fullPath = path.join(parentTarget, name);
+  // Ensure full path is still under the resolved parent
+  const parentReal = await fs.realpath(parentTarget);
+  if (!fullPath.startsWith(parentReal + path.sep) && fullPath !== parentReal + path.sep + name)
+    throw new Error("New path escapes parent directory.");
+  return fullPath;
+};
+
+/**
+ * Creates an empty file at dirPath/name. Returns the created file path.
+ * File is created with mode 0o644 (rw-r--r--).
+ */
+export const createFile = async (hostRootPath, dirPath, name) => {
+  const target = await resolveParentForCreate(hostRootPath, dirPath, name);
+  // O_WRONLY | O_CREAT | O_EXCL ensures atomic create-or-fail
+  const handle = await fs.open(target, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL, 0o644);
+  await handle.close();
+  return { path: dirPath === "/" ? `/${name}` : `${dirPath}/${name}`, name };
+};
+
+/**
+ * Creates a new directory at dirPath/name. Returns the created directory path.
+ * Directory is created with mode 0o755 (rwxr-xr-x).
+ */
+export const createDirectory = async (hostRootPath, dirPath, name) => {
+  const target = await resolveParentForCreate(hostRootPath, dirPath, name);
+  await fs.mkdir(target, { mode: 0o755 });
+  return { path: dirPath === "/" ? `/${name}` : `${dirPath}/${name}`, name };
+};
+
+/**
+ * Writes UTF-8 content to a file, capped at 100 KB. Overwrites existing content.
+ * The target file must already exist (resolved through resolvePath).
+ */
+export const writeFile = async (hostRootPath, filePath, content) => {
+  if (typeof content !== "string") throw new Error("File content must be a string.");
+  const contentBytes = Buffer.byteLength(content, "utf8");
+  if (contentBytes > MAX_WRITE_BYTES)
+    throw new Error(`File content exceeds the ${MAX_WRITE_BYTES / 1024} KB limit (${contentBytes} bytes).`);
+  // Null-byte detection: reject binary content
+  const preview = content.slice(0, Math.min(content.length, 512));
+  for (let i = 0; i < preview.length; i++) {
+    if (preview.charCodeAt(i) === 0) throw new Error("Cannot write binary content to files.");
+  }
+  const { target, entry } = await resolvePath(hostRootPath, filePath);
+  if (!entry.isFile()) throw new Error("Path is not a regular file.");
+  await fs.writeFile(target, content, "utf8");
+  return { path: filePath, bytes: contentBytes };
+};
+
+/**
+ * Deletes a file or directory (recursive for directories) at the given path.
+ * ALLOWED_ROOTS themselves are protected from deletion.
+ */
+export const deleteFileOrDir = async (hostRootPath, filePath) => {
+  // Protect allowed root directories from accidental deletion
+  for (const root of ALLOWED_ROOTS) {
+    if (filePath === root) throw new Error("Cannot delete root directory.");
+  }
+  const { target, entry } = await resolvePath(hostRootPath, filePath);
+  if (entry.isDirectory()) {
+    await fs.rm(target, { recursive: true, force: false, maxRetries: 1 });
+  } else {
+    await fs.unlink(target);
+  }
+  return { path: filePath };
+};
+
+/**
+ * Renames or moves a file or directory from fromPath to toPath.
+ * Both paths must be under allowed roots. The destination must not exist.
+ */
+export const renameFileOrDir = async (hostRootPath, fromPath, toPath) => {
+  // Protect roots from being renamed
+  for (const root of ALLOWED_ROOTS) {
+    if (fromPath === root) throw new Error("Cannot rename root directory.");
+  }
+  // Validate destination parent directory separately
+  const toDir = path.posix.dirname(toPath);
+  const toName = path.posix.basename(toPath);
+  if (!toName || toName === "." || toName === "..") throw new Error("Invalid destination path.");
+  validateName(toName);
+  const { target: fromTarget } = await resolvePath(hostRootPath, fromPath);
+  const { target: toParent } = await resolvePath(hostRootPath, toDir);
+  const toTarget = path.join(toParent, toName);
+  // Ensure no overwrite (rename fails if dest exists on most fs, but be explicit)
+  try { await fs.lstat(toTarget); throw new Error("Destination path already exists."); } catch (e) { if (e.code !== "ENOENT") throw e; }
+  await fs.rename(fromTarget, toTarget);
+  return { from: fromPath, to: toPath };
+};
+
+/**
+ * Changes file/directory permissions using chmod. Mode must be a 3-4 digit
+ * octal string (e.g. "644" or "0755").
+ */
+export const changeMode = async (hostRootPath, filePath, mode) => {
+  if (typeof mode !== "string" || !CHMOD_RE.test(mode))
+    throw new Error("Invalid permission mode. Must be a 3-4 digit octal string (e.g. '644').");
+  const octal = parseInt(mode, 8);
+  const { target } = await resolvePath(hostRootPath, filePath);
+  await fs.chmod(target, octal);
+  return { path: filePath, mode };
 };

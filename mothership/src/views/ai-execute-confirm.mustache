@@ -1,0 +1,117 @@
+<!-- Execution Request confirmation page — shows exact commands, AI explanation, risk, affected systems before execution. Maximum user assurance. -->
+<nav aria-label="{{#t}}common.breadcrumb{{/t}}"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/ai">{{#t}}ai.symbioIntelligence{{/t}}</a></li><li class="breadcrumb-item"><a href="/ai/actions">{{#t}}ai.pendingActions{{/t}}</a></li><li class="breadcrumb-item active">{{#t}}ai.executionRequest{{/t}}</li></ol></nav>
+
+<h1 class="h3 mb-3"><i class="fa-solid fa-shield-halved me-1" aria-hidden="true"></i>{{#t}}ai.execConfirmTitle{{/t}}</h1>
+
+{{#executedMessage}}<div class="alert alert-success">{{#t}}ai.execExecutedMessage{{/t}}</div>{{/executedMessage}}
+{{#dismissedMessage}}<div class="alert alert-secondary">{{#t}}ai.execDismissedMessage{{/t}}</div>{{/dismissedMessage}}
+{{#doneMessage}}<div class="alert alert-info">{{#t}}ai.execDoneMessage{{/t}}</div>{{/doneMessage}}
+{{#failed}}<div class="alert alert-danger">{{#t}}ai.runFailed{{/t}}</div>{{/failed}}
+
+<!-- Pending Action Information -->
+<section class="card mb-3">
+  <div class="card-header"><strong><i class="fa-solid fa-circle-info me-1"></i>{{#t}}ai.execActionInfo{{/t}}</strong></div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-sm-4"><small class="text-secondary d-block">{{#t}}ai.skill{{/t}}</small><span>{{#skillIconImg}}<img src="{{skillIcon}}" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;">{{/skillIconImg}}{{^skillIconImg}}<i class="{{skillIcon}} me-1"></i>{{/skillIconImg}}{{skillName}}</span></div>
+      <div class="col-sm-4"><small class="text-secondary d-block">{{#t}}ai.actionType{{/t}}</small><code>{{actionType}}</code></div>
+      <div class="col-sm-4"><small class="text-secondary d-block">{{#t}}common.date{{/t}}</small><span class="small">{{actionCreatedAt}}</span></div>
+      {{#findingSeverity}}<div class="col-sm-4"><small class="text-secondary d-block">{{#t}}ai.severity{{/t}}</small><span class="badge {{severityBadge}}">{{findingSeverity}}</span></div>{{/findingSeverity}}
+      {{#findingPattern}}<div class="col-sm-4"><small class="text-secondary d-block">{{#t}}ai.pattern{{/t}}</small><code>{{findingPattern}}</code></div>{{/findingPattern}}
+      {{#findingTitle}}<div class="col-12"><small class="text-secondary d-block">{{#t}}ai.message{{/t}}</small><p class="mb-0">{{findingTitle}}</p></div>{{/findingTitle}}
+      {{#findingDesc}}<div class="col-12"><small class="text-secondary d-block">{{#t}}ai.detail{{/t}}</small><p class="mb-0 text-secondary">{{findingDesc}}</p></div>{{/findingDesc}}
+    </div>
+  </div>
+</section>
+
+<!-- Execution Request -->
+<section class="card mb-3">
+  <div class="card-header"><strong><i class="fa-solid fa-terminal me-1"></i>{{#t}}ai.executionRequest{{/t}}</strong></div>
+  <div class="card-body">
+    <div class="row g-3 mb-3">
+      <div class="col-sm-4"><small class="text-secondary d-block">ID</small><code class="fs-6">{{displayId}}</code></div>
+      <div class="col-sm-4"><small class="text-secondary d-block">{{#t}}ai.execTriggeredBy{{/t}}</small><span>{{skillName}}</span></div>
+      <div class="col-sm-4"><small class="text-secondary d-block">{{#t}}common.date{{/t}}</small><span class="small">{{created}}</span></div>
+    </div>
+
+    {{#hasCommands}}
+    <div class="mb-3">
+      <small class="text-secondary d-block mb-1"><strong>{{#t}}ai.execCommands{{/t}}:</strong></small>
+      <pre class="action-proof-pre p-3 border rounded" style="background:#1a1a2e;color:#e0e0e0;"><code>{{#commands}}<div>{{.}}</div>{{/commands}}</code></pre>
+    </div>
+    {{/hasCommands}}
+
+    {{#explanation}}
+    <div class="mb-3">
+      <small class="text-secondary d-block mb-1"><strong>{{#t}}ai.execWhatThisDoes{{/t}}:</strong></small>
+      <p class="mb-0">{{explanation}}</p>
+    </div>
+    {{/explanation}}
+
+    <div class="d-flex gap-3">
+      <div><small class="text-secondary d-block mb-1">{{#t}}ai.execRisk{{/t}}:</small><span class="badge {{riskBadgeClass}}">{{riskLevel}}</span></div>
+      {{#affected}}<div><small class="text-secondary d-block mb-1">{{#t}}ai.execAffected{{/t}}:</small><span>{{affected}}</span></div>{{/affected}}
+    </div>
+  </div>
+</section>
+
+<!-- Revision Chat -->
+<section class="card mb-3">
+  <div class="card-header"><strong><i class="fa-solid fa-robot me-1"></i>{{#t}}ai.symbioIntelligence{{/t}}</strong></div>
+  <div class="card-body">
+    {{#hasRevisionHistory}}
+    <div class="mb-3">
+      <small class="text-secondary d-block mb-2">{{#t}}ai.execRevisionHistory{{/t}}:</small>
+      {{#revisionHistory}}
+      <div class="mb-2 {{#isUser}}border-start border-primary ps-2{{/isUser}}{{^isUser}}border-start border-info ps-2{{/isUser}}">
+        <small class="text-secondary">{{role}}:</small>
+        <p class="mb-0 small">{{message}}</p>
+      </div>
+      {{/revisionHistory}}
+    </div>
+    {{/hasRevisionHistory}}
+
+    {{^isProcessed}}
+    <form method="post" action="/ai/actions/{{actionId}}/execute">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}">
+      <input type="hidden" name="action" value="revise">
+      <div class="input-group">
+        <input type="text" class="form-control form-control-sm" name="revise_message" placeholder="{{#t}}ai.execAskRevise{{/t}}" autocomplete="off">
+        <button class="btn btn-outline-primary btn-sm" type="submit"><i class="fa-solid fa-paper-plane me-1"></i>{{#t}}ai.execSubmitRevision{{/t}}</button>
+      </div>
+    </form>
+    {{/isProcessed}}
+  </div>
+</section>
+
+<!-- Action Buttons -->
+{{^isProcessed}}
+<div class="d-flex gap-2 mb-4">
+  <form method="post" action="/ai/actions/{{actionId}}/execute">
+    <input type="hidden" name="_csrf" value="{{csrfToken}}">
+    <input type="hidden" name="action" value="apply">
+    <button class="btn btn-success" type="submit"><i class="fa-solid fa-play me-1"></i>{{#t}}ai.execExecute{{/t}}</button>
+  </form>
+  <form method="post" action="/ai/actions/{{actionId}}/execute">
+    <input type="hidden" name="_csrf" value="{{csrfToken}}">
+    <input type="hidden" name="action" value="dismiss">
+    <button class="btn btn-outline-danger" type="submit"><i class="fa-solid fa-xmark me-1"></i>{{#t}}ai.execDismiss{{/t}}</button>
+  </form>
+  <a class="btn btn-outline-secondary" href="/ai/actions">{{#t}}ai.backToActions{{/t}}</a>
+</div>
+
+<!-- Mark as Done — manual execution -->
+<div class="border-top pt-3">
+  <form method="post" action="/ai/actions/{{actionId}}/execute" class="d-inline">
+    <input type="hidden" name="_csrf" value="{{csrfToken}}">
+    <input type="hidden" name="action" value="done">
+    <button class="btn btn-link btn-sm text-muted p-0" type="submit">{{#t}}ai.execMarkDone{{/t}}</button>
+  </form>
+  <small class="text-muted">— {{#t}}ai.execMarkDoneHint{{/t}}</small>
+</div>
+{{/isProcessed}}
+{{#isProcessed}}
+<div class="d-flex gap-2 mb-4">
+  <a class="btn btn-outline-secondary" href="/ai/actions">{{#t}}ai.backToActions{{/t}}</a>
+</div>
+{{/isProcessed}}

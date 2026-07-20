@@ -46,10 +46,7 @@
           <td class="small">{{createdAt}}</td>
           <td class="text-end" style="white-space:nowrap;">
             {{#isExecutable}}
-            <form class="d-inline" method="post" action="/ai/actions/{{id}}/approve">
-              <input type="hidden" name="_csrf" value="{{csrfToken}}">
-              <button class="btn btn-success btn-sm btn-loading" type="submit"><i class="fa-solid fa-check me-1"></i>{{#t}}ai.apply{{/t}}</button>
-            </form>
+            <a class="btn btn-success btn-sm btn-loading" href="/ai/actions/{{id}}/execute"><i class="fa-solid fa-check me-1"></i>{{#t}}ai.apply{{/t}}</a>
             {{/isExecutable}}
             {{^isExecutable}}
             <a class="btn btn-success btn-sm btn-loading" href="/ai/actions/{{id}}/guide"><i class="fa-solid fa-check me-1"></i>{{#t}}ai.apply{{/t}}</a>
@@ -79,7 +76,7 @@
     <div class="table-responsive">
       <table class="table table-sm mb-0">
         <thead>
-          <tr><th>{{#t}}ai.action{{/t}}</th><th>{{#t}}ai.status{{/t}}</th><th>{{#t}}common.date{{/t}}</th><th>{{#t}}ai.result{{/t}}</th></tr>
+          <tr><th>{{#t}}ai.action{{/t}}</th><th>{{#t}}ai.status{{/t}}</th><th>{{#t}}common.date{{/t}}</th><th></th></tr>
         </thead>
         <tbody>
           {{#history}}
@@ -87,20 +84,9 @@
             <td class="small">{{title}}</td>
             <td><span class="badge {{statusBadge}}">{{status}}</span></td>
             <td class="small">{{createdAt}}</td>
-            <td class="small">
-              {{#hasProof}}
-              <details class="action-proof">
-                <summary class="text-primary small">{{#t}}ai.viewProof{{/t}}</summary>
-                <div class="action-proof-body">
-                  <div class="mb-1"><strong>{{#t}}ai.before{{/t}}:</strong></div>
-                  <pre class="action-proof-pre">{{beforeSummary}}</pre>
-                  <div class="mb-1"><strong>{{#t}}ai.after{{/t}}:</strong></div>
-                  <pre class="action-proof-pre">{{afterSummary}}</pre>
-                  {{#diff}}<div class="fw-semibold small">{{#t}}ai.diff{{/t}}: {{diff}}</div>{{/diff}}
-                </div>
-              </details>
-              {{/hasProof}}
-              {{^hasProof}}<span class="text-secondary">{{status}}</span>{{/hasProof}}
+            <td class="small text-end">
+              {{#hasProof}}<a class="btn btn-outline-primary btn-sm" href="/ai/actions/{{id}}">{{#t}}ai.viewProof{{/t}}</a>{{/hasProof}}
+              {{^hasProof}}<span class="text-secondary">—</span>{{/hasProof}}
             </td>
           </tr>
           {{/history}}
@@ -108,6 +94,21 @@
       </table>
     </div>
   </section>
+  <nav class="d-flex justify-content-between align-items-center mt-2">
+    <small class="text-secondary">{{#t}}ai.showing{{/t}} {{page}} {{#t}}ai.of{{/t}} {{totalPages}}</small>
+    <div class="btn-group btn-group-sm">
+      {{#hasPrev}}<a class="btn btn-outline-secondary" href="/ai/actions?page={{prevPage}}">&laquo; {{#t}}common.previous{{/t}}</a>{{/hasPrev}}
+      {{^hasPrev}}<button class="btn btn-outline-secondary" disabled>&laquo; {{#t}}common.previous{{/t}}</button>{{/hasPrev}}
+      {{#hasNext}}<a class="btn btn-outline-secondary" href="/ai/actions?page={{nextPage}}">{{#t}}common.next{{/t}} &raquo;</a>{{/hasNext}}
+      {{^hasNext}}<button class="btn btn-outline-secondary" disabled>{{#t}}common.next{{/t}} &raquo;</button>{{/hasNext}}
+    </div>
+  </nav>
+</div>
+{{/history.length}}
+{{^history.length}}
+<div class="mt-4">
+  <h5 class="mb-2">{{#t}}ai.recentActions{{/t}}</h5>
+  <p class="text-muted small">{{#t}}ai.noHistoryActions{{/t}}</p>
 </div>
 {{/history.length}}
 

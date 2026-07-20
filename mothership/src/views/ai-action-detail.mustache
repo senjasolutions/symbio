@@ -1,0 +1,73 @@
+<!-- Action Detail — full proof (before/after/diff), parameters, and metadata for a single action. -->
+<nav aria-label="{{#t}}common.breadcrumb{{/t}}"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/ai">{{#t}}ai.symbioIntelligence{{/t}}</a></li><li class="breadcrumb-item"><a href="/ai/actions">{{#t}}ai.pendingActions{{/t}}</a></li><li class="breadcrumb-item active">{{#t}}ai.actionDetail{{/t}}</li></ol></nav>
+
+<h1 class="h3 mb-3"><i class="fa-solid fa-circle-info me-1" aria-hidden="true"></i>{{#t}}ai.actionDetail{{/t}}</h1>
+
+<!-- Action metadata card -->
+<section class="card mb-3">
+  <div class="card-header"><strong>{{#t}}ai.actionDetail{{/t}}</strong></div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-sm-4"><small class="text-secondary d-block">{{#t}}ai.skill{{/t}}</small><span>{{#skillIconImg}}<img src="{{skillIcon}}" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;">{{/skillIconImg}}{{^skillIconImg}}<i class="{{skillIcon}} me-1"></i>{{/skillIconImg}}{{skillName}}</span></div>
+      <div class="col-sm-4"><small class="text-secondary d-block">{{#t}}ai.actionType{{/t}}</small><code>{{actionType}}</code></div>
+      <div class="col-sm-4"><small class="text-secondary d-block">{{#t}}ai.status{{/t}}</small><span class="badge {{statusBadge}}">{{status}}</span></div>
+      {{#findingSeverity}}<div class="col-sm-4"><small class="text-secondary d-block">{{#t}}ai.severity{{/t}}</small><span class="badge {{severityBadge}}">{{findingSeverity}}</span></div>{{/findingSeverity}}
+      {{#findingPattern}}<div class="col-sm-4"><small class="text-secondary d-block">{{#t}}ai.pattern{{/t}}</small><code>{{findingPattern}}</code></div>{{/findingPattern}}
+      {{#actionTarget}}<div class="col-sm-4"><small class="text-secondary d-block">{{#t}}ai.target{{/t}}</small><span>{{actionTarget}}</span></div>{{/actionTarget}}
+      <div class="col-sm-4"><small class="text-secondary d-block">{{#t}}common.date{{/t}}</small><span class="small">{{createdAt}}</span></div>
+      {{#executedAt}}<div class="col-sm-4"><small class="text-secondary d-block">{{#t}}ai.executedAt{{/t}}</small><span class="small">{{executedAt}}</span></div>{{/executedAt}}
+      {{#approvedBy}}<div class="col-sm-4"><small class="text-secondary d-block">{{#t}}ai.approvedBy{{/t}}</small><span>{{approvedBy}}</span></div>{{/approvedBy}}
+      {{#findingTitle}}<div class="col-12"><small class="text-secondary d-block">{{#t}}ai.message{{/t}}</small><p class="mb-0">{{findingTitle}}</p></div>{{/findingTitle}}
+      {{#findingDesc}}<div class="col-12"><small class="text-secondary d-block">{{#t}}ai.detail{{/t}}</small><p class="mb-0 text-secondary">{{findingDesc}}</p></div>{{/findingDesc}}
+    </div>
+  </div>
+</section>
+
+<!-- Proof section -->
+{{#hasProof}}
+<section class="card mb-3">
+  <div class="card-header"><strong><i class="fa-solid fa-chart-simple me-1"></i>{{#t}}ai.executionResult{{/t}}</strong></div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="mb-1"><strong>{{#t}}ai.before{{/t}}:</strong></div>
+        <pre class="action-proof-pre">{{beforeSummary}}</pre>
+      </div>
+      <div class="col-md-6">
+        <div class="mb-1"><strong>{{#t}}ai.after{{/t}}:</strong></div>
+        <pre class="action-proof-pre">{{afterSummary}}</pre>
+      </div>
+    </div>
+    {{#diff}}
+    <div class="mt-2 p-2 border rounded bg-light">
+      <strong>{{#t}}ai.diff{{/t}}:</strong> {{diff}}
+    </div>
+    {{/diff}}
+  </div>
+</section>
+{{/hasProof}}
+{{^hasProof}}
+{{#error}}
+<section class="card mb-3">
+  <div class="card-header"><strong><i class="fa-solid fa-triangle-exclamation me-1"></i>{{#t}}ai.executionResult{{/t}}</strong></div>
+  <div class="card-body"><div class="alert alert-danger mb-0">{{error}}</div></div>
+</section>
+{{/error}}
+{{^error}}
+<div class="alert alert-info mb-3">{{#t}}ai.noProof{{/t}}</div>
+{{/error}}
+{{/hasProof}}
+
+<!-- Parameters section -->
+{{#paramsJson}}
+<section class="card mb-3">
+  <div class="card-header"><strong><i class="fa-solid fa-gear me-1"></i>{{#t}}ai.actionParams{{/t}}</strong></div>
+  <div class="card-body">
+    <pre class="action-proof-pre mb-0" style="max-height:300px;overflow-y:auto;">{{paramsJson}}</pre>
+  </div>
+</section>
+{{/paramsJson}}
+
+<div class="d-flex gap-2">
+  <a class="btn btn-outline-secondary" href="/ai/actions">{{#t}}ai.backToActions{{/t}}</a>
+</div>

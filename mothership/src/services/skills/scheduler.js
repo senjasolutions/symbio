@@ -88,7 +88,7 @@ const log = (skillKey, phase, message, extra) => {
 };
 
 /** Runs a full skill cycle through the module lifecycle. */
-const runSkill = async (skillKey) => {
+const runSkill = async (skillKey, trigger = "scheduled") => {
   if (runningTasks.has(skillKey)) { log(skillKey, "skip", "Already running"); return; }
   let run = null;
   const taskInfo = { skillKey, phase: "starting", startedAt: new Date(), skillRunId: null, detail: "" };
@@ -104,7 +104,7 @@ const runSkill = async (skillKey) => {
     log(skillKey, "start", `Config interval=${config.checkIntervalSeconds || "default"}s, memory=${memory.length} chars`);
 
     run = await models.SkillRun.create({
-      skillId: row.id, trigger: "scheduled", status: "running", startedAt: new Date(),
+      skillId: row.id, trigger, status: "running", startedAt: new Date(),
     });
     taskInfo.skillRunId = run.id;
     log(skillKey, "run", `SkillRun #${run.id} created`);
@@ -204,6 +204,19 @@ const runSkill = async (skillKey) => {
     await mod.report({ collected, llmResult, run, row, config });
     log(skillKey, "report", `Reported ${findings.length} findings`);
 
+    // 5. Execute — auto-execute low-risk actions (self-healing)
+    if (killedSkills.has(skillKey)) { await cancelRun(run, skillKey); finishTask(skillKey); return; }
+    if (typeof mod.execute === "function" && llmResult.findings?.length) {
+      taskInfo.phase = "executing";
+      taskInfo.detail = "Auto-executing low-risk actions...";
+      try {
+        const execResults = await mod.execute(llmResult.findings, agentClient);
+        if (execResults?.length) log(skillKey, "execute", `Auto-executed ${execResults.length} action(s)`);
+      } catch (execError) {
+        log(skillKey, "warn", `Auto-execution error: ${execError.message.slice(0, 200)}`);
+      }
+    }
+
   } catch (error) {
     log(skillKey, "error", error.message, { stack: error.stack?.split("\n").slice(0, 3).join(" | ") });
     try {
@@ -220,7 +233,7 @@ const runSkill = async (skillKey) => {
         const row = await models.Skill.findOne({ where: { key: skillKey } });
         if (row) {
           await models.SkillRun.create({
-            skillId: row.id, trigger: "scheduled", status: "failed",
+            skillId: row.id, trigger, status: "failed",
             startedAt: new Date(), finishedAt: new Date(),
             errorMessage: error.message.slice(0, 500),
           });
@@ -393,6 +406,23 @@ export const killSkill = async (skillKey) => {
     return true;
   }
   return false;
+};
+
+/**
+ * Triggers a skill run from an alert rule's self-healing action.
+ * Fire-and-forget — does not block the caller. Guards against:
+ * - Skill not found or disabled
+ * - Skill already running (concurrent run prevention)
+ */
+export const triggerHealSkill = async (skillKey) => {
+  const row = await models.Skill.findOne({ where: { key: skillKey } });
+  if (!row || !row.enabled) {
+    return;
+  }
+  if (runningTasks.has(skillKey)) {
+    return;
+  }
+  runSkill(skillKey, "alert").catch((error) => console.error(`[heal] ${skillKey} failed:`, error.message));
 };
 
 export const refreshSkill = async (skillKey) => {

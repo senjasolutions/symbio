@@ -300,6 +300,7 @@ export const defineModels = (sequelize) => {
     diagnosticEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: "diagnostic_enabled" },
     targetId: { type: DataTypes.INTEGER, field: "target_id" },
     statusMatch: { type: DataTypes.TEXT, defaultValue: "[]", field: "status_match" },
+    healSkillKey: { type: DataTypes.TEXT, field: "heal_skill_key" },
     ...commonEntity,
   }, { tableName: "alert_rules", timestamps: true, underscored: true });
 
@@ -329,15 +330,34 @@ export const defineModels = (sequelize) => {
     ...commonEntity,
   }, { tableName: "notification_channels", timestamps: true, underscored: true });
 
+  // Execution request — modular confirmation layer before command execution.
+  // Stores AI-generated explanation, commands, risk assessment, and revision chat history.
+  const ExecutionRequest = sequelize.define("ExecutionRequest", {
+    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    displayId: { type: DataTypes.STRING, allowNull: false, unique: true, field: "display_id" },
+    actionId: { type: DataTypes.INTEGER, allowNull: false, field: "action_id" },
+    actionType: { type: DataTypes.STRING, defaultValue: "", field: "action_type" },
+    commands: { type: DataTypes.TEXT, defaultValue: "[]" },
+    explanation: { type: DataTypes.TEXT, defaultValue: "" },
+    riskLevel: { type: DataTypes.STRING, defaultValue: "low", field: "risk_level" },
+    affected: { type: DataTypes.TEXT, defaultValue: "" },
+    revisionHistory: { type: DataTypes.TEXT, defaultValue: "[]", field: "revision_history" },
+    status: { type: DataTypes.STRING, defaultValue: "pending" },
+    createdAt: { type: DataTypes.DATE, field: "created_at", defaultValue: DataTypes.NOW },
+    updatedAt: { type: DataTypes.DATE, field: "updated_at", defaultValue: DataTypes.NOW },
+  }, { tableName: "execution_requests", timestamps: true, underscored: true });
+
   // Associations for cross-model queries (used by upsertFinding dedup)
   SkillFinding.belongsTo(SkillRun, { foreignKey: "skill_run_id", as: "skillRun" });
   SkillRun.hasMany(SkillFinding, { foreignKey: "skill_run_id", as: "skillFindings" });
+  // ExecutionRequest → SkillAction (for JOIN queries and detail lookups)
+  ExecutionRequest.belongsTo(SkillAction, { foreignKey: "action_id", as: "action" });
 
   return {
     User, Session, Server, Agent, AgentReport, ServerStatus, ServerService,
     ServerServiceStatus, Application, ApplicationStatus, ApplicationLog, ApplicationTag,
     ApplicationTagAssignment, ApplicationSource, Setting, AIHistory,
     Skill, SkillRun, SkillFinding, SkillAction, Notification, TokenUsage,
-    AlertRule, AlertEvent, NotificationChannel,
+    AlertRule, AlertEvent, NotificationChannel, ExecutionRequest,
   };
 };

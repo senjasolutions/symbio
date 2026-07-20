@@ -27,6 +27,13 @@ const captureState = async (actionType, params, hostRoot) => {
       state.packages = pkgResult.packages || {};
     } catch {}
   }
+  // Docker prune: capture Docker disk usage and container state
+  if (actionType?.startsWith?.("docker.")) {
+    try {
+      const dockerResult = await collectSkillData(["docker"], {});
+      state.docker = dockerResult.docker || {};
+    } catch {}
+  }
   return state;
 };
 
@@ -55,6 +62,16 @@ const formatState = (state) => {
       lines.push(`Update ${u.pkg}: ${u.newVersion}`);
     }
   }
+  if (state.docker?.diskUsage && Object.keys(state.docker.diskUsage).length) {
+    for (const [category, info] of Object.entries(state.docker.diskUsage)) {
+      lines.push(`Docker ${category}: ${info.size} (${info.reclaimable} reclaimable)`);
+    }
+  }
+  if (state.docker?.containers?.length) {
+    const running = state.docker.containers.filter((c) => c.running).length;
+    const stopped = state.docker.containers.filter((c) => c.exited).length;
+    lines.push(`Docker containers: ${running} running, ${stopped} stopped`);
+  }
   return lines.join("\n");
 };
 
@@ -79,6 +96,21 @@ const computeDiff = (actionType, before, after) => {
         changes.push(`Service ${bs.name}: ${bs.isActive} → ${as.isActive}`);
       }
     }
+  }
+  // Docker disk usage change
+  if (before.docker?.diskUsage && after.docker?.diskUsage) {
+    for (const [category, bInfo] of Object.entries(before.docker.diskUsage)) {
+      const aInfo = after.docker.diskUsage[category];
+      if (aInfo && bInfo.reclaimable !== aInfo.reclaimable) {
+        changes.push(`Docker ${category} reclaimable: ${bInfo.reclaimable} → ${aInfo.reclaimable}`);
+      }
+    }
+  }
+  // Docker container count change
+  const bRunning = before.docker?.containers?.filter((c) => c.running).length || 0;
+  const aRunning = after.docker?.containers?.filter((c) => c.running).length || 0;
+  if (bRunning !== aRunning) {
+    changes.push(`Docker containers running: ${bRunning} → ${aRunning}`);
   }
   return changes.length ? changes.join("; ") : "No significant state change detected.";
 };

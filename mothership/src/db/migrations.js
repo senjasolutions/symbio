@@ -561,6 +561,37 @@ const migrations = [
       await sequelize.query("CREATE INDEX IF NOT EXISTS idx_skill_actions_finding ON skill_actions(finding_id)", { transaction });
     },
   },
+  {
+    version: 19,
+    name: "add execution_requests table for command confirmation layer",
+    up: async (transaction) => {
+      await sequelize.query(`CREATE TABLE IF NOT EXISTS execution_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        display_id TEXT NOT NULL UNIQUE,
+        action_id INTEGER NOT NULL,
+        action_type TEXT NOT NULL DEFAULT '',
+        commands TEXT NOT NULL DEFAULT '[]',
+        explanation TEXT NOT NULL DEFAULT '',
+        risk_level TEXT NOT NULL DEFAULT 'low',
+        affected TEXT NOT NULL DEFAULT '',
+        revision_history TEXT DEFAULT '[]',
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`, { transaction });
+      await sequelize.query("CREATE INDEX IF NOT EXISTS idx_execution_requests_action ON execution_requests(action_id)", { transaction });
+      await sequelize.query("CREATE INDEX IF NOT EXISTS idx_execution_requests_status ON execution_requests(status)", { transaction });
+    },
+  },
+  {
+    version: 20,
+    name: "add heal_skill_key column to alert_rules for self-healing integration",
+    /** Adds heal_skill_key so alerts can trigger Symbio Intelligence skills (e.g. storage-maid)
+     *  when a threshold is breached. NULL = no self-healing (backward compatible). */
+    up: async (transaction) => {
+      await sequelize.query("ALTER TABLE alert_rules ADD COLUMN heal_skill_key TEXT", { transaction });
+    },
+  },
 ];
 
 /** Applies each unapplied migration in its own transaction and records success. */

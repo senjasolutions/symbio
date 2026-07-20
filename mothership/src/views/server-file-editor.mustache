@@ -1,0 +1,27 @@
+<!-- File editor — read-write textarea with file content, validates before saving. -->
+<nav aria-label="{{#t}}nav.breadcrumb{{/t}}"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/servers">{{#t}}server.breadcrumb.servers{{/t}}</a></li><li class="breadcrumb-item"><a href="/servers/{{server.id}}">{{server.displayName}}</a></li><li class="breadcrumb-item"><a href="/servers/{{server.id}}/file-manager?path={{parentDir}}">{{#t}}fileManager.title{{/t}}</a></li><li class="breadcrumb-item active">{{#t}}fileManager.editFile{{/t}}: {{fileName}}</li></ol></nav>
+<div class="d-flex justify-content-between align-items-start mb-3"><div><h1 class="h3 mb-1"><i class="fa-solid fa-pen-to-square me-1" aria-hidden="true"></i>{{fileName}}</h1><p class="text-secondary mb-0"><code>{{filePath}}</code> · {{bytes}} bytes</p></div></div>
+
+{{#error}}<div class="alert alert-danger" role="alert">{{error}}</div>{{/error}}
+{{#readOnly}}<div class="alert alert-warning" role="alert">{{#t}}fileManager.readOnlyHint{{/t}}</div>{{/readOnly}}
+
+{{^readOnly}}
+<form method="post" action="/servers/{{server.id}}/file-manager/edit">
+<input type="hidden" name="_csrf" value="{{csrfToken}}">
+<input type="hidden" name="path" value="{{filePath}}">
+<div class="card mb-3">
+  <div class="card-body p-0">
+    <textarea class="file-editor-textarea" name="content" rows="25" aria-label="{{#t}}fileManager.fileContent{{/t}}">{{content}}</textarea>
+  </div>
+</div>
+<div class="d-flex gap-2 mb-3">
+  <button class="btn btn-primary" type="submit">{{#t}}fileManager.saveFile{{/t}}</button>
+  <a class="btn btn-outline-secondary" href="/servers/{{server.id}}/file-manager?path={{parentDir}}">{{#t}}common.cancel{{/t}}</a>
+  <a class="btn btn-outline-primary" href="/servers/{{server.id}}/file-manager/edit?path={{filePath}}">{{#t}}fileManager.reloadFile{{/t}}</a>
+</div>
+</form>
+{{/readOnly}}
+{{#readOnly}}
+<pre class="file-viewer-pre">{{content}}</pre>
+<a class="btn btn-outline-primary" href="/servers/{{server.id}}/file-manager?path={{parentDir}}">{{#t}}common.back{{/t}}</a>
+{{/readOnly}}

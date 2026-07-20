@@ -1,4 +1,4 @@
-<!-- Read-only file manager combines a collapsible directory tree with a file listing table, closely following the cPanel File Manager layout while retaining Symbio's panel system. -->
+<!-- File manager combines a collapsible directory tree with a file listing table and write operations. -->
 <nav aria-label="{{#t}}nav.breadcrumb{{/t}}"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="/servers">{{#t}}server.breadcrumb.servers{{/t}}</a></li><li class="breadcrumb-item"><a href="/servers/{{server.id}}">{{server.displayName}}</a></li><li class="breadcrumb-item active">{{#t}}fileManager.title{{/t}}</li></ol></nav>
 <div class="d-flex justify-content-between align-items-start mb-3"><div><h1 class="h3 mb-1">{{#t}}fileManager.title{{/t}}</h1><p class="text-secondary mb-0">{{server.hostname}} · {{currentPath}}</p></div></div>
 
@@ -50,22 +50,68 @@
 
   <!-- RIGHT: File Listing -->
   <div class="col-md-9" id="fm-list-col">
+    <!-- New File / New Folder inline form -->
+    <div class="card mb-3">
+      <div class="card-body py-2">
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <strong class="small me-2">{{#t}}fileManager.newItem{{/t}}:</strong>
+          <form method="post" action="/servers/{{server.id}}/file-manager/create?path={{currentPath}}" class="d-flex gap-1 align-items-center">
+            <input type="hidden" name="_csrf" value="{{csrfToken}}">
+            <input class="form-control form-control-sm" style="width:12rem" type="text" name="name" placeholder="{{#t}}fileManager.fileNamePlaceholder{{/t}}" required>
+            <input type="hidden" name="type" value="file">
+            <button class="btn btn-outline-primary btn-sm" type="submit"><i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i> {{#t}}fileManager.newFile{{/t}}</button>
+          </form>
+          <form method="post" action="/servers/{{server.id}}/file-manager/create?path={{currentPath}}" class="d-flex gap-1 align-items-center">
+            <input type="hidden" name="_csrf" value="{{csrfToken}}">
+            <input class="form-control form-control-sm" style="width:12rem" type="text" name="name" placeholder="{{#t}}fileManager.folderNamePlaceholder{{/t}}" required>
+            <input type="hidden" name="type" value="directory">
+            <button class="btn btn-outline-secondary btn-sm" type="submit"><i class="fa-solid fa-folder-plus" aria-hidden="true"></i> {{#t}}fileManager.newFolder{{/t}}</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
     <section class="card h-100">
       <div class="card-header d-flex justify-content-between align-items-center"><strong id="fm-current-path">{{currentPath}}</strong><small id="fm-list-loading" class="text-muted d-none"><i class="fa-solid fa-spinner fa-spin me-1" aria-hidden="true"></i>{{#t}}fileManager.loading{{/t}}</small></div>
       <div class="table-responsive">
         <table class="table table-sm table-hover file-list mb-0">
-          <thead><tr><th style="width:2rem"></th><th>{{#t}}fileManager.name{{/t}}</th><th class="d-none d-md-table-cell">{{#t}}fileManager.size{{/t}}</th><th class="d-none d-lg-table-cell">{{#t}}fileManager.modified{{/t}}</th><th class="d-none d-md-table-cell">{{#t}}fileManager.permissions{{/t}}</th></tr></thead>
+          <thead><tr><th style="width:2rem"></th><th>{{#t}}fileManager.name{{/t}}</th><th class="d-none d-md-table-cell">{{#t}}fileManager.size{{/t}}</th><th class="d-none d-lg-table-cell">{{#t}}fileManager.modified{{/t}}</th><th class="d-none d-md-table-cell">{{#t}}fileManager.permissions{{/t}}</th><th class="text-end">{{#t}}fileManager.actions{{/t}}</th></tr></thead>
           <tbody id="fm-file-rows">
             {{#entries}}
             <tr class="file-row {{#isUp}}text-secondary{{/isUp}}" data-path="{{path}}" data-type="{{type}}">
               <td class="text-center">{{{icon}}}</td>
-              <td>{{#isDirectory}}<a class="file-link" href="?path={{path}}" data-path="{{path}}"><strong>{{name}}</strong></a>{{/isDirectory}}{{^isDirectory}}<a class="file-link" href="view?path={{path}}">{{name}}</a>{{/isDirectory}}</td>
+              <td>{{#isUp}}<a class="file-link" href="?path={{path}}" data-path="{{path}}"><strong>..</strong></a>{{/isUp}}{{^isUp}}{{#isDirectory}}<a class="file-link" href="?path={{path}}" data-path="{{path}}"><strong>{{name}}</strong></a>{{/isDirectory}}{{^isDirectory}}<a class="file-link" href="/servers/{{server.id}}/file-manager/edit?path={{path}}">{{name}}</a>{{/isDirectory}}{{/isUp}}</td>
               <td class="d-none d-md-table-cell">{{sizeLabel}}</td>
               <td class="d-none d-lg-table-cell">{{modifiedLabel}}</td>
               <td class="d-none d-md-table-cell font-monospace small">{{permissions}}</td>
+              <td class="text-end">{{^isUp}}
+                <div class="btn-group btn-group-sm file-actions">
+                  {{^isDirectory}}<a class="btn btn-outline-secondary" href="/servers/{{server.id}}/file-manager/edit?path={{path}}" title="{{#t}}fileManager.editFile{{/t}}"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></a>{{/isDirectory}}
+                  <!-- Rename form -->
+                  <form method="post" action="/servers/{{server.id}}/file-manager/rename?path={{currentPath}}" class="file-action-form" data-confirm="{{#t}}fileManager.confirmRename{{/t}}: {{name}}">
+                    <input type="hidden" name="_csrf" value="{{csrfToken}}">
+                    <input type="hidden" name="from" value="{{path}}">
+                    <input class="form-control form-control-sm file-action-input" type="text" name="to" placeholder="{{#t}}fileManager.newName{{/t}}" style="width:6rem">
+                    <button class="btn btn-outline-warning btn-sm" type="submit" title="{{#t}}fileManager.rename{{/t}}"><i class="fa-solid fa-i-cursor" aria-hidden="true"></i></button>
+                  </form>
+                  <!-- chmod form -->
+                  <form method="post" action="/servers/{{server.id}}/file-manager/chmod?path={{currentPath}}" class="file-action-form">
+                    <input type="hidden" name="_csrf" value="{{csrfToken}}">
+                    <input type="hidden" name="path" value="{{path}}">
+                    <input class="form-control form-control-sm file-action-input" type="text" name="mode" placeholder="644" style="width:3.5rem" maxlength="4">
+                    <button class="btn btn-outline-info btn-sm" type="submit" title="{{#t}}fileManager.chmod{{/t}}"><i class="fa-solid fa-lock" aria-hidden="true"></i></button>
+                  </form>
+                  <!-- Delete form -->
+                  <form method="post" action="/servers/{{server.id}}/file-manager/delete?path={{currentPath}}" class="d-inline" data-confirm="{{#t}}fileManager.confirmDelete{{/t}}: {{name}}">
+                    <input type="hidden" name="_csrf" value="{{csrfToken}}">
+                    <input type="hidden" name="path" value="{{path}}">
+                    <button class="btn btn-outline-danger btn-sm" type="submit" title="{{#t}}fileManager.delete{{/t}}"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+                  </form>
+                </div>
+              {{/isUp}}</td>
             </tr>
             {{/entries}}
-            {{^entries}}<tr><td colspan="5" class="text-muted">{{#t}}fileManager.empty{{/t}}</td></tr>{{/entries}}
+            {{^entries}}<tr><td colspan="6" class="text-muted">{{#t}}fileManager.empty{{/t}}</td></tr>{{/entries}}
           </tbody>
         </table>
       </div>
