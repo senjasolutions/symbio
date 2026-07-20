@@ -9,6 +9,7 @@
   <meta property="og:description" content="A private alpha for teams responsible for agency-managed web servers.">
   <meta property="og:type" content="website">
   <title>Symbio — The operating layer for web servers</title>
+  <link rel="icon" href="symbio_screenshot.png">
   <link rel="preload" href="symbio_screenshot.png" as="image">
   <link rel="stylesheet" href="index.css">
 </head>
@@ -69,32 +70,92 @@
       <div class="section-wrap">
         <div class="context__intro reveal" data-reveal>
           <p class="section-kicker">Context, kept close</p>
-          <h2 id="context-title">A server problem should come with the evidence that explains it.</h2>
-          <p>Symbio brings the surrounding state into one workspace, so an operator can move from a signal to a better-informed next step.</p>
+          <h2 id="context-title">The evidence behind a server issue, held in one place.</h2>
+          <p>The alpha brings host state, service checks, application signals, logs, and response context into the same operator workspace.</p>
         </div>
 
         <ol class="evidence-list" aria-label="The Symbio evidence flow">
           <li class="evidence-list__item reveal" data-reveal>
             <span class="evidence-list__index">01</span>
-            <div>
-              <h3>Host health</h3>
-              <p>CPU, memory, storage, processes, ports, packages, and the condition of the machine.</p>
+            <div class="evidence-list__content">
+              <div class="evidence-list__lead">
+                <h3>Host health</h3>
+                <p>Start with the machine: resource pressure, active processes, listening ports, packages, and Docker inventory.</p>
+              </div>
+              <div class="evidence-list__detail">
+                <p class="evidence-list__label">Signals</p>
+                <ul class="evidence-list__signals">
+                  <li>CPU and memory pressure</li>
+                  <li>Disk space and filesystem use</li>
+                  <li>Processes and listening ports</li>
+                  <li>Packages and Docker inventory</li>
+                </ul>
+                <p class="evidence-list__label">Investigates</p>
+                <p class="evidence-list__question">Is the host itself the constraint, or should the investigation move into a service or application?</p>
+              </div>
             </div>
             <span class="evidence-list__line" aria-hidden="true"></span>
           </li>
           <li class="evidence-list__item reveal" data-reveal>
             <span class="evidence-list__index">02</span>
-            <div>
-              <h3>Service and application signals</h3>
-              <p>Service checks and application status sit beside the host they depend on.</p>
+            <div class="evidence-list__content">
+              <div class="evidence-list__lead">
+                <h3>Services and applications</h3>
+                <p>Compare service state, container state, HTTP probes, and the applications discovered on the host.</p>
+              </div>
+              <div class="evidence-list__detail">
+                <p class="evidence-list__label">Signals</p>
+                <ul class="evidence-list__signals">
+                  <li>System service state</li>
+                  <li>Docker container state</li>
+                  <li>HTTP probe results</li>
+                  <li>Applications and tags</li>
+                </ul>
+                <p class="evidence-list__label">Investigates</p>
+                <p class="evidence-list__question">Is the public application unhealthy, or is an underlying dependency failing first?</p>
+              </div>
             </div>
             <span class="evidence-list__line" aria-hidden="true"></span>
           </li>
           <li class="evidence-list__item reveal" data-reveal>
             <span class="evidence-list__index">03</span>
-            <div>
-              <h3>Logs and investigation</h3>
-              <p>Relevant system and application evidence remains available when a signal needs interpretation.</p>
+            <div class="evidence-list__content">
+              <div class="evidence-list__lead">
+                <h3>Logs and investigation</h3>
+                <p>Keep system and application evidence close to the signal that sent an operator looking.</p>
+              </div>
+              <div class="evidence-list__detail">
+                <p class="evidence-list__label">Signals</p>
+                <ul class="evidence-list__signals">
+                  <li>System and application logs</li>
+                  <li>Error evidence</li>
+                  <li>File and path inspection</li>
+                  <li>AI-assisted analysis</li>
+                </ul>
+                <p class="evidence-list__label">Investigates</p>
+                <p class="evidence-list__question">Which available evidence gives the operator a credible next line of enquiry?</p>
+              </div>
+            </div>
+            <span class="evidence-list__line" aria-hidden="true"></span>
+          </li>
+          <li class="evidence-list__item reveal" data-reveal>
+            <span class="evidence-list__index">04</span>
+            <div class="evidence-list__content">
+              <div class="evidence-list__lead">
+                <h3>Alerts and response context</h3>
+                <p>Keep alert events, diagnostics, notifications, and the operator record with the server.</p>
+              </div>
+              <div class="evidence-list__detail">
+                <p class="evidence-list__label">Signals</p>
+                <ul class="evidence-list__signals">
+                  <li>Alert rules and events</li>
+                  <li>Alert diagnostics</li>
+                  <li>Slack webhook notifications</li>
+                  <li>Skill history and pending actions</li>
+                </ul>
+                <p class="evidence-list__label">Investigates</p>
+                <p class="evidence-list__question">What happened, who was notified, and what should the next operator review?</p>
+              </div>
             </div>
             <span class="evidence-list__line" aria-hidden="true"></span>
           </li>
@@ -106,13 +167,32 @@
       <div class="section-wrap operator__layout">
         <div class="operator__statement reveal" data-reveal>
           <p class="section-kicker">For the operator</p>
-          <h2 id="operator-title">Built around the responsibility that comes with a managed server.</h2>
+          <h2 id="operator-title">A server issue should arrive with the context needed to act.</h2>
         </div>
-        <div class="operator__detail reveal" data-reveal>
-          <p>The current alpha brings monitoring, alerts, logs, applications, and AI-assisted analysis into a single-server workspace. It is designed for teams who need technical context to remain clear when they decide what happens next.</p>
-          <dl class="operator__facts">
+        <div class="operator__detail">
+          <p class="reveal" data-reveal>Symbio is a private alpha for the person responsible for a client server. It keeps the signal, the available evidence, and the next operator decision within the same working context.</p>
+          <ol class="operator__flow" aria-label="The operator response flow">
+            <li class="reveal" data-reveal>
+              <span>01</span>
+              <div><h3>Alert</h3><p>Alert rules and Slack notifications surface failed checks and threshold conditions.</p></div>
+            </li>
+            <li class="reveal" data-reveal>
+              <span>02</span>
+              <div><h3>Inspect</h3><p>Host state, services, containers, application checks, and logs stay connected to one server.</p></div>
+            </li>
+            <li class="reveal" data-reveal>
+              <span>03</span>
+              <div><h3>Interpret</h3><p>AI-assisted analysis can help an operator work through the available evidence.</p></div>
+            </li>
+            <li class="reveal" data-reveal>
+              <span>04</span>
+              <div><h3>Review</h3><p>Alert diagnostics, skill history, and pending-action flows preserve context for review and handover.</p></div>
+            </li>
+          </ol>
+          <dl class="operator__scope reveal" data-reveal>
             <div><dt>Host</dt><dd>One Ubuntu server</dd></div>
-            <div><dt>View</dt><dd>Health, services, apps, logs</dd></div>
+            <div><dt>Signals</dt><dd>Services, HTTP, Docker, logs</dd></div>
+            <div><dt>Notifications</dt><dd>Slack webhooks</dd></div>
             <div><dt>Stage</dt><dd>Private alpha</dd></div>
           </dl>
         </div>
