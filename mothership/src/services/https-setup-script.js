@@ -82,9 +82,9 @@ install_certbot() {
     echo "nameserver 1.1.1.1" > /etc/resolv.conf
 
     set +e
-    apt-get update -y 2>&1 | tail -3
+    apt-get -o Apt::Sandbox::User=root update -y 2>&1 | tail -3
     local rc_up=$?
-    apt-get install -y certbot python3-certbot-nginx 2>&1 | tail -5
+    apt-get -o Apt::Sandbox::User=root install -y certbot python3-certbot-nginx 2>&1 | tail -5
     local rc_inst=$?
     set -e
 
