@@ -1347,6 +1347,7 @@
   "httpsWizard.serverIp": "Server Public IP",
   "httpsWizard.nginxStatus": "Nginx Installed",
   "httpsWizard.certbotStatus": "Certbot Installed",
+  "httpsWizard.certbotManualInstall": "Install it on the server: <code>sudo apt-get update && sudo apt-get install -y certbot python3-certbot-nginx</code>, then re-run.",
   "httpsWizard.dnsStatus": "Domain Resolves <small class=\"text-secondary\">(may use Cloudflare or other proxy)</small>",
   "httpsWizard.yes": "Yes",
   "httpsWizard.no": "No",

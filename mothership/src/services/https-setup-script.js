@@ -68,6 +68,45 @@ fail_and_rollback() {
     exit 1
 }
 
+# ── Certbot installation (auto-try with DNS override, fallback to manual) ──
+install_certbot() {
+    if command -v certbot &>/dev/null; then return 0; fi
+    log "Certbot not found. Attempting automatic installation..."
+
+    # Override DNS to Cloudflare (1.1.1.1) in case host's resolver doesn't work in chroot
+    local dns_bk
+    dns_bk=$(mktemp /tmp/symbio-resolv.XXXXXX)
+    cp /etc/resolv.conf "$dns_bk" 2>/dev/null || true
+    # Set trap to always restore DNS even if script is killed mid-install
+    trap "cp '$dns_bk' /etc/resolv.conf 2>/dev/null; rm -f '$dns_bk'" EXIT
+    echo "nameserver 1.1.1.1" > /etc/resolv.conf
+
+    set +e
+    apt-get update -y 2>&1 | tail -3
+    local rc_up=$?
+    apt-get install -y certbot python3-certbot-nginx 2>&1 | tail -5
+    local rc_inst=$?
+    set -e
+
+    # Restore DNS immediately (trap will also fire but harmlessly after restore)
+    cp "$dns_bk" /etc/resolv.conf 2>/dev/null || true
+    rm -f "$dns_bk"
+    trap - EXIT
+
+    if [ $rc_up -ne 0 ] || [ $rc_inst -ne 0 ]; then
+        log "Automatic certbot installation FAILED (update=$rc_up install=$rc_inst)."
+        log "Install it manually on the server, then re-run the wizard:"
+        log "  sudo apt-get update && sudo apt-get install -y certbot python3-certbot-nginx"
+        return 1
+    fi
+    if ! command -v certbot &>/dev/null; then
+        log "Certbot binary not found after successful apt-get install."
+        return 1
+    fi
+    log "Certbot installed successfully."
+    return 0
+}
+
 log "===== STARTING HTTPS SETUP FOR \$DOMAIN ====="
 
 # 1. Check root
@@ -75,16 +114,9 @@ if [ "$EUID" -ne 0 ] && [ "$(id -u)" -ne 0 ]; then
     fail_and_rollback "This script must be run as root."
 fi
 
-# 2. Ensure certbot is installed (apt-get writes to system paths — this is the
-#    single exception to the path guard, as certbot is a trusted package manager)
-if ! command -v certbot &>/dev/null; then
-    log "Certbot not found. Installing..."
-    apt-get update -y 2>&1 | tail -1
-    apt-get install -y certbot python3-certbot-nginx 2>&1 | tail -5
-    if ! command -v certbot &>/dev/null; then
-        fail_and_rollback "Failed to install certbot."
-    fi
-    log "Certbot installed successfully."
+# 2. Ensure certbot is installed (auto or manual)
+if ! install_certbot; then
+    fail_and_rollback "Certbot installation failed. Install manually and re-run the wizard."
 fi
 
 # 3. Ensure nginx is installed
