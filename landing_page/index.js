@@ -1,52 +1,46 @@
-/**
- * Symbio Landing Page — minimal enhancement for copy-to-clipboard.
- */
-document.addEventListener("DOMContentLoaded", function () {
-  var btns = document.querySelectorAll(".copy-btn");
-  btns.forEach(function (btn) {
-    btn.addEventListener("click", function (e) {
-      var codeBox = this.closest(".code-box");
-      var code = codeBox.querySelector("code");
-      var text = code.textContent.trim();
+document.addEventListener("DOMContentLoaded", () => {
+  document.documentElement.classList.add("has-motion");
+  const header = document.querySelector(".site-header");
+  const revealItems = document.querySelectorAll("[data-reveal]");
+  const year = document.querySelector("#year");
+  const productStage = document.querySelector("[data-product-stage]");
 
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(function () {
-          showCopied(btn);
-        }).catch(function () {
-          fallbackCopy(text, btn);
-        });
-      } else {
-        fallbackCopy(text, btn);
-      }
-    });
-  });
+  if (year) year.textContent = new Date().getFullYear();
 
-  function showCopied(btn) {
-    var orig = btn.innerHTML;
-    btn.innerHTML = '<i class="fa-solid fa-check"></i>';
-    btn.classList.add("copied");
-    setTimeout(function () {
-      btn.innerHTML = orig;
-      btn.classList.remove("copied");
-    }, 1800);
+  const updateHeader = () => {
+    header.classList.toggle("is-scrolled", window.scrollY > 24);
+  };
+
+  updateHeader();
+  window.addEventListener("scroll", updateHeader, { passive: true });
+
+  if ("IntersectionObserver" in window) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("is-visible");
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.18 });
+
+    revealItems.forEach((item) => observer.observe(item));
+  } else {
+    revealItems.forEach((item) => item.classList.add("is-visible"));
   }
 
-  function fallbackCopy(text, btn) {
-    var ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
-    document.body.appendChild(ta);
-    ta.select();
-    try {
-      document.execCommand("copy");
-      showCopied(btn);
-    } catch (e) {
-      btn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-      setTimeout(function () {
-        btn.innerHTML = '<i class="fa-regular fa-clipboard"></i>';
-      }, 1800);
-    }
-    document.body.removeChild(ta);
+  if (productStage && window.matchMedia("(prefers-reduced-motion: no-preference)").matches) {
+    productStage.addEventListener("pointermove", (event) => {
+      const bounds = productStage.getBoundingClientRect();
+      const x = (event.clientX - bounds.left) / bounds.width - .5;
+      const y = (event.clientY - bounds.top) / bounds.height - .5;
+      productStage.style.setProperty("--product-x", `${x * 4}deg`);
+      productStage.style.setProperty("--product-y", `${y * -3}deg`);
+    });
+
+    productStage.addEventListener("pointerleave", () => {
+      productStage.style.removeProperty("--product-x");
+      productStage.style.removeProperty("--product-y");
+    });
   }
 });
