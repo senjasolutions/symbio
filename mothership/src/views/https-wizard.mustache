@@ -1,0 +1,89 @@
+<!-- HTTPS Setup Wizard: step 1 (prerequisites), step 2 (confirm), step 3 (results) -->
+<p class="text-secondary small text-uppercase mb-1">Symbio</p><h1 class="h3 mb-3">{{#t}}httpsWizard.title{{/t}}</h1>
+
+{{#wizError}}<div class="alert alert-danger"><i class="fa-solid fa-circle-exclamation me-1" aria-hidden="true"></i> {{#t}}httpsWizard.error{{/t}}<pre class="mt-2 mb-0 small bg-dark text-light p-2 rounded" style="white-space:pre-wrap">{{wizError}}</pre></div>{{/wizError}}
+{{#wizSuccess}}<div class="alert alert-success"><i class="fa-solid fa-check-circle me-1" aria-hidden="true"></i> {{#t}}httpsWizard.success{{/t}}</div>{{/wizSuccess}}
+
+{{#showStep1}}
+<section class="card mb-3">
+  <div class="card-header"><strong>{{#t}}httpsWizard.step1Title{{/t}}</strong></div>
+  <div class="card-body">
+    <p class="text-secondary mb-3">{{#t}}httpsWizard.step1Desc{{/t}}</p>
+    {{#prereqServerIp}}<p><strong>{{#t}}httpsWizard.serverIp{{/t}}:</strong> <code>{{prereqServerIp}}</code></p>{{/prereqServerIp}}
+
+    <form method="post" action="/settings/https-wizard">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}">
+      <input type="hidden" name="action" value="check">
+
+      <div class="mb-3">
+        <label class="form-label" for="wizDomain">{{#t}}httpsWizard.domain{{/t}}</label>
+        <input class="form-control" id="wizDomain" name="domain" value="{{wizDomain}}" placeholder="symbio.example.com" required>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label" for="wizEmail">{{#t}}httpsWizard.email{{/t}}</label>
+        <input class="form-control" id="wizEmail" name="email" type="email" value="{{wizEmail}}" placeholder="admin@example.com" required>
+      </div>
+
+      <button class="btn btn-primary" type="submit"><i class="fa-solid fa-check me-1" aria-hidden="true"></i> {{#t}}httpsWizard.recheckBtn{{/t}}</button>
+    </form>
+  </div>
+</section>
+
+{{#prereqDone}}
+<section class="card mb-3">
+  <div class="card-body">
+    <table class="table table-sm mb-0">
+      <tr><th>{{#t}}httpsWizard.nginxStatus{{/t}}</th><td>{{#prereqNginx}}<span class="text-success">{{#t}}httpsWizard.yes{{/t}}</span>{{/prereqNginx}}{{^prereqNginx}}<span class="text-danger">{{#t}}httpsWizard.no{{/t}}</span>{{/prereqNginx}}</td></tr>
+      <tr><th>{{#t}}httpsWizard.certbotStatus{{/t}}</th><td>{{#prereqCertbot}}<span class="text-success">{{#t}}httpsWizard.yes{{/t}}</span>{{/prereqCertbot}}{{^prereqCertbot}}<span class="text-danger">{{#t}}httpsWizard.no{{/t}}</span>{{/prereqCertbot}}</td></tr>
+      <tr><th>{{#t}}httpsWizard.dnsStatus{{/t}}</th><td>{{#prereqDns}}<span class="text-success">{{#t}}httpsWizard.yes{{/t}}</span>{{/prereqDns}}{{^prereqDns}}<span class="text-danger">{{#t}}httpsWizard.no{{/t}}</span>{{/prereqDns}}</td></tr>
+    </table>
+  </div>
+</section>
+
+{{#canProceed}}
+<form method="post" action="/settings/https-wizard">
+  <input type="hidden" name="_csrf" value="{{csrfToken}}">
+  <input type="hidden" name="action" value="confirm">
+  <input type="hidden" name="domain" value="{{wizDomain}}">
+  <input type="hidden" name="email" value="{{wizEmail}}">
+  <button class="btn btn-primary" type="submit"><i class="fa-solid fa-arrow-right me-1" aria-hidden="true"></i> {{#t}}httpsWizard.step2Title{{/t}}</button>
+</form>
+{{/canProceed}}
+{{/prereqDone}}
+{{/showStep1}}
+
+{{#showStep2}}
+<section class="card mb-3">
+  <div class="card-header"><strong>{{#t}}httpsWizard.step2Title{{/t}}</strong></div>
+  <div class="card-body">
+    <p class="text-secondary mb-3">{{#t}}httpsWizard.step2Desc{{/t}}</p>
+    <p class="mb-2"><strong>{{#t}}httpsWizard.domain{{/t}}:</strong> {{wizDomain}} &mdash; <strong>{{#t}}httpsWizard.email{{/t}}:</strong> {{wizEmail}}</p>
+    <pre class="bg-dark text-light p-3 rounded mb-3" style="white-space:pre-wrap;font-family:monospace;font-size:.8rem;max-height:400px;overflow-y:auto">{{{commandsPreview}}}</pre>
+    <p class="text-secondary small mb-2">{{#t}}httpsWizard.step2Summary{{/t}}</p>
+  </div>
+  <div class="card-footer d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="/settings/https-wizard">&larr; {{#t}}httpsWizard.backBtn{{/t}}</a>
+    <form method="post" action="/settings/https-wizard">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}">
+      <input type="hidden" name="action" value="execute">
+      <input type="hidden" name="domain" value="{{wizDomain}}">
+      <input type="hidden" name="email" value="{{wizEmail}}">
+      <button class="btn btn-primary" type="submit"><i class="fa-solid fa-play me-1" aria-hidden="true"></i> {{#t}}httpsWizard.executeBtn{{/t}}</button>
+    </form>
+  </div>
+</section>
+{{/showStep2}}
+
+{{#showStep3}}
+<section class="card mb-3">
+  <div class="card-header"><strong>{{#t}}httpsWizard.step3Title{{/t}}</strong></div>
+  <div class="card-body">
+    <p class="text-secondary mb-3">{{#t}}httpsWizard.step3Desc{{/t}}</p>
+    <pre class="bg-dark text-light p-3 rounded" style="white-space:pre-wrap;font-family:monospace;font-size:.8rem;max-height:500px;overflow-y:auto">{{wizOutput}}</pre>
+  </div>
+  <div class="card-footer">
+    <a class="btn btn-primary" href="/settings?tab=advanced">{{#t}}common.back{{/t}}</a>
+  </div>
+</section>
+{{/showStep3}}

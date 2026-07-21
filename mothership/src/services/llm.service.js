@@ -4,6 +4,8 @@
  * code path works for OpenAI. Anthropic uses a separate format handler.
  */
 
+import { models } from "../db/index.js";
+
 /**
  * Provider-specific defaults and model lists.
  * Used by the settings page to populate the model dropdown and by the service as fallback endpoints.
@@ -97,6 +99,51 @@ const PERSONALITY_INSTRUCTIONS = {
   satirical: "Use satirical and witty language. Be humorous but still informative and accurate. Do not be offensive.",
 };
 
+/**
+ * Reads the server_personality setting and returns a formatted context string
+ * filtered by injection level. Called by both askAI() and callSkillAI().
+ *
+ * Level-to-field mapping:
+ *   low    → nickname + purpose
+ *   medium → low + quirks + specs + provider
+ *   high   → everything (incl. location + extra notes)
+ */
+const buildServerPersonalityContext = async () => {
+  try {
+    const row = await models.Setting.findByPk("server_personality");
+    if (!row?.value) return "";
+    const p = JSON.parse(row.value);
+    const level = p.injectionLevel || "medium";
+    const ctx = [];
+
+    if (!p.nickname?.trim()) return "";
+    ctx.push(`- Nickname: ${p.nickname.trim()}`);
+
+    if (p.purpose?.trim()) ctx.push(`- Purpose: ${p.purpose.trim()}`);
+
+    if (level !== "low") {
+      if (p.quirks?.trim()) ctx.push(`- Quirks: ${p.quirks.trim()}`);
+
+      if (p.specs?.trim()) ctx.push(`- Specs:\n${p.specs.trim().split("\n").map((l) => `  ${l}`).join("\n")}`);
+
+      if (p.provider?.type && p.provider.type !== "none") {
+        const labels = { aws: "AWS", azure: "Azure", gcp: "Google Cloud", hetzner: "Hetzner", digitalocean: "DigitalOcean", linode: "Linode", vultr: "Vultr", ovhcloud: "OVHcloud", scaleway: "Scaleway", self: "Self-Hosted", other: p.provider.otherName || "Other", common: "Common Hosting" };
+        ctx.push(`- Provider: ${labels[p.provider.type] || p.provider.type}`);
+      }
+
+      if (level === "high") {
+        if (p.location?.city || p.location?.country) {
+          ctx.push(`- Location: ${[p.location.city, p.location.country, p.location.planet || "Earth"].filter(Boolean).join(", ")}`);
+        }
+        if (p.extraNotes?.trim()) ctx.push(`- Notes: ${p.extraNotes.trim()}`);
+      }
+    }
+
+    if (ctx.length <= 1) return ""; // Only nickname → not useful
+    return `\n\n## Server Personality Context\n${ctx.join("\n")}`;
+  } catch { return ""; }
+};
+
 /** Injects language, personality, and custom instruction into a system prompt. */
 const buildCustomPrompt = (systemPrompt, options = {}) => {
   const parts = [systemPrompt];
@@ -133,7 +180,8 @@ export const askAI = async ({ provider, apiKey, endpoint, model, logContent, que
   const baseEndpoint = (endpoint || PROVIDER_DEFAULTS[provider]?.endpoint || "").replace(/\/+$/, "");
   if (!baseEndpoint) return { content: null, reasoningContent: null, error: `Unknown provider "${provider}".` };
 
-  const systemPrompt = buildCustomPrompt(buildSystemPrompt(), { language, personality, customInstruction });
+  const personalityCtx = await buildServerPersonalityContext();
+  const systemPrompt = buildCustomPrompt(buildSystemPrompt() + personalityCtx, { language, personality, customInstruction });
   const userContent = `Here are the server logs:\n\n${(logContent || "").slice(0, MAX_LOG_CHARS)}\n\nQuestion: ${question}`;
 
   try {
@@ -336,7 +384,8 @@ export const callSkillAI = async ({ provider, apiKey, endpoint, model, systemPro
   const baseEndpoint = (endpoint || PROVIDER_DEFAULTS[provider]?.endpoint || "").replace(/\/+$/, "");
   if (!baseEndpoint) return { content: null, usage: null, error: `Unknown provider "${provider}".` };
 
-  const enhancedSystemPrompt = buildCustomPrompt(systemPrompt, { language, personality, customInstruction });
+  const personalityCtx = await buildServerPersonalityContext();
+  const enhancedSystemPrompt = buildCustomPrompt(systemPrompt + personalityCtx, { language, personality, customInstruction });
 
   const body = {
     model: model || PROVIDER_MODELS[provider]?.[0] || "deepseek-v4-flash",

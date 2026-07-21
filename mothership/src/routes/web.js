@@ -41,7 +41,8 @@ import { serviceRegistry } from "../components/services/index.js";
 import { readSystemLog, searchSystemLog } from "../services/system-log.service.js";
 import { readMothershipLog, searchMothershipLog, readAgentLog, searchAgentLog } from "../services/symbio-log.service.js";
 import { askAI, checkBalance, discoverApplications, buildDiscoveryContext, buildSystemPrompt, PROVIDER_MODELS } from "../services/llm.service.js";
-import { executeSkillActions } from "../services/agent-client.js";
+import { collectSkillData, executeSkillActions, bridgePost } from "../services/agent-client.js";
+import { buildSetupScript } from "../services/https-setup-script.js";
 import { executeWithProof } from "../services/skills/proof.js";
 import { buildCommands, generateDisplayId, generateExplanation, reviseCommands } from "../services/skills/execution-request.js";
 
@@ -2363,6 +2364,51 @@ protectedRoutes.get("/settings", async (context) => {
     const ttlRow = await models.Setting.findByPk("dashboard_summary_ttl");
     if (ttlRow) dashboardTtl = parseInt(ttlRow.value) || 86400;
   } catch {}
+  // Load server personality (for llm tab card)
+  const personalityRow = await models.Setting.findByPk("server_personality");
+  let pBase = { nickname: "", provider: {}, specs: "", location: { planet: "Earth" }, purpose: "", quirks: "", extraNotes: "", injectionLevel: "medium" };
+  if (personalityRow) {
+    try { const parsed = JSON.parse(personalityRow.value); pBase = { ...pBase, ...parsed }; } catch {}
+  }
+  const pProv = (typeof pBase.provider === "object" && pBase.provider) ? pBase.provider : {};
+  const pLoc = (typeof pBase.location === "object" && pBase.location) ? pBase.location : {};
+  const injLvl = pBase.injectionLevel || "medium";
+
+  // Load HTTPS setup status (for Advanced tab)
+  const httpsPort = process.env.SYMBIO_PORT || "8765";
+  let httpsDomain = "";
+  let httpsEnabled = false;
+  let httpsNginxDetected = false;
+  try {
+    const httpsRow = await models.Setting.findByPk("https_status");
+    if (httpsRow?.value) {
+      const parsed = JSON.parse(httpsRow.value);
+      httpsDomain = parsed.domain || "";
+      httpsEnabled = parsed.enabled === true;
+    }
+    // Check nginx availability via agent bridge
+    if (tab === "advanced") {
+      const nginxCheck = await bridgePost("/api/v1/https/check", { });
+      httpsNginxDetected = nginxCheck.nginxInstalled === true;
+    }
+  } catch (e) { /* agent unreachable — wizard button stays disabled */ }
+
+  // Load certificate info if HTTPS enabled
+  let httpsCertIssuer = "", httpsCertIssued = "", httpsCertExpires = "", httpsAutoRenew = false, httpsCertExpiring = false;
+  if (httpsEnabled && httpsDomain) {
+    try {
+      const certInfo = await bridgePost("/api/v1/https/cert-info", { domain: httpsDomain });
+      httpsCertIssuer = certInfo.issuer || "";
+      httpsCertIssued = certInfo.issuedAt ? new Date(certInfo.issuedAt).toLocaleDateString() : "";
+      httpsCertExpires = certInfo.expiresAt ? new Date(certInfo.expiresAt).toLocaleDateString() : "";
+      httpsAutoRenew = certInfo.autoRenewActive === true;
+      if (certInfo.expiresAt) {
+        const daysLeft = (new Date(certInfo.expiresAt) - new Date()) / (1000 * 60 * 60 * 24);
+        httpsCertExpiring = daysLeft < 30;
+      }
+    } catch (e) { /* cert info unavailable */ }
+  }
+
   return renderPage(context, "settings", {
     serverTimezone,
     users: usersDecorated,
@@ -2377,6 +2423,7 @@ protectedRoutes.get("/settings", async (context) => {
     tabGeneral: tab === "general",
     tabUsers: tab === "users",
     tabLlm: tab === "llm",
+    tabAdvanced: tab === "advanced",
     tabMessaging: tab === "messaging",
     channels: channelsDecorated,
     messagingSaved: tab === "messaging" && context.req.query("saved") === "1",
@@ -2391,6 +2438,43 @@ protectedRoutes.get("/settings", async (context) => {
     dashboardTtl259200: dashboardTtl === 259200,
     summaryRefreshed: tab === "general" && context.req.query("refreshed") === "1",
     summaryTtlSaved: tab === "general" && context.req.query("ttlSaved") === "1",
+    personalitySaved: tab === "llm" && context.req.query("personalitySaved") === "1",
+    personalityNickname: pBase.nickname || "",
+    personalityProviderAws: pProv.type === "aws",
+    personalityProviderAzure: pProv.type === "azure",
+    personalityProviderGcp: pProv.type === "gcp",
+    personalityProviderHetzner: pProv.type === "hetzner",
+    personalityProviderDo: pProv.type === "digitalocean",
+    personalityProviderLinode: pProv.type === "linode",
+    personalityProviderVultr: pProv.type === "vultr",
+    personalityProviderOvh: pProv.type === "ovhcloud",
+    personalityProviderScaleway: pProv.type === "scaleway",
+    personalityProviderSelf: pProv.type === "self",
+    personalityProviderOther: pProv.type === "other",
+    personalityProviderOtherName: pProv.type === "other" ? (pProv.otherName || "") : "",
+    personalitySpecs: pBase.specs || "",
+    personalityLocationCity: pLoc.city || "",
+    personalityLocationCountry: pLoc.country || "",
+    personalityLocationPlanet: pLoc.planet || "Earth",
+    personalityPurpose: pBase.purpose || "",
+    personalityQuirks: pBase.quirks || "",
+    personalityExtraNotes: pBase.extraNotes || "",
+    injectionLevelLow: injLvl === "low",
+    injectionLevelMedium: injLvl === "medium",
+    injectionLevelHigh: injLvl === "high",
+    // Advanced tab HTTPS data
+    httpsPort,
+    httpsDomain,
+    httpsEnabled,
+    httpsNginxDetected,
+    httpsCertIssuer,
+    httpsCertIssued,
+    httpsCertExpires,
+    httpsAutoRenew,
+    httpsCertExpiring,
+    httpsRenewSuccess: tab === "advanced" && context.req.query("renewed") === "1",
+    httpsRenewError: tab === "advanced" && context.req.query("renewError") === "1",
+    httpsDomainSaved: tab === "advanced" && context.req.query("domainSaved") === "1",
   }, { title: "Settings — Symbio" });
 });
 
@@ -2538,6 +2622,24 @@ protectedRoutes.post("/settings/llm/check-balance", requireCsrf, async (context)
   return context.redirect(`/settings?tab=llm&balanceResult=${encodeURIComponent(result)}`);
 });
 
+/** Saves the server personality metadata for LLM context injection. */
+protectedRoutes.post("/settings/llm/personality", requireCsrf, async (context) => {
+  if (!isSuperadmin(context)) return context.redirect("/settings");
+  const form = context.get("form");
+  const value = JSON.stringify({
+    nickname: String(form.nickname || "").trim(),
+    provider: { type: form.provider || "", otherName: form.provider === "other" ? String(form.providerOther || "").trim() : "" },
+    specs: String(form.specs || "").trim(),
+    location: { city: String(form.locationCity || "").trim(), country: String(form.locationCountry || "").trim(), planet: String(form.locationPlanet || "Earth").trim() },
+    purpose: String(form.purpose || "").trim(),
+    quirks: String(form.quirks || "").trim(),
+    extraNotes: String(form.extraNotes || "").trim(),
+    injectionLevel: ["low", "medium", "high"].includes(form.injectionLevel) ? form.injectionLevel : "medium",
+  });
+  await models.Setting.upsert({ key: "server_personality", value, updatedAt: new Date() });
+  return context.redirect("/settings?tab=llm&personalitySaved=1");
+});
+
 // ---- Setup Wizard ----
 
 /** Setup Wizard — two-step process (language + LLM config). Superadmin only. Can be re-run from settings. */
@@ -2552,7 +2654,11 @@ protectedRoutes.get("/setup-wizard", async (context) => {
     await writeWizardState({ completed: true, step: 3 });
     return context.redirect("/dashboard");
   }
-  const step = (explicitStep === 1 || explicitStep === 2 || explicitStep === 3) ? explicitStep : (state.step || 1);
+  if (context.req.query("step") === "skip4") {
+    await writeWizardState({ completed: true, step: 4 });
+    return context.redirect("/dashboard");
+  }
+  const step = (explicitStep === 1 || explicitStep === 2 || explicitStep === 3 || explicitStep === 4) ? explicitStep : (state.step || 1);
   if (step === 1) {
     // Read current theme from settings to pre-select the dropdown
     let currentTheme = "blue";
@@ -2604,20 +2710,93 @@ protectedRoutes.get("/setup-wizard", async (context) => {
     }, { title: "Setup Wizard — Symbio", standalone: true });
   }
   // Step 3: LLM preferences (language, personality, custom instruction)
+  if (step === 3) {
+    return renderPage(context, "setup-wizard", {
+      showStep3: true,
+      languageEn: llmLanguage === "en",
+      languageDe: llmLanguage === "de",
+      languageId: llmLanguage === "id",
+      languageSu: llmLanguage === "su",
+      personalityDefault: personality === "default",
+      personalityProfessional: personality === "professional",
+      personalityFriendly: personality === "friendly",
+      personalityConcise: personality === "concise",
+      personalityTechnical: personality === "technical",
+      personalityEducational: personality === "educational",
+      personalitySatirical: personality === "satirical",
+      customInstruction,
+    }, { title: "Setup Wizard — Symbio", standalone: true });
+  }
+  // Step 4: Server Personality (optional, with auto-detect prefill)
+  const loadPersonality = async () => {
+    const row = await models.Setting.findByPk("server_personality");
+    if (!row?.value) return null;
+    try { return JSON.parse(row.value); } catch { return null; }
+  };
+  const existing = await loadPersonality();
+
+  // Auto-detect specs from server inventory if not previously filled
+  let prefillNickname = existing?.nickname || "";
+  let prefillSpecs = existing?.specs || "";
+  if (!prefillNickname || !prefillSpecs) {
+    const server = await models.Server.findOne({ where: { slug: "main-server" }, raw: true }).catch(() => null);
+    if (server) {
+      if (!prefillNickname) prefillNickname = server.hostname || server.displayName || "";
+      if (!prefillSpecs) {
+        let hw = {};
+        if (server.hardwareJson) { try { hw = JSON.parse(server.hardwareJson); } catch {} }
+        if (typeof hw !== "object" || Array.isArray(hw)) hw = {};
+        const cpuModel = hw.cpuModel || "";
+        const cpuArch = hw.architecture || "";
+        const cpuCores = hw.logicalCores ? `${hw.logicalCores}t` : "";
+        const status = await models.ServerStatus.findOne({ where: { serverId: server.id }, order: [["observedAt", "DESC"]], raw: true }).catch(() => null);
+        const ramMb = status?.memoryTotalBytes ? Math.round(status.memoryTotalBytes / (1024 * 1024)) : null;
+        let storageGb = null;
+        if (server.storageJson) {
+          try {
+            const storage = JSON.parse(server.storageJson);
+            const root = Array.isArray(storage) ? storage.find((s) => s.mountPoint === "/") || storage[0] : null;
+            if (root?.totalBytes) storageGb = Math.round(root.totalBytes / (1024 * 1024 * 1024));
+          } catch {}
+        }
+        prefillSpecs = [
+          cpuModel && cpuArch && cpuCores ? `CPU: ${cpuModel} ${cpuArch} ${cpuCores}`.replace(/\s+/g, " ").trim() : "",
+          ramMb ? `RAM: ${ramMb} MB` : "",
+          storageGb ? `Storage: ${storageGb} GB` : "",
+          "Virtualization: KVM",
+        ].filter(Boolean).join("\n");
+      }
+    }
+  }
+  const p = existing || {};
+  const pProvider = (typeof p.provider === "object" && p.provider) ? p.provider : {};
+  const pLocation = (typeof p.location === "object" && p.location) ? p.location : {};
+  const injLevel = p.injectionLevel || "medium";
   return renderPage(context, "setup-wizard", {
-    showStep3: true,
-    languageEn: llmLanguage === "en",
-    languageDe: llmLanguage === "de",
-    languageId: llmLanguage === "id",
-    languageSu: llmLanguage === "su",
-    personalityDefault: personality === "default",
-    personalityProfessional: personality === "professional",
-    personalityFriendly: personality === "friendly",
-    personalityConcise: personality === "concise",
-    personalityTechnical: personality === "technical",
-    personalityEducational: personality === "educational",
-    personalitySatirical: personality === "satirical",
-    customInstruction,
+    showStep4: true,
+    personalityNickname: prefillNickname,
+    personalityProviderAws: pProvider.type === "aws",
+    personalityProviderAzure: pProvider.type === "azure",
+    personalityProviderGcp: pProvider.type === "gcp",
+    personalityProviderHetzner: pProvider.type === "hetzner",
+    personalityProviderDo: pProvider.type === "digitalocean",
+    personalityProviderLinode: pProvider.type === "linode",
+    personalityProviderVultr: pProvider.type === "vultr",
+    personalityProviderOvh: pProvider.type === "ovhcloud",
+    personalityProviderScaleway: pProvider.type === "scaleway",
+    personalityProviderSelf: pProvider.type === "self",
+    personalityProviderOther: pProvider.type === "other",
+    personalityProviderOtherName: pProvider.type === "other" ? (pProvider.otherName || "") : "",
+    personalitySpecs: prefillSpecs,
+    personalityLocationCity: pLocation.city || "",
+    personalityLocationCountry: pLocation.country || "",
+    personalityLocationPlanet: pLocation.planet || "Earth",
+    personalityPurpose: p.purpose || "",
+    personalityQuirks: p.quirks || "",
+    personalityExtraNotes: p.extraNotes || "",
+    injectionLevelLow: injLevel === "low",
+    injectionLevelMedium: injLevel === "medium",
+    injectionLevelHigh: injLevel === "high",
   }, { title: "Setup Wizard — Symbio", standalone: true });
 });
 
@@ -2664,7 +2843,22 @@ protectedRoutes.post("/setup-wizard", requireCsrf, async (context) => {
     config.personality = form.personality || "professional";
     config.customInstruction = String(form.customInstruction || "").trim();
     await models.Setting.upsert({ key: "llm_config", value: JSON.stringify(config), updatedAt: new Date() });
-    await writeWizardState({ completed: true, step: 3 });
+    await writeWizardState({ completed: false, step: 4 });
+    return context.redirect("/setup-wizard?step=4");
+  }
+  if (step === 4) {
+    const value = JSON.stringify({
+      nickname: String(form.nickname || "").trim(),
+      provider: { type: form.provider || "", otherName: form.provider === "other" ? String(form.providerOther || "").trim() : "" },
+      specs: String(form.specs || "").trim(),
+      location: { city: String(form.locationCity || "").trim(), country: String(form.locationCountry || "").trim(), planet: String(form.locationPlanet || "Earth").trim() },
+      purpose: String(form.purpose || "").trim(),
+      quirks: String(form.quirks || "").trim(),
+      extraNotes: String(form.extraNotes || "").trim(),
+      injectionLevel: ["low", "medium", "high"].includes(form.injectionLevel) ? form.injectionLevel : "medium",
+    });
+    await models.Setting.upsert({ key: "server_personality", value, updatedAt: new Date() });
+    await writeWizardState({ completed: true, step: 4 });
     return context.redirect("/dashboard");
   }
   return context.redirect("/setup-wizard");
@@ -4695,6 +4889,169 @@ api.get("/summary", async (context) => {
     applicationCounts: applications.reduce((result, item) => ({ ...result, [item.status || "unknown"]: (result[item.status || "unknown"] || 0) + 1 }), {}),
     serviceCounts: services.reduce((result, item) => ({ ...result, [item.status || "unknown"]: (result[item.status || "unknown"] || 0) + 1 }), {}),
   });
+});
+
+// ---- HTTPS Setup Wizard ----
+
+/** Main wizard page: step 1 (prerequisites), step 2 (confirm), step 3 (results). */
+protectedRoutes.get("/settings/https-wizard", async (context) => {
+  if (!isSuperadmin(context)) return context.redirect("/settings");
+  const port = process.env.SYMBIO_PORT || "8765";
+
+  // Fetch prerequisites and server IP from agent
+  let prereqServerIp = "";
+  let prereqNginx = false;
+  let prereqCertbot = false;
+  let prereqDns = false;
+  let wizEmail = "";
+  try {
+    const superadmin = await models.User.findOne({ where: { role: "superadmin" }, order: [["id", "ASC"]] });
+    if (superadmin) wizEmail = superadmin.email || "";
+  } catch {}
+
+  return renderPage(context, "https-wizard", {
+    showStep1: true,
+    csrfToken: context.get("auth")?.session?.csrfToken,
+    wizDomain: context.req.query("domain") || "",
+    wizEmail: context.req.query("email") || wizEmail,
+    prereqServerIp,
+    prereqNginx,
+    prereqCertbot,
+    prereqDns,
+    prereqDone: false,
+    canProceed: false,
+  }, { title: "HTTPS Setup — Symbio" });
+});
+
+/** Handles wizard actions: check, confirm, execute. */
+protectedRoutes.post("/settings/https-wizard", requireCsrf, async (context) => {
+  if (!isSuperadmin(context)) return context.redirect("/settings");
+  const form = context.get("form");
+  const action = form.action || "";
+  const domain = String(form.domain || "").trim();
+  const email = String(form.email || "").trim();
+  const port = process.env.SYMBIO_PORT || "8765";
+
+  if (action === "check") {
+    // Check prerequisites via agent bridge
+    let prereqServerIp = "";
+    let prereqNginx = false;
+    let prereqCertbot = false;
+    let prereqDns = false;
+    try {
+      const result = await bridgePost("/api/v1/https/check", { domain }, 15000);
+      prereqServerIp = result.serverIp || "";
+      prereqNginx = result.nginxInstalled === true;
+      prereqCertbot = result.certbotInstalled === true;
+      prereqDns = result.domainResolves === true;
+    } catch (e) {
+      return renderPage(context, "https-wizard", {
+        showStep1: true,
+        csrfToken: context.get("auth")?.session?.csrfToken,
+        wizDomain: domain,
+        wizEmail: email,
+        prereqServerIp: "Agent unreachable",
+        prereqNginx: false, prereqCertbot: false, prereqDns: false,
+        prereqDone: true, canProceed: false,
+        wizError: `Cannot reach agent: ${e.message}`,
+      }, { title: "HTTPS Setup — Symbio" });
+    }
+
+    const canProceed = prereqNginx;
+    return renderPage(context, "https-wizard", {
+      showStep1: true,
+      csrfToken: context.get("auth")?.session?.csrfToken,
+      wizDomain: domain, wizEmail: email,
+      prereqServerIp, prereqNginx, prereqCertbot, prereqDns,
+      prereqDone: true, canProceed,
+    }, { title: "HTTPS Setup — Symbio" });
+  }
+
+  if (action === "confirm") {
+    // Show confirmation with commands preview
+    const script = buildSetupScript();
+    // Replace heredoc placeholders + add parameter header for clarity
+    const preview = script
+      .replace(/__DOMAIN__/g, domain)
+      .replace(/__PORT__/g, port)
+      .replace(/DOMAIN="\$1"/, `DOMAIN="${domain}"`)
+      .replace(/NODE_PORT="\$2"/, `NODE_PORT="${port}"`)
+      .replace(/EMAIL="\$3"/, `EMAIL="${email}"`)
+      .replace(/\\\$(\w+)/g, "$$$1"); // fix any remaining escaped vars for display
+    return renderPage(context, "https-wizard", {
+      showStep2: true,
+      csrfToken: context.get("auth")?.session?.csrfToken,
+      wizDomain: domain, wizEmail: email,
+      commandsPreview: preview,
+    }, { title: "HTTPS Setup — Symbio" });
+  }
+
+  if (action === "execute") {
+    // Execute the setup via agent bridge
+    const script = buildSetupScript();
+    let wizOutput = "";
+    let wizSuccess = false;
+    let wizError = "";
+    try {
+      const result = await bridgePost("/api/v1/https/setup", { domain, port, email, script }, 300000);
+      wizOutput = result.output || "";
+      if (result.ok) {
+        // Save HTTPS status
+        await models.Setting.upsert({
+          key: "https_status",
+          value: JSON.stringify({ enabled: true, domain, setupAt: new Date().toISOString() }),
+          updatedAt: new Date(),
+        });
+        wizSuccess = true;
+      } else {
+        wizError = result.error || "Setup failed (see output)";
+      }
+    } catch (e) {
+      wizError = e.message;
+      wizOutput = wizError;
+    }
+
+    return renderPage(context, "https-wizard", {
+      showStep3: true,
+      csrfToken: context.get("auth")?.session?.csrfToken,
+      wizDomain: domain, wizEmail: email,
+      wizOutput, wizSuccess, wizError,
+    }, { title: "HTTPS Setup — Symbio" });
+  }
+
+  return context.redirect("/settings/https-wizard");
+});
+
+/** Manually triggers certificate renewal. */
+protectedRoutes.post("/settings/https/renew", requireCsrf, async (context) => {
+  if (!isSuperadmin(context)) return context.redirect("/settings");
+  try {
+    const result = await bridgePost("/api/v1/https/renew", {}, 120000);
+    if (result.ok) {
+      return context.redirect("/settings?tab=advanced&renewed=1");
+    }
+    return context.redirect("/settings?tab=advanced&renewError=1");
+  } catch (e) {
+    return context.redirect(`/settings?tab=advanced&renewError=1`);
+  }
+});
+
+/** Saves the HTTPS domain name independently of the wizard. */
+protectedRoutes.post("/settings/https/domain", requireCsrf, async (context) => {
+  if (!isSuperadmin(context)) return context.redirect("/settings");
+  const form = context.get("form");
+  const domain = String(form.domain || "").trim();
+
+  // Load existing https_status, update domain, preserve other fields
+  let status = { enabled: false, domain: "", setupAt: null };
+  try {
+    const row = await models.Setting.findByPk("https_status");
+    if (row?.value) status = { ...status, ...JSON.parse(row.value) };
+  } catch {}
+  status.domain = domain;
+
+  await models.Setting.upsert({ key: "https_status", value: JSON.stringify(status), updatedAt: new Date() });
+  return context.redirect("/settings?tab=advanced&domainSaved=1");
 });
 
 protectedRoutes.route("/api/v1", api);

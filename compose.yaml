@@ -47,6 +47,7 @@ services:
     container_name: symbio-agent
     restart: unless-stopped
     network_mode: host
+    pid: host
     # Ubuntu's standard web-server logs are commonly root/www-data:adm 0640.
     # This supplementary host GID retains the non-root agent while allowing
     # only files already group-readable by the configured log-reader group.
@@ -87,16 +88,21 @@ services:
       - /proc:/host/proc:ro
       # Host-root bind enables statfs, network inventory, log reading, and
       # the read-only file manager. No agent route accepts raw browser input.
-      - /:/host/root:ro
+      - /:/host/root:rw
       # Write-capable Docker socket for container management operations
       # (restart, stop, prune, pull). Phase 2 — see command-runner.js.
       - /var/run/docker.sock:/var/run/docker.sock
     secrets:
       - agent_token
-    read_only: true
     cap_drop:
       - ALL
+    cap_add:
+      - SYS_ADMIN
+      - DAC_OVERRIDE
+      - SYS_CHROOT
     security_opt:
+      - apparmor=unconfined
+      - label=disable
       - no-new-privileges:true
     tmpfs:
       - /tmp:size=16m,mode=1777

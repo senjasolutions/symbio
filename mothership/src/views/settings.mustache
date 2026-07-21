@@ -2,6 +2,7 @@
 <p class="text-secondary small text-uppercase mb-1">Symbio</p><h1 class="h3 mb-3">{{#t}}settings.title{{/t}}</h1>
 <ul class="nav nav-tabs mb-3">
   <li class="nav-item"><a class="nav-link{{#tabGeneral}} active{{/tabGeneral}}" href="?tab=general"><i class="fa-solid fa-sliders me-1" aria-hidden="true"></i> {{#t}}settings.general{{/t}}</a></li>
+  {{#isSuperadmin}}<li class="nav-item"><a class="nav-link{{#tabAdvanced}} active{{/tabAdvanced}}" href="?tab=advanced"><i class="fa-solid fa-wrench me-1" aria-hidden="true"></i> {{#t}}settings.advanced{{/t}}</a></li>{{/isSuperadmin}}
   <li class="nav-item"><a class="nav-link{{#tabUsers}} active{{/tabUsers}}" href="?tab=users"><i class="fa-solid fa-users me-1" aria-hidden="true"></i> {{#t}}settings.users{{/t}}</a></li>
   {{#isSuperadmin}}<li class="nav-item"><a class="nav-link{{#tabLlm}} active{{/tabLlm}}" href="?tab=llm"><i class="fa-solid fa-brain me-1" aria-hidden="true"></i> {{#t}}settings.llm{{/t}}</a></li>{{/isSuperadmin}}
   {{#isSuperadmin}}<li class="nav-item"><a class="nav-link{{#tabMessaging}} active{{/tabMessaging}}" href="?tab=messaging"><i class="fa-solid fa-paper-plane me-1" aria-hidden="true"></i> {{#t}}settings.messaging{{/t}}</a></li>{{/isSuperadmin}}
@@ -67,6 +68,66 @@
     </form>
 </section>{{/isSuperadmin}}
 {{/tabGeneral}}
+
+{{#tabAdvanced}}
+{{#isSuperadmin}}
+{{#httpsRenewSuccess}}<div class="alert alert-success"><i class="fa-solid fa-check me-1" aria-hidden="true"></i> {{#t}}settings.httpsRenewSuccess{{/t}}</div>{{/httpsRenewSuccess}}
+{{#httpsRenewError}}<div class="alert alert-danger">{{#t}}settings.httpsRenewError{{/t}}</div>{{/httpsRenewError}}
+
+<section class="card mb-3">
+  <div class="card-header"><strong><i class="fa-solid fa-shield-halved me-1" aria-hidden="true"></i> {{#t}}settings.httpsSetupTitle{{/t}}</strong></div>
+  <div class="card-body">
+    {{#httpsEnabled}}
+    <p class="text-success mb-2"><i class="fa-solid fa-check-circle me-1" aria-hidden="true"></i> {{#t}}settings.httpsActive{{/t}}</p>
+    {{/httpsEnabled}}
+    {{#httpsDomainSaved}}<div class="alert alert-success"><i class="fa-solid fa-check me-1" aria-hidden="true"></i> {{#t}}settings.httpsDomainSaved{{/t}}</div>{{/httpsDomainSaved}}
+    <form method="post" action="/settings/https/domain">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}">
+      <div class="mb-3">
+        <label class="form-label" for="httpsDomain">{{#t}}settings.httpsDomainName{{/t}}</label>
+        <input class="form-control" id="httpsDomain" name="domain" value="{{httpsDomain}}">
+        <div class="form-text">{{#t}}settings.httpsDomainHelp{{/t}}</div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="httpsPort">{{#t}}settings.httpsListenPort{{/t}}</label>
+        <input class="form-control" id="httpsPort" value="{{httpsPort}}" disabled>
+        <div class="form-text">{{#t}}settings.httpsPortHelp{{/t}}</div>
+      </div>
+      <button class="btn btn-outline-primary btn-sm mb-3" type="submit"><i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i> {{#t}}settings.save{{/t}}</button>
+    </form>
+    <div class="mb-0">
+      <a class="btn btn-primary{{^httpsNginxDetected}} disabled{{/httpsNginxDetected}}" href="/settings/https-wizard" role="button" aria-disabled="{{^httpsNginxDetected}}true{{/httpsNginxDetected}}">
+        <i class="fa-solid fa-lock me-1" aria-hidden="true"></i> {{#t}}settings.httpsSetupBtn{{/t}}
+      </a>
+      {{^httpsNginxDetected}}<small class="text-secondary ms-2">{{#t}}settings.httpsSetupBtnDisabled{{/t}}</small>{{/httpsNginxDetected}}
+    </div>
+  </div>
+</section>
+
+{{#httpsEnabled}}
+<section class="card mb-3">
+  <div class="card-header"><strong><i class="fa-solid fa-certificate me-1" aria-hidden="true"></i> {{#t}}settings.httpsCertTitle{{/t}}</strong></div>
+  <div class="card-body">
+    <table class="table table-sm mb-2">
+      <tr><th class="w-25">{{#t}}settings.httpsCertDomain{{/t}}</th><td>{{httpsDomain}}</td></tr>
+      <tr><th>{{#t}}settings.httpsCertIssuer{{/t}}</th><td>{{httpsCertIssuer}}</td></tr>
+      <tr><th>{{#t}}settings.httpsCertIssued{{/t}}</th><td>{{httpsCertIssued}}</td></tr>
+      <tr><th>{{#t}}settings.httpsCertExpires{{/t}}</th><td><span class="{{#httpsCertExpiring}}text-warning{{/httpsCertExpiring}}{{^httpsCertExpiring}}text-success{{/httpsCertExpiring}}">{{httpsCertExpires}}</span></td></tr>
+      <tr><th>{{#t}}settings.httpsCertAutoRenew{{/t}}</th><td>{{#httpsAutoRenew}}<span class="text-success">{{#t}}httpsWizard.yes{{/t}}</span>{{/httpsAutoRenew}}{{^httpsAutoRenew}}<span class="text-secondary">{{#t}}httpsWizard.no{{/t}}</span>{{/httpsAutoRenew}}</td></tr>
+    </table>
+    <form method="post" action="/settings/https/renew">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}">
+      <button class="btn btn-outline-primary btn-sm" type="submit"><i class="fa-solid fa-rotate me-1" aria-hidden="true"></i> {{#t}}settings.httpsRenewBtn{{/t}}</button>
+    </form>
+  </div>
+</section>
+{{/httpsEnabled}}
+
+{{/isSuperadmin}}
+{{^isSuperadmin}}
+<section class="card"><div class="card-body text-secondary"><i class="fa-solid fa-lock me-1" aria-hidden="true"></i> {{#t}}settings.restrictedMessage{{/t}}</div></section>
+{{/isSuperadmin}}
+{{/tabAdvanced}}
 
 {{#tabUsers}}
 {{#isSuperadmin}}
@@ -149,14 +210,101 @@
 <div class="card-footer"><button class="btn btn-primary" type="submit"><i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i> {{#t}}settings.llmSave{{/t}}</button></div>
 </form>
 
+{{#personalitySaved}}<div class="alert alert-success"><i class="fa-solid fa-check me-1" aria-hidden="true"></i> {{#t}}serverPersonality.saved{{/t}}</div>{{/personalitySaved}}
+<section class="card mb-3">
+  <div class="card-header"><strong><i class="fa-solid fa-id-card me-1" aria-hidden="true"></i> {{#t}}serverPersonality.title{{/t}}</strong></div>
+  <div class="card-body">
+    <p class="text-secondary mb-3">{{#t}}serverPersonality.intro{{/t}}</p>
+    <form method="post" action="/settings/llm/personality">
+      <input type="hidden" name="_csrf" value="{{csrfToken}}">
+
+      <div class="mb-3">
+        <label class="form-label" for="settingsNickname">{{#t}}serverPersonality.nickname{{/t}}</label>
+        <textarea class="form-control" id="settingsNickname" name="nickname" rows="2">{{personalityNickname}}</textarea>
+        <div class="form-text">{{#t}}serverPersonality.nicknameHelp{{/t}}</div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label" for="settingsProvider">{{#t}}serverPersonality.provider{{/t}}</label>
+        <select class="form-select" id="settingsProvider" name="provider" data-personality-provider>
+          <option value=""></option>
+          <option value="aws"{{#personalityProviderAws}} selected{{/personalityProviderAws}}>{{#t}}serverPersonality.providerAws{{/t}}</option>
+          <option value="azure"{{#personalityProviderAzure}} selected{{/personalityProviderAzure}}>{{#t}}serverPersonality.providerAzure{{/t}}</option>
+          <option value="gcp"{{#personalityProviderGcp}} selected{{/personalityProviderGcp}}>{{#t}}serverPersonality.providerGcp{{/t}}</option>
+          <option value="hetzner"{{#personalityProviderHetzner}} selected{{/personalityProviderHetzner}}>{{#t}}serverPersonality.providerHetzner{{/t}}</option>
+          <option value="digitalocean"{{#personalityProviderDo}} selected{{/personalityProviderDo}}>{{#t}}serverPersonality.providerDo{{/t}}</option>
+          <option value="linode"{{#personalityProviderLinode}} selected{{/personalityProviderLinode}}>{{#t}}serverPersonality.providerLinode{{/t}}</option>
+          <option value="vultr"{{#personalityProviderVultr}} selected{{/personalityProviderVultr}}>{{#t}}serverPersonality.providerVultr{{/t}}</option>
+          <option value="ovhcloud"{{#personalityProviderOvh}} selected{{/personalityProviderOvh}}>{{#t}}serverPersonality.providerOvh{{/t}}</option>
+          <option value="scaleway"{{#personalityProviderScaleway}} selected{{/personalityProviderScaleway}}>{{#t}}serverPersonality.providerScaleway{{/t}}</option>
+          <option value="self"{{#personalityProviderSelf}} selected{{/personalityProviderSelf}}>{{#t}}serverPersonality.providerSelf{{/t}}</option>
+          <option value="other"{{#personalityProviderOther}} selected{{/personalityProviderOther}}>{{#t}}serverPersonality.providerOther{{/t}}</option>
+        </select>
+        <div id="settingsProviderOtherGroup" class="mt-2"{{^personalityProviderOther}} style="display:none"{{/personalityProviderOther}}>
+          <input class="form-control" id="settingsProviderOther" name="providerOther" value="{{personalityProviderOtherName}}" placeholder="{{#t}}serverPersonality.providerOtherPlaceholder{{/t}}">
+        </div>
+        <div class="form-text">{{#t}}serverPersonality.providerHelp{{/t}}</div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label" for="settingsSpecs">{{#t}}serverPersonality.specs{{/t}}</label>
+        <textarea class="form-control" id="settingsSpecs" name="specs" rows="4">{{personalitySpecs}}</textarea>
+        <div class="form-text">{{#t}}serverPersonality.specsHelp{{/t}}</div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">{{#t}}serverPersonality.location{{/t}} <small class="text-secondary">({{#t}}settings.llmEndpointOptional{{/t}})</small></label>
+        <div class="row g-2">
+          <div class="col">
+            <input class="form-control" name="locationCity" value="{{personalityLocationCity}}" placeholder="{{#t}}serverPersonality.locationCity{{/t}}">
+          </div>
+          <div class="col">
+            <input class="form-control" name="locationCountry" value="{{personalityLocationCountry}}" placeholder="{{#t}}serverPersonality.locationCountry{{/t}}">
+          </div>
+          <div class="col">
+            <input class="form-control" name="locationPlanet" value="{{personalityLocationPlanet}}" placeholder="{{#t}}serverPersonality.locationPlanet{{/t}}">
+          </div>
+        </div>
+        <div class="form-text">{{#t}}serverPersonality.locationHelp{{/t}}</div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label" for="settingsPurpose">{{#t}}serverPersonality.purpose{{/t}}</label>
+        <textarea class="form-control" id="settingsPurpose" name="purpose" rows="2">{{personalityPurpose}}</textarea>
+        <div class="form-text">{{#t}}serverPersonality.purposeHelp{{/t}}</div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label" for="settingsQuirks">{{#t}}serverPersonality.quirks{{/t}}</label>
+        <textarea class="form-control" id="settingsQuirks" name="quirks" rows="2">{{personalityQuirks}}</textarea>
+        <div class="form-text">{{#t}}serverPersonality.quirksHelp{{/t}}</div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label" for="settingsExtraNotes">{{#t}}serverPersonality.extraNotes{{/t}}</label>
+        <textarea class="form-control" id="settingsExtraNotes" name="extraNotes" rows="3">{{personalityExtraNotes}}</textarea>
+        <div class="form-text">{{#t}}serverPersonality.extraNotesHelp{{/t}}</div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label" for="settingsInjectionLevel">{{#t}}setupWizard.injectionLevel{{/t}}</label>
+        <select class="form-select" id="settingsInjectionLevel" name="injectionLevel" style="max-width:350px;">
+          <option value="low"{{#injectionLevelLow}} selected{{/injectionLevelLow}}>{{#t}}setupWizard.injectionLevelLow{{/t}}</option>
+          <option value="medium"{{#injectionLevelMedium}} selected{{/injectionLevelMedium}}>{{#t}}setupWizard.injectionLevelMedium{{/t}}</option>
+          <option value="high"{{#injectionLevelHigh}} selected{{/injectionLevelHigh}}>{{#t}}setupWizard.injectionLevelHigh{{/t}}</option>
+        </select>
+        <div class="form-text">{{#t}}serverPersonality.injectionLevelHelp{{/t}}</div>
+      </div>
+
+      <button class="btn btn-primary btn-sm" type="submit"><i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i> {{#t}}settings.save{{/t}}</button>
+    </form>
+  </div>
+</section>
+
 <script>
-(function(){var e=document.getElementById("model");if(!e||!window.fetch)return;var t=document.getElementById("customModelGroup"),n=document.getElementById("customModel"),o=document.getElementById("thinkingEnabled"),l=document.getElementById("reasoningEffortGroup");function c(){var n=e.value==="__other__";t.style.display=n?"block":"none",n&&n.focus()}e.addEventListener("change",c),c(),o&&o.addEventListener("change",function(){l.style.display=o.checked?"block":"none"})})();
+(function(){var e=document.getElementById("settingsProvider");if(!e)return;var t=document.getElementById("settingsProviderOtherGroup"),n=document.getElementById("settingsProviderOther");function c(){var r=e.value==="other";t&&(t.style.display=r?"block":"none"),n&&r&&n.focus()}e.addEventListener("change",c),c()})();
 </script>
-{{/isSuperadmin}}
-{{^isSuperadmin}}
-<section class="card"><div class="card-body text-secondary"><i class="fa-solid fa-lock me-1" aria-hidden="true"></i> {{#t}}settings.restrictedMessage{{/t}}</div></section>
-{{/isSuperadmin}}
-{{/tabLlm}}
+{{/isSuperadmin}}{{^isSuperadmin}}<section class="card"><div class="card-body text-secondary"><i class="fa-solid fa-lock me-1" aria-hidden="true"></i> {{#t}}settings.restrictedMessage{{/t}}</div></section>{{/isSuperadmin}}{{/tabLlm}}
 
 {{#tabMessaging}}
 {{#isSuperadmin}}

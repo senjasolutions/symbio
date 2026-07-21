@@ -21,12 +21,15 @@ RUN mkdir -p /data /host/etc \
   && chown node:node /data \
   # Create docker group for optional Docker socket access. The actual GID is
   # mapped at runtime via group_add in compose.yaml (SYMBIO_DOCKER_GROUP_GID).
-  && groupadd -g 999 docker 2>/dev/null; exit 0
+    && groupadd -g 999 docker 2>/dev/null; exit 0
 
-# Add node user to docker group so it can read the Docker socket when the group
-# is mapped via runtime group_add. 
-RUN usermod -aG docker node 2>/dev/null; exit 0
-USER node
+# Install util-linux for nsenter (host command execution for HTTPS setup)
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends util-linux \
+  && rm -rf /var/lib/apt/lists/*
+
+# Run as root for nsenter host namespace access (required for HTTPS certbot/nginx operations)
+# USER node
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.SYMBIO_AGENT_HEALTH_PORT||18767)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["sh", "-c", "mkdir -p /data/logs && node src/index.js 2>&1 | tee /data/logs/agent.log"]

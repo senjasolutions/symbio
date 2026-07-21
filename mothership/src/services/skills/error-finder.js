@@ -1,16 +1,28 @@
 /**
  * Error Finder skill — scans system and application logs for errors, classifies
  * severity, and automatically fixes simple issues like restarting a stuck service.
+ *
+ * Token optimization: content hash prevents re-processing identical logs,
+ * only error-matching lines are sent to the LLM,
+ * and open findings context helps the LLM reuse existing pattern keys.
  */
 
+import crypto from "node:crypto";
 import { collectSkillData } from "../agent-client.js";
 import { callSkillAI } from "../llm.service.js";
 import { models } from "../../db/index.js";
-import { upsertFinding } from "./helpers.js";
+import { upsertFinding, getOpenFindingsContext } from "./helpers.js";
 
 const SKILL_KEY = "error-finder";
 
-const SYSTEM_PROMPT = `You are an error analysis AI for a Linux server. Scan the log entries below.
+/** Tracks the hash of last-processed logs to skip redundant LLM calls. */
+let lastLogHash = null;
+
+/** Keywords that indicate a log line needs analysis. Kept at module level so
+ *  filter() and analyze() use the same pattern for consistent extraction. */
+const ERROR_KEYWORDS = /error|fail|fatal|critical|oops|panic|segfault|OOM|killed|timeout/i;
+
+const SYSTEM_PROMPT = `You are an error analysis AI for a Linux server. Scan the log entries below (only lines matching error keywords are shown).
 
 For each error/warning/fatal entry:
 1. Classify SEVERITY: "info" | "warning" | "critical"
@@ -19,6 +31,8 @@ For each error/warning/fatal entry:
 4. Provide a "pattern" key for deduplication (e.g. source + error type, like "nginx.connect" or "php-fpm.OOM")
 5. Suggest a FIX only if SIMPLE and SAFE (restart service, rotate logs, clear tmp)
 6. For complex issues: just report, do not suggest a fix
+
+If no actual errors are found (e.g. only informational messages matched), return an empty findings array.
 
 Use the "memory" field to record recurring error patterns the operator should know about.
 
@@ -44,26 +58,52 @@ export default {
 
   async filter(collected, config) {
     if (!collected.logs) return false;
-    const keywords = /error|fail|fatal|critical|oops|panic|segfault|OOM|killed|timeout/i;
+
+    // Content hash — skip if log content is identical to the last processed run.
+    // Prevents redundant LLM calls when no new log data has been written.
+    const logStr = JSON.stringify(collected.logs);
+    const currentHash = crypto.createHash("md5").update(logStr).digest("hex");
+
     const ignorePatterns = Array.isArray(config.ignorePatterns) ? config.ignorePatterns.map((p) => new RegExp(p, "i")) : [];
+    let hasMatch = false;
     for (const lines of Object.values(collected.logs)) {
       if (!Array.isArray(lines)) continue;
       for (const line of lines) {
-        if (!keywords.test(line)) continue;
+        if (!ERROR_KEYWORDS.test(line)) continue;
         if (ignorePatterns.some((re) => re.test(line))) continue;
-        return true;
+        hasMatch = true;
+        break;
       }
+      if (hasMatch) break;
     }
-    return false;
+    if (!hasMatch) return false;
+
+    // Same log content as last run — no new errors to analyze
+    if (currentHash === lastLogHash) return false;
+    lastLogHash = currentHash;
+
+    return true;
   },
 
   async analyze(collected, llmConfig, config, memory) {
-    const logText = Object.entries(collected.logs || {})
-      .map(([source, lines]) => `--- ${source} ---\n${(lines || []).join("\n")}`)
-      .join("\n\n");
-    if (!logText.trim()) return { findings: [], summary: "No log data available." };
+    // Extract only lines matching error keywords — drastically reduces LLM input.
+    const logParts = [];
+    for (const [source, lines] of Object.entries(collected.logs || {})) {
+      const matching = (lines || []).filter((line) => ERROR_KEYWORDS.test(line));
+      if (matching.length) {
+        logParts.push(`--- ${source} ---\n${matching.join("\n")}`);
+      }
+    }
+    if (!logParts.length) return { findings: [], summary: "No log data available." };
+    const logText = logParts.join("\n\n");
 
-    const systemPrompt = SYSTEM_PROMPT + (memory ? `\n\nMemory from past runs:\n${memory}` : "");
+    // Inject open findings context so the LLM reuses existing pattern keys
+    // instead of generating new ones for the same issues.
+    const openCtx = await getOpenFindingsContext(models, SKILL_KEY);
+    const dataContent = openCtx ? `${openCtx}\n\n${logText}` : logText;
+
+    const trimmedMemory = memory ? memory.slice(-500) : "";
+    const systemPrompt = SYSTEM_PROMPT + (trimmedMemory ? `\n\nMemory from past runs:\n${trimmedMemory}` : "");
 
     const result = await callSkillAI({
       provider: llmConfig.provider, apiKey: llmConfig.apiKey,

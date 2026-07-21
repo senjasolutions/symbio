@@ -13,6 +13,7 @@ import { getServerInfo, getProcessList, getListeningPorts, getMemoryDetail, getD
 import { serviceRegistry } from "./components/services/index.js";
 import { collectSkillData } from "./skills-collector.js";
 import { ACTION_HANDLERS } from "./skills-executor.js";
+import { checkPrerequisites, runSetup, getCertInfo, renewCert } from "./https-setup.js";
 
 /** Builds the intentionally small agent API reserved for local diagnostics. */
 export const createAgentApp = () => {
@@ -303,6 +304,47 @@ export const createAgentBridgeApp = () => {
         }
       }
       return context.json({ ok: true, results });
+    } catch (error) { return context.json({ ok: false, error: error.message }, 400); }
+  });
+
+  // ---- HTTPS Setup endpoints (executed via nsenter on host) ----
+
+  /** Check prerequisites for HTTPS setup (nginx, certbot, DNS). */
+  app.post("/api/v1/https/check", async (context) => {
+    try {
+      const body = await context.req.json();
+      const result = await checkPrerequisites(body.domain || "");
+      return context.json({ ok: true, ...result });
+    } catch (error) { return context.json({ ok: false, error: error.message }, 400); }
+  });
+
+  /** Execute the full HTTPS setup (install certbot, nginx config, certbot --nginx, verify). */
+  app.post("/api/v1/https/setup", async (context) => {
+    try {
+      const body = await context.req.json();
+      if (!body.domain || !body.port || !body.email || !body.script) {
+        return context.json({ ok: false, error: "domain, port, email, and script are required." }, 400);
+      }
+      const result = await runSetup(body.domain, body.port, body.email, body.script);
+      return context.json({ ok: result.ok, ...result });
+    } catch (error) { return context.json({ ok: false, error: error.message }, 400); }
+  });
+
+  /** Get certificate info for a domain. */
+  app.post("/api/v1/https/cert-info", async (context) => {
+    try {
+      const body = await context.req.json();
+      if (!body.domain) return context.json({ ok: false, error: "Domain is required." }, 400);
+      const result = await getCertInfo(body.domain);
+      return context.json({ ok: true, ...result });
+    } catch (error) { return context.json({ ok: false, error: error.message }, 400); }
+  });
+
+  /** Manually trigger certbot renewal. */
+  app.post("/api/v1/https/renew", async (context) => {
+    try {
+      const result = await renewCert();
+      return context.json({ ok: result.ok, ...result });
     } catch (error) { return context.json({ ok: false, error: error.message }, 400); }
   });
 

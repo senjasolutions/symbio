@@ -45,3 +45,21 @@ export const collectSkillData = async (types, options = {}) => {
 export const executeSkillActions = async (actions) => {
   return post("/api/v1/skills/execute", { actions });
 };
+
+/** Generic agent bridge POST with configurable timeout. */
+export const bridgePost = async (path, body, timeoutMs = 30000) => {
+  const response = await fetch(`${AGENT_URL}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${AGENT_TOKEN}`,
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(`Agent bridge error (${response.status}): ${text.slice(0, 200)}`);
+  }
+  return response.json();
+};

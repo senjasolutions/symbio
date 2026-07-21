@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="/assets/styles.css">
 </head>
 <body>
-  {{#insecureHttp}}<div class="warning-banner">{{#t}}nav.betaWarning{{/t}}</div>{{/insecureHttp}}
+  {{#showHttpWarning}}<div class="warning-banner"><span>{{#t}}nav.httpWarning{{/t}}</span> <a class="btn btn-sm btn-outline-warning ms-2" href="/settings?tab=advanced">{{#t}}nav.httpsSetupLink{{/t}}</a></div>{{/showHttpWarning}}
   {{#standalone}}<main class="standalone-content">{{{body}}}</main>{{/standalone}}
   {{^standalone}}{{#authenticated}}
   <div class="app-shell">

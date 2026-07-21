@@ -6,7 +6,7 @@
       <p class="text-uppercase text-secondary small mb-1">{{#t}}setupWizard.subtitle{{/t}}</p>
       <h1 class="h3 mb-2" id="wizard-title">{{#t}}setupWizard.welcome{{/t}}</h1>
       <p class="text-secondary mb-3">{{#t}}setupWizard.intro{{/t}}</p>
-      <div class="wizard-steps mb-3"><span class="wizard-step active">1</span><span class="wizard-step-divider"></span><span class="wizard-step">2</span><span class="wizard-step-divider"></span><span class="wizard-step">3</span></div>
+      <div class="wizard-steps mb-3"><span class="wizard-step active">1</span><span class="wizard-step-divider"></span><span class="wizard-step">2</span><span class="wizard-step-divider"></span><span class="wizard-step">3</span><span class="wizard-step-divider"></span><span class="wizard-step">4</span></div>
       <p class="fw-semibold mb-2">{{#t}}setupWizard.step1Title{{/t}}</p>
       <form method="post" action="/setup-wizard">
         <input type="hidden" name="_csrf" value="{{csrfToken}}">
@@ -42,7 +42,7 @@
       <p class="text-uppercase text-secondary small mb-1">{{#t}}setupWizard.subtitle{{/t}}</p>
       <h1 class="h3 mb-2" id="wizard-title">{{#t}}setupWizard.configureAI{{/t}}</h1>
       <p class="text-secondary mb-3">{{#t}}setupWizard.aiIntro{{/t}}</p>
-      <div class="wizard-steps mb-3"><span class="wizard-step completed">✓</span><span class="wizard-step-divider"></span><span class="wizard-step active">2</span><span class="wizard-step-divider"></span><span class="wizard-step">3</span></div>
+      <div class="wizard-steps mb-3"><span class="wizard-step completed">✓</span><span class="wizard-step-divider"></span><span class="wizard-step active">2</span><span class="wizard-step-divider"></span><span class="wizard-step">3</span><span class="wizard-step-divider"></span><span class="wizard-step">4</span></div>
       <p class="fw-semibold mb-2">{{#t}}setupWizard.step2Title{{/t}}</p>
       <form method="post" action="/setup-wizard">
         <input type="hidden" name="_csrf" value="{{csrfToken}}">
@@ -111,7 +111,7 @@
       <p class="text-uppercase text-secondary small mb-1">{{#t}}setupWizard.subtitle{{/t}}</p>
       <h1 class="h3 mb-2" id="wizard-title">{{#t}}setupWizard.configureAI{{/t}}</h1>
       <p class="text-secondary mb-3">{{#t}}setupWizard.aiPrefIntro{{/t}}</p>
-      <div class="wizard-steps mb-3"><span class="wizard-step completed">✓</span><span class="wizard-step-divider"></span><span class="wizard-step completed">✓</span><span class="wizard-step-divider"></span><span class="wizard-step active">3</span></div>
+      <div class="wizard-steps mb-3"><span class="wizard-step completed">✓</span><span class="wizard-step-divider"></span><span class="wizard-step completed">✓</span><span class="wizard-step-divider"></span><span class="wizard-step active">3</span><span class="wizard-step-divider"></span><span class="wizard-step">4</span></div>
       <p class="fw-semibold mb-2">{{#t}}setupWizard.step3Title{{/t}}</p>
       <form method="post" action="/setup-wizard">
         <input type="hidden" name="_csrf" value="{{csrfToken}}">
@@ -154,6 +154,112 @@
   </section>
 </div>
 {{/showStep3}}
+
+{{#showStep4}}
+<div class="wizard-shell">
+  <section class="card wizard-card" aria-labelledby="wizard-title">
+    <div class="card-body p-4">
+      <p class="text-uppercase text-secondary small mb-1">{{#t}}setupWizard.subtitle{{/t}}</p>
+      <h1 class="h3 mb-2" id="wizard-title">{{#t}}setupWizard.step4Title{{/t}}</h1>
+      <p class="text-secondary mb-3">{{#t}}setupWizard.personalityIntro{{/t}}</p>
+      <div class="wizard-steps mb-3"><span class="wizard-step completed">✓</span><span class="wizard-step-divider"></span><span class="wizard-step completed">✓</span><span class="wizard-step-divider"></span><span class="wizard-step completed">✓</span><span class="wizard-step-divider"></span><span class="wizard-step active">4</span></div>
+      <p class="fw-semibold mb-2">{{#t}}setupWizard.step4Title{{/t}}</p>
+      <form method="post" action="/setup-wizard">
+        <input type="hidden" name="_csrf" value="{{csrfToken}}">
+        <input type="hidden" name="step" value="4">
+
+        <div class="mb-3">
+          <label class="form-label" for="nickname">{{#t}}serverPersonality.nickname{{/t}}</label>
+          <textarea class="form-control" id="nickname" name="nickname" rows="2">{{personalityNickname}}</textarea>
+          <div class="form-text">{{#t}}serverPersonality.nicknameHelp{{/t}}</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="provider">{{#t}}serverPersonality.provider{{/t}}</label>
+          <select class="form-select" id="provider" name="provider" data-personality-provider>
+            <option value=""></option>
+            <option value="aws"{{#personalityProviderAws}} selected{{/personalityProviderAws}}>{{#t}}serverPersonality.providerAws{{/t}}</option>
+            <option value="azure"{{#personalityProviderAzure}} selected{{/personalityProviderAzure}}>{{#t}}serverPersonality.providerAzure{{/t}}</option>
+            <option value="gcp"{{#personalityProviderGcp}} selected{{/personalityProviderGcp}}>{{#t}}serverPersonality.providerGcp{{/t}}</option>
+            <option value="hetzner"{{#personalityProviderHetzner}} selected{{/personalityProviderHetzner}}>{{#t}}serverPersonality.providerHetzner{{/t}}</option>
+            <option value="digitalocean"{{#personalityProviderDo}} selected{{/personalityProviderDo}}>{{#t}}serverPersonality.providerDo{{/t}}</option>
+            <option value="linode"{{#personalityProviderLinode}} selected{{/personalityProviderLinode}}>{{#t}}serverPersonality.providerLinode{{/t}}</option>
+            <option value="vultr"{{#personalityProviderVultr}} selected{{/personalityProviderVultr}}>{{#t}}serverPersonality.providerVultr{{/t}}</option>
+            <option value="ovhcloud"{{#personalityProviderOvh}} selected{{/personalityProviderOvh}}>{{#t}}serverPersonality.providerOvh{{/t}}</option>
+            <option value="scaleway"{{#personalityProviderScaleway}} selected{{/personalityProviderScaleway}}>{{#t}}serverPersonality.providerScaleway{{/t}}</option>
+            <option value="self"{{#personalityProviderSelf}} selected{{/personalityProviderSelf}}>{{#t}}serverPersonality.providerSelf{{/t}}</option>
+            <option value="other"{{#personalityProviderOther}} selected{{/personalityProviderOther}}>{{#t}}serverPersonality.providerOther{{/t}}</option>
+          </select>
+          <div id="providerOtherGroup" class="mt-2"{{^personalityProviderOther}} style="display:none"{{/personalityProviderOther}}>
+            <input class="form-control" id="providerOther" name="providerOther" value="{{personalityProviderOtherName}}" placeholder="{{#t}}serverPersonality.providerOtherPlaceholder{{/t}}">
+          </div>
+          <div class="form-text">{{#t}}serverPersonality.providerHelp{{/t}}</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="specs">{{#t}}serverPersonality.specs{{/t}}</label>
+          <textarea class="form-control" id="specs" name="specs" rows="4">{{personalitySpecs}}</textarea>
+          <div class="form-text">{{#t}}serverPersonality.specsHelp{{/t}}</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">{{#t}}serverPersonality.location{{/t}} <small class="text-secondary">({{#t}}setupWizard.endpointOptional{{/t}})</small></label>
+          <div class="row g-2">
+            <div class="col">
+              <input class="form-control" name="locationCity" value="{{personalityLocationCity}}" placeholder="{{#t}}serverPersonality.locationCity{{/t}}">
+            </div>
+            <div class="col">
+              <input class="form-control" name="locationCountry" value="{{personalityLocationCountry}}" placeholder="{{#t}}serverPersonality.locationCountry{{/t}}">
+            </div>
+            <div class="col">
+              <input class="form-control" name="locationPlanet" value="{{personalityLocationPlanet}}" placeholder="{{#t}}serverPersonality.locationPlanet{{/t}}">
+            </div>
+          </div>
+          <div class="form-text">{{#t}}serverPersonality.locationHelp{{/t}}</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="purpose">{{#t}}serverPersonality.purpose{{/t}}</label>
+          <textarea class="form-control" id="purpose" name="purpose" rows="2">{{personalityPurpose}}</textarea>
+          <div class="form-text">{{#t}}serverPersonality.purposeHelp{{/t}}</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="quirks">{{#t}}serverPersonality.quirks{{/t}}</label>
+          <textarea class="form-control" id="quirks" name="quirks" rows="2">{{personalityQuirks}}</textarea>
+          <div class="form-text">{{#t}}serverPersonality.quirksHelp{{/t}}</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="extraNotes">{{#t}}serverPersonality.extraNotes{{/t}}</label>
+          <textarea class="form-control" id="extraNotes" name="extraNotes" rows="3">{{personalityExtraNotes}}</textarea>
+          <div class="form-text">{{#t}}serverPersonality.extraNotesHelp{{/t}}</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="injectionLevel">{{#t}}setupWizard.injectionLevel{{/t}}</label>
+          <select class="form-select" id="injectionLevel" name="injectionLevel" style="max-width:350px;">
+            <option value="low"{{#injectionLevelLow}} selected{{/injectionLevelLow}}>{{#t}}setupWizard.injectionLevelLow{{/t}}</option>
+            <option value="medium"{{#injectionLevelMedium}} selected{{/injectionLevelMedium}}>{{#t}}setupWizard.injectionLevelMedium{{/t}}</option>
+            <option value="high"{{#injectionLevelHigh}} selected{{/injectionLevelHigh}}>{{#t}}setupWizard.injectionLevelHigh{{/t}}</option>
+          </select>
+          <div class="form-text">{{#t}}serverPersonality.injectionLevelHelp{{/t}}</div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-secondary flex-fill" href="/setup-wizard?step=3">&larr; {{#t}}setupWizard.back{{/t}}</a>
+          <button class="btn btn-primary flex-fill" type="submit">{{#t}}setupWizard.complete{{/t}}</button>
+          <a class="btn btn-outline-secondary flex-fill" href="/setup-wizard?step=skip4">{{#t}}setupWizard.skip{{/t}}</a>
+        </div>
+      </form>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){var e=document.getElementById("provider");if(!e)return;var t=document.getElementById("providerOtherGroup"),n=document.getElementById("providerOther");function c(){var r=e.value==="other";t&&(t.style.display=r?"block":"none"),n&&r&&n.focus()}e.addEventListener("change",c),c()})();
+</script>
+{{/showStep4}}
 
 <script>
 (function(){var e=document.getElementById("model");if(!e||!window.fetch)return;var t=document.getElementById("customModelGroup"),n=document.getElementById("customModel");t&&t.classList.add("d-none");function c(){var r=e.value==="__other__";t&&t.classList.toggle("d-none",!r),n&&r&&n.focus()}e.addEventListener("change",c),c()})();

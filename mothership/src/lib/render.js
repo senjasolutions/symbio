@@ -55,6 +55,22 @@ export const renderPage = async (context, name, data = {}, options = {}) => {
     if (themeRow) theme = themeRow.value || "blue";
   } catch (e) { console.error("Failed to load theme setting:", e.message); }
 
+  // Detect HTTPS and localhost for the unencrypted warning banner
+  let isHttps = false;
+  let isLocalhost = false;
+  let httpsReady = false;
+  try {
+    const proto = context.req.header("x-forwarded-proto") || "";
+    isHttps = proto === "https" || String(context.req.url).startsWith("https");
+    const host = context.req.header("host") || "";
+    isLocalhost = host.startsWith("127.0.0.1") || host.startsWith("localhost") || host.startsWith("[::1]");
+    const httpsStatusRow = await models.Setting.findByPk("https_status");
+    if (httpsStatusRow?.value) {
+      const parsed = JSON.parse(httpsStatusRow.value);
+      httpsReady = parsed.enabled === true;
+    }
+  } catch (e) { /* non-fatal — warning stays visible */ }
+
   // Derive the page title from the most specific source available
   let title;
   if (options.titleKey) {
@@ -102,6 +118,8 @@ export const renderPage = async (context, name, data = {}, options = {}) => {
     userDisplayName: auth?.user?.displayName,
     csrfToken: auth?.session?.csrfToken,
     insecureHttp: !config.cookieSecure,
+    isHttps, isLocalhost, httpsReady,
+    showHttpWarning: !config.cookieSecure && !isHttps && !isLocalhost && httpsReady !== true,
     t: tLambda,
     locale,
     languageChoices: LANGUAGE_CHOICES,

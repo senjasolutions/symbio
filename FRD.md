@@ -279,3 +279,80 @@ Migration v20 adds `heal_skill_key` (TEXT, nullable) column to `alert_rules`. Wh
 **Form:** New "Self-Healing" card on alert rule create/edit with dropdown: "None" or "Storage Maid". Future: expandable to execute arbitrary commands.
 
 **Files:** `/mothership/src/db/migrations.js` v20, `models.js` `AlertRule.healSkillKey`, `alert-engine.js` trigger call, `scheduler.js` `triggerHealSkill()` export, `web.js` form handlers, `alert-rule-form.mustache` card, `en.json` 5 keys.
+
+## 13. Server Personality (2026-07-21)
+
+Server Personality is optional server metadata injected into LLM calls to reduce hallucination — like a handover note for the AI. All fields optional, stored as JSON in `settings` table key `server_personality`.
+
+**Fields:**
+- `nickname` — server identifier (prefilled from hostname in wizard)
+- `provider` — `{ type, otherName }` with select: AWS/Azure/GCP/Hetzner/Common/Self/Other
+- `specs` — hardware specs (auto-detected from DB in wizard: CPU model + arch + cores, RAM, storage, "KVM")
+- `location` — `{ city, country, planet }` (default "Earth")
+- `purpose` — what the server does (free text)
+- `quirks` — unique setup info
+- `extraNotes` — misc notes
+- `injectionLevel` — `low` | `medium` (default) | `high`
+
+**Injection levels (field gating):**
+| Level | Nickname | Purpose | Quirks | Specs | Provider | Location | Notes |
+|-------|:--------:|:-------:|:------:|:-----:|:--------:|:--------:|:-----:|
+| Low | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Medium | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| High | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+**LLM injection:** `buildServerPersonalityContext()` in `llm.service.js` reads the setting, formats non-empty fields per level, and appends to the system prompt in both `callSkillAI` (skills) and `askAI` (dashboard AI bar).
+
+**UI:**
+- **Setup Wizard Step 4**: Post-AI-Preferences step with all fields, auto-detect prefill for nickname + specs, injection level selector, Skip button.
+- **Settings → LLM Integration tab**: Personality card below the LLM config form, superadmin only.
+
+**Routes:** `GET/POST /setup-wizard` step 4, `POST /settings/llm/personality`, `GET /settings` loads personality data.
+
+**Files:** `mothership/src/services/llm.service.js`, `mothership/src/routes/web.js`, `mothership/src/views/setup-wizard.mustache`, `mothership/src/views/settings.mustache`, `mothership/src/i18n/en.json`.
+
+**NOTE (multi-server roadmap):** Server Personality is currently a server-wide setting stored in the `settings` table. When multi-server support is implemented, this must move to per-server configuration so each server can have its own personality context. The JSON schema (`nickname`, `provider`, `specs`, `location`, `purpose`, `quirks`, `extraNotes`, `injectionLevel`) is designed to remain stable — only the storage location changes.
+
+## 14. HTTPS Setup (2026-07-21)
+
+HTTPS Setup wizard automates securing the mothership dashboard with Let's Encrypt certificates via nginx + certbot. Uses agent bridge for host command execution.
+
+**Architecture:**
+- Mothership: UI + wizard logic + bash script template
+- Agent: host command execution via `nsenter -t 1 -m -u -n -- <cmd>` (needs `pid: host` + `cap_add: SYS_ADMIN` + root)
+- Agent runs all commands in the host namespace — no writable bind mounts needed
+
+**Agent endpoints:**
+- `POST /api/v1/https/check` — checks nginx/certbot installed, DNS resolution, server IP
+- `POST /api/v1/https/setup` — executes atomic bash script (nginx config + certbot + verify)
+- `POST /api/v1/https/cert-info` — reads cert dates from openssl
+- `POST /api/v1/https/renew` — runs `certbot renew --nginx`
+
+**Bash script (`https-setup-script.js`):**
+- Atomic: `fail_and_rollback()` restores `.bak` config on any failure
+- `nginx -t` mandatory BEFORE enabling site + AFTER certbot modifies config
+- Installs certbot if missing via apt
+- Writes HTTP nginx config → runs certbot `--nginx` → certbot auto-adds SSL
+- Verifies HTTPS with curl at the end
+
+**Warning banner:**
+- Hides when: HTTPS detected (X-Forwarded-Proto), localhost access, or `https_status.enabled` is true
+- Shows: "Connection not secure — HTTPS not configured." with "Setup HTTPS →" button linking to Settings → Advanced
+
+**Settings → Advanced tab (superadmin only):**
+- Card "Symbio Mothership Setting": Domain Name (disabled), Listen Port (read-only), "HTTPS Setup Wizard" button (disabled if nginx not detected)
+- When HTTPS active: Certificate info card with issuer, issued date, expiry, auto-renewal status, Renew Now button
+
+**Wizard flow:**
+1. Step 1: Domain + email input, check prerequisites (nginx, certbot, DNS)
+2. Step 2: Confirmation — shows bash script with domain/port filled in
+3. Step 3: Execute setup via agent, show output, save `https_status` on success
+
+**Cert renewal:** Built-in certbot systemd timer (`certbot.timer`). Manual trigger via Advanced tab.
+
+**Safety:**
+- nginx -t before enable AND after certbot
+- Atomic rollback: backup → write → test → reload → certbot → verify OR restore backup
+- `https_status` setting stores `{ enabled: true, domain, setupAt }` — no partial state
+
+**Notes:** Apache support deferred. IPv6 detection deferred. `https_status` is mothership-wide (stays in `settings` table), not per-server.
