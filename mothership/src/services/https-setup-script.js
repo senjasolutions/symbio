@@ -48,7 +48,7 @@ log() {
 fail_and_rollback() {
     log "ERROR: \$1"
     log "Rolling back configuration..."
-    if [ -f "$BACKUP_FILE" ]; then
+    if [ -f "$BACKUP_FILE" ] && [ -s "$BACKUP_FILE" ]; then
         guard_path "$BACKUP_FILE"
         guard_path "$CONFIG_FILE"
         cp "$BACKUP_FILE" "$CONFIG_FILE" 2>/dev/null || true
@@ -59,7 +59,7 @@ fail_and_rollback() {
             log "Rollback WARNING: restored config failed nginx -t. Manual fix needed: $CONFIG_FILE"
         fi
     else
-        # No backup means this was a fresh install — remove the failed config
+        # No real backup (first-time setup or empty) — clean up
         guard_path "$CONFIG_FILE"
         guard_path "$NGINX_ENABLED/symbio.conf"
         rm -f "$CONFIG_FILE" "$NGINX_ENABLED/symbio.conf" 2>/dev/null || true
